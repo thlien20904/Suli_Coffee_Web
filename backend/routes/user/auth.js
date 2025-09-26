@@ -136,7 +136,7 @@ router.post("/register", async (req, res) => {
  * - Validate
  * - So khớp mật khẩu (hash/plain – nếu DB cũ)
  * - Nếu remember=true -> token 30 ngày, ngược lại 2 giờ
- * - Trả { token, role, user }
+ * - Nếu Role = 'Banned' => chặn đăng nhập
  */
 router.post("/login", async (req, res) => {
   try {
@@ -166,6 +166,15 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({
         errors: [errObj(null, "Username/Email hoặc mật khẩu không đúng.")],
       });
+
+    // ❌ Check tài khoản bị ban
+    if (user.Role === "Banned") {
+      return res.status(403).json({
+        errors: [
+          errObj(null, "Tài khoản của bạn đã bị khóa, vui lòng liên hệ admin."),
+        ],
+      });
+    }
 
     const passInDb = user.PasswordHash || "";
     const looksHashed =

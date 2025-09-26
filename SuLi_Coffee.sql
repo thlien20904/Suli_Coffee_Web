@@ -258,6 +258,18 @@ VALUES
 INSERT INTO Account (DisplayName, UserName, PassWord, RoleName)
 VALUES
 ('Admin ', 'admin', '1', 'Admin');
+-- Tài khoản quản lý
+INSERT INTO Account (DisplayName, UserName, PassWord, RoleName)
+VALUES 
+('Nguyễn Văn Quản', 'manager1', '123456', N'Quản lý'),
+
+-- Tài khoản pha chế
+('Trần Thị Pha', 'phache1', '123456', N'Pha chế'),
+('Lê Văn Chế', 'phache2', '123456', N'Pha chế'),
+
+-- Tài khoản phục vụ
+('Phạm Thị Phục', 'phucvu1', '123456', N'Phục vụ'),
+('Hoàng Văn Vụ', 'phucvu2', '123456', N'Phục vụ');
 
 INSERT INTO TableFood (TableName, TrangThai)
 VALUES
@@ -677,10 +689,72 @@ VALUES
 
 
 
-select *from OrderDetails 
+-- Bảng GioHang (Thêm dữ liệu mẫu cho giỏ hàng của người dùng)
+INSERT INTO GioHang (Id, FoodId, SoLuong, SizeID, TotalPrice)
+VALUES 
+(1, 1, 2, 1, 90000),  -- User 1, Food 1 (Trà xanh espresso marble), Số lượng 2, Size Nhỏ, Tổng giá 90000
+(1, 2, 1, 2, 56000),  -- User 1, Food 2 (Bạc xỉu lắc sữa yến mạch), Số lượng 1, Size Vừa, Tổng giá 56000 (50000 + 6000)
+(2, 11, 3, 3, 144000), -- User 2, Food 11 (Trà sữa trân châu đường đen), Số lượng 3, Size Lớn, Tổng giá 144000 ( (35000 + 16000) * 3 với discount tính toán nếu cần)
+(3, 7, 1, 1, 25000);   -- User 3, Food 7 (Cà phê sữa đá), Số lượng 1, Size Nhỏ, Tổng giá 25000
+GO
 
+-- Bảng GioHang_Topping (Thêm dữ liệu mẫu cho topping trong giỏ hàng)
+INSERT INTO GioHang_Topping (GioHangID, ToppingID)
+VALUES 
+(1, 1),  -- GioHang 1, Topping 1 (Thạch Sương Sáo)
+(1, 2),  -- GioHang 1, Topping 2 (Thạch Kim Quất)
+(2, 3),  -- GioHang 2, Topping 3 (Thạch Cà Phê)
+(3, 4);  -- GioHang 3, Topping 4 (Foam Phô Mai)
+GO
 
+-- Bảng Orders (Thêm dữ liệu mẫu cho đơn hàng)
+INSERT INTO Orders (UserId, OrderDate, TotalAmount, PaymentMethodId, StatusId)
+VALUES 
+(1, GETDATE(), 146000, 1, 1),  -- User 1, Tổng tiền 146000 (từ GioHang ví dụ), Phương thức VN Pay, Trạng thái Đặt hàng thành công
+(2, GETDATE(), 144000, 2, 2),  -- User 2, Tổng tiền 144000, Phương thức COD, Trạng thái Đang chuẩn bị đơn hàng
+(3, GETDATE(), 25000, 1, 3),   -- User 3, Tổng tiền 25000, Phương thức VN Pay, Trạng thái Đang giao hàng
+(4, GETDATE(), 50000, 2, 4);   -- User 4 (giả sử), Tổng tiền 50000, Phương thức COD, Trạng thái Giao hàng thành công
+GO
 
+-- Bảng OrderDetails (Thêm dữ liệu mẫu cho chi tiết đơn hàng)
+INSERT INTO OrderDetails (OrderId, FoodId, SizeId, ToppingId, Quantity, Price)
+VALUES 
+(1, 1, 1, 1, 2, 45000),  -- Order 1, Food 1, Size Nhỏ, Topping 1, Số lượng 2, Giá 45000 mỗi cái
+(1, 2, 2, NULL, 1, 50000), -- Order 1, Food 2, Size Vừa, Không topping, Số lượng 1, Giá 50000
+(2, 11, 3, 3, 3, 35000),   -- Order 2, Food 11, Size Lớn, Topping 3, Số lượng 3, Giá 35000 mỗi cái
+(3, 7, 1, NULL, 1, 25000); -- Order 3, Food 7, Size Nhỏ, Không topping, Số lượng 1, Giá 25000
+GO
+
+-- Kiểm tra dữ liệu bảng PhuongThucThanhToan
+SELECT * FROM PhuongThucThanhToan;
+
+-- Kiểm tra dữ liệu bảng Orders
+SELECT * FROM Orders;
+
+-- Kiểm tra dữ liệu bảng OrderDetails
+SELECT * FROM OrderDetails;
+
+-- Kiểm tra dữ liệu bảng Food
+SELECT * FROM Food;
+
+-- Kiểm tra dữ liệu bảng Size
+SELECT * FROM Size;
+
+-- Kiểm tra dữ liệu bảng Topping (lưu ý tên bảng là Topping, không phải Toppings)
+SELECT * FROM Topping;
+
+SELECT 
+  o.OrderId,
+  o.OrderDate,
+  o.TotalAmount,
+  u.FullName AS UserName,
+  s.StatusName AS Status
+FROM Orders o
+INNER JOIN Users u ON o.UserId = u.Id
+INNER JOIN OrderStatus s ON o.StatusId = s.StatusId
+ORDER BY o.OrderDate DESC;
+
+SELECT * FROM OrderStatus;
 
 
 DECLARE @sql NVARCHAR(MAX) = '';

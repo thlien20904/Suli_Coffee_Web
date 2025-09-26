@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import "../../../styles/components/Sidebar.css";
+<link
+  href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap"
+  rel="stylesheet"
+/>;
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -43,14 +47,13 @@ const Sidebar = () => {
         {openMenu === "product" && (
           <div className="submenu show">
             <p>
-              <NavLink to="/admin/categories">Danh mục sản phẩm</NavLink>
+              <NavLink to="/admin/category">Danh mục sản phẩm</NavLink>
             </p>
             <p>
-              <NavLink to="/admin/products">Sản phẩm</NavLink>
+              <NavLink to="/admin/Food">Sản phẩm</NavLink>
             </p>
           </div>
         )}
-
         {/* Kho nguyên liệu */}
         <li
           onClick={() => toggleMenu("kho")}
@@ -66,14 +69,13 @@ const Sidebar = () => {
         {openMenu === "kho" && (
           <div className="submenu show">
             <p>
-              <NavLink to="/admin/ingredients">Nguyên liệu</NavLink>
+              <NavLink to="/admin/ingredient">Nguyên liệu</NavLink>
             </p>
             <p>
               <NavLink to="/admin/export">Xuất file</NavLink>
             </p>
           </div>
         )}
-
         {/* Báo cáo */}
         <li
           onClick={() => toggleMenu("baocao")}
@@ -96,7 +98,6 @@ const Sidebar = () => {
             </p>
           </div>
         )}
-
         {/* Manage Shop */}
         <li
           onClick={() => toggleMenu("shop")}
@@ -119,8 +120,13 @@ const Sidebar = () => {
             </p>
           </div>
         )}
-
-        {/* Đơn hàng */}
+        {/* Đơn hàng */}{" "}
+        <li className="toggleMenu">
+          <NavLink to="/admin/order" className="text-decoration-none text-dark">
+            <span>Đơn Hàng</span>
+          </NavLink>
+        </li>
+        {/* Đơn hàng
         <li
           onClick={() => toggleMenu("donhang")}
           className={`toggleMenu ${openMenu === "donhang" ? "active" : ""}`}
@@ -141,43 +147,25 @@ const Sidebar = () => {
               <NavLink to="/admin/orders/offline">Đơn hàng Offline</NavLink>
             </p>
           </div>
-        )}
-
+        )} */}
         {/* Thanh toán */}
-        <li
-          onClick={() => toggleMenu("thanhtoan")}
-          className={`toggleMenu ${openMenu === "thanhtoan" ? "active" : ""}`}
-        >
-          <span>Thanh toán</span>
-          <i
-            className={`fas fa-chevron-${
-              openMenu === "thanhtoan" ? "down" : "right"
-            }`}
-          ></i>
+        <li className="toggleMenu">
+          <NavLink
+            to="/admin/payment"
+            className="text-decoration-none text-dark"
+          >
+            <span>Thanh toán</span>
+          </NavLink>
         </li>
-        {openMenu === "thanhtoan" && (
-          <div className="submenu show">
-            {/* Có thể thêm submenu nếu cần */}
-          </div>
-        )}
-
         {/* Hóa đơn */}
-        <li
-          onClick={() => toggleMenu("hoadon")}
-          className={`toggleMenu ${openMenu === "hoadon" ? "active" : ""}`}
-        >
-          <span>Hóa đơn</span>
-          <i
-            className={`fas fa-chevron-${
-              openMenu === "hoadon" ? "down" : "right"
-            }`}
-          ></i>
+        <li className="toggleMenu">
+          <NavLink
+            to="/admin/invoice"
+            className="text-decoration-none text-dark"
+          >
+            <span>Hóa đơn</span>
+          </NavLink>
         </li>
-        {openMenu === "hoadon" && (
-          <div className="submenu show">
-            {/* Có thể thêm submenu nếu cần */}
-          </div>
-        )}
       </ul>
     </div>
   );

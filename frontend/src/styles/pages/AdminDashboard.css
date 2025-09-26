@@ -1,38 +1,113 @@
-.admin-dashboard {
-  padding: 20px;
-  background: #f8f9fa;
-  color: #333;
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.dashboard-card {
+/* =====================
+   DASHBOARD STATISTICS
+===================== */
+.dashboard-stats .card {
   background: #ffffff;
+  border: none;
+  border-radius: 15px;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  text-align: center;
+  padding: 25px 15px;
+  cursor: pointer; /* để gợi ý hover */
+}
+
+.dashboard-stats .card:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+}
+
+/* =====================
+   PRODUCT CARD
+===================== */
+.product-card {
+  background-color: #fff;
+  border: none;
   padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  min-height: 320px;
+  border-radius: 12px;
+  transition: all 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
 }
 
-.dashboard-card h3 {
-  margin: 0 0 10px;
-  font-size: 1.1rem;
+.product-card:hover {
+  transform: translateY(-5px) scale(1.01);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
 }
 
-.dashboard-card p,
-.dashboard-card ul {
+/* =====================
+   TABLE STYLING
+===================== */
+.table {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+}
+
+.table th {
+  background-color: #b1c0d5;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  padding: 12px;
+}
+
+.table td {
+  vertical-align: middle;
+  padding: 10px;
+  color: #2c3e50;
+  transition: all 0.3s ease-in-out;
+  cursor: pointer;
+}
+
+.table tbody tr:hover td {
+  background-color: #eef4fb; /* xanh nhạt */
+  color: #0d6efd; /* chữ xanh navy */
+}
+/* =====================
+   CARD STYLE (áp dụng cho col-md-3, col-md-4, card sản phẩm, thống kê)
+===================== */
+.card {
+  background: #ffffff !important;
+  border: none;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease-in-out;
+  text-align: center;
+  cursor: pointer;
+}
+
+.card:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+
+/* Card title */
+.card h5 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #34495e;
+  margin-bottom: 10px;
+}
+
+/* Card content (số liệu) */
+.card p.display-6 {
+  font-size: 28px;
+  font-weight: bold;
+  color: #818c9b;
   margin: 0;
 }
 
-.dashboard-card ul {
-  list-style: none;
-  padding: 0;
-}
-
-.dashboard-card li {
-  padding: 5px 0;
+/* Card bán chạy (ảnh sản phẩm) */
+.card img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 10px;
 }

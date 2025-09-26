@@ -31,6 +31,7 @@ function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Tự động login nếu có token trong localStorage
   useEffect(() => {
     const rememberedIdentifier = localStorage.getItem(
       "auth:rememberIdentifier"
@@ -45,7 +46,6 @@ function Login() {
       try {
         const decoded = jwtDecode(token);
         if (decoded?.exp && decoded.exp * 1000 > Date.now()) {
-          console.log("Decoded token on load:", decoded); // Debug
           dispatch(
             login({
               token,
@@ -56,7 +56,7 @@ function Login() {
               avatar: decoded.avatar,
             })
           );
-          navigate(decoded.role === "to" ? "/admin/dashboard" : "/", {
+          navigate(decoded.role === "admin" ? "/admin/dashboard" : "/", {
             replace: true,
           });
         } else {
@@ -69,6 +69,7 @@ function Login() {
     }
   }, [dispatch, navigate]);
 
+  // Xử lý Google redirect callback
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get("token");
@@ -77,7 +78,6 @@ function Login() {
     if (token && role) {
       try {
         const decoded = jwtDecode(token);
-        console.log("Decoded Google token:", decoded); // Debug
         dispatch(
           login({
             token,
@@ -92,7 +92,7 @@ function Login() {
         navigate(role === "admin" ? "/admin/dashboard" : "/");
       } catch (err) {
         console.error("Google token decode failed:", err);
-        setServerErr("Đăng nhập thất bại");
+        setServerErr("Đăng nhập thất bại.");
       }
     }
   }, [location, dispatch, navigate]);
@@ -146,7 +146,7 @@ function Login() {
         password,
         remember,
       });
-      console.log("Login response:", res.data); // Debug response
+
       const { token, role } = res.data;
 
       dispatch(
@@ -167,14 +167,30 @@ function Login() {
 
       navigate(role === "admin" ? "/admin/dashboard" : "/", { replace: true });
     } catch (err) {
-      console.error("Login error:", err.response?.data); // Debug error
-      const list = err.response?.data?.errors;
-      if (Array.isArray(list)) {
-        const mapped = { identifier: "", password: "" };
-        list.forEach((x) => (mapped[x.field] = x.msg));
-        setErrors((prev) => ({ ...prev, ...mapped }));
+      console.error("Login error:", err.response?.data);
+
+      if (err.response) {
+        const status = err.response.status;
+        const list = err.response.data?.errors;
+
+        if (status === 403) {
+          // 🚫 Bị cấm
+          setServerErr("Tài khoản của bạn đã bị khóa, vui lòng liên hệ admin.");
+        } else if (status === 401) {
+          // 🔑 Sai thông tin
+          setServerErr("Sai Username/Email hoặc mật khẩu.");
+        } else if (Array.isArray(list)) {
+          // Các lỗi validate khác
+          const mapped = { identifier: "", password: "" };
+          list.forEach((x) => (mapped[x.field] = x.msg));
+          setErrors((prev) => ({ ...prev, ...mapped }));
+          setServerErr(list[0]?.msg || "Đăng nhập thất bại.");
+        } else {
+          setServerErr("Đăng nhập thất bại.");
+        }
+      } else {
+        setServerErr("Không thể kết nối server.");
       }
-      setServerErr(err.response?.data?.message || "Đăng nhập thất bại");
     } finally {
       setLoading(false);
     }

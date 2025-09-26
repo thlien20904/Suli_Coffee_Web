@@ -7,6 +7,7 @@ const multer = require("multer");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const { poolPromise } = require("./db");
+
 const { expressjwt } = require("express-jwt"); // v8.5.1
 dotenv.config();
 
@@ -21,19 +22,19 @@ app.use(express.json());
 app.use(passport.initialize());
 
 /* ---------------- MIDDLEWARE JWT ---------------- */
-app.use(
-  "/api/admin",
-  expressjwt({ secret: process.env.JWT_SECRET, algorithms: ["HS256"] }),
-  (err, req, res, next) => {
-    if (err) {
-      console.error("JWT Error:", err);
-      return res.status(401).json({ errors: [{ msg: "Token không hợp lệ" }] });
-    }
-    console.log("JWT decoded:", req.auth);
-    req.user = req.auth;
-    next();
-  }
-);
+// app.use(
+//   "/api/admin",
+//   expressjwt({ secret: process.env.JWT_SECRET, algorithms: ["HS256"] }),
+//   (err, req, res, next) => {
+//     if (err) {
+//       console.error("JWT Error:", err);
+//       return res.status(401).json({ errors: [{ msg: "Token không hợp lệ" }] });
+//     }
+//     console.log("JWT decoded:", req.auth);
+//     req.user = req.auth;
+//     next();
+//   }
+// );
 
 /* ---------------- GOOGLE STRATEGY ---------------- */
 passport.use(
@@ -90,13 +91,21 @@ passport.use(
 );
 
 /* ---------------- MULTER UPLOAD ---------------- */
+// chỉnh multer: lưu vào public/images
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
+  destination: (req, file, cb) =>
+    cb(null, path.join(__dirname, "public/images")),
   filename: (req, file, cb) =>
     cb(null, Date.now() + path.extname(file.originalname)),
 });
 const upload = multer({ storage });
+
+// cho FE truy cập ảnh qua /images
+app.use("/images", express.static(path.join(__dirname, "public/images")));
 app.use("/uploads", express.static("uploads"));
+
+// Thêm cấu hình cho thư mục SuLi/images/
+app.use("/images", express.static(path.join(__dirname, "../images")));
 
 /* ---------------- IMPORT ROUTERS ---------------- */
 const authRouter = require("./routes/user/auth");
@@ -108,16 +117,21 @@ const blogsUserRouter = require("./routes/user/blogsUser");
 const addressesUserRouter = require("./routes/user/addressesUser");
 const homeRouter = require("./routes/user/homeUser");
 
-const productsAdminRouter = require("./routes/admin/productsAdmin");
-const usersAdminRouter = require("./routes/admin/usersAdmin");
-const ordersAdminRouter = require("./routes/admin/ordersAdmin");
-const blogsAdminRouter = require("./routes/admin/blogsAdmin");
-const addressesAdminRouter = require("./routes/admin/addressesAdmin");
-const homeAdminRouter = require("./routes/admin/homeAdmin"); // Đảm bảo import đúng
-const authAdminRoutes = require("./routes/admin/authAdmin");
-const categoriesRouter = require("./routes/shared/categories");
-const couponsRouter = require("./routes/shared/coupons");
+const FoodRouter = require("./routes/admin/Food");
+const homeAdminRouter = require("./routes/admin/homeAdmin");
 
+const authAdminRoutes = require("./routes/admin/authAdmin");
+const ingredientRouter = require("./routes/admin/ingredient");
+const categoryRouter = require("./routes/admin/category");
+const exportRouter = require("./routes/admin/export");
+const paymentRouter = require("./routes/admin/payment");
+const userRouter = require("./routes/admin/users");
+const staffRouter = require("./routes/admin/staff");
+const accountRouter = require("./routes/admin/account");
+const roleRouter = require("./routes/admin/role");
+const invoiceRouter = require("./routes/admin/invoice");
+const orderAdminRouter = require("./routes/admin/order");
+const reportRouter = require("./routes/admin/report");
 /* ---------------- USE ROUTERS ---------------- */
 app.use("/api/auth", authRouter);
 app.use("/api/profile", profileRouter);
@@ -129,16 +143,20 @@ app.use("/api/addresses", addressesUserRouter);
 app.use("/api/home", homeRouter);
 
 // Admin routes
-app.use("/api/admin", homeAdminRouter); // Đảm bảo route này được sử dụng
-app.use("/api/admin/products", productsAdminRouter);
-app.use("/api/admin/users", usersAdminRouter);
-app.use("/api/admin/orders", ordersAdminRouter);
-app.use("/api/admin/blogs", blogsAdminRouter);
-app.use("/api/admin/addresses", addressesAdminRouter);
+app.use("/api/admin/home", homeAdminRouter);
+app.use("/api/admin/foods", FoodRouter);
 app.use("/api/admin/auth", authAdminRoutes);
-
-app.use("/api/categories", categoriesRouter);
-app.use("/api/coupons", couponsRouter);
+app.use("/api/admin/ingredients", ingredientRouter);
+app.use("/api/admin/categories", categoryRouter);
+app.use("/api/admin/export", exportRouter);
+app.use("/api/admin/payment", paymentRouter);
+app.use("/api/admin/users", userRouter);
+app.use("/api/admin/staff", staffRouter);
+app.use("/api/admin/accounts", accountRouter);
+app.use("/api/admin/roles", roleRouter);
+app.use("/api/admin/invoice", invoiceRouter);
+app.use("/api/admin/orders", orderAdminRouter);
+app.use("/api/admin/report", reportRouter);
 
 /* ---------------- CONNECT DB ---------------- */
 const connectDB = async () => {
@@ -168,7 +186,7 @@ app.get(
     const token = jwt.sign(
       {
         id: req.user.UserID,
-        role: (req.user.Role || "user").toLowerCase(), // ép chữ thường
+        role: (req.user.Role || "user").toLowerCase(),
         username: req.user.Username,
         email: req.user.Email,
         avatar: req.user.AvatarURL,

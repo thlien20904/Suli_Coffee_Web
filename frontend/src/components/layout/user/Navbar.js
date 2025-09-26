@@ -11,12 +11,7 @@ import {
 } from "react-bootstrap";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  FaSearch,
-  FaBell,
-  FaShoppingCart,
-  FaUserCircle,
-} from "react-icons/fa";
+import { FaSearch, FaBell, FaShoppingCart, FaUserCircle } from "react-icons/fa";
 import axios from "axios";
 import { logout as logoutAction } from "../../../redux/userSlice";
 
@@ -122,11 +117,15 @@ export default function UserNavbar({
   return (
     <>
       <style>{styles}</style>
-      <Navbar expand="lg" className="shadow-sm py-3 custom-navbar" data-bs-theme="dark">
+      <Navbar
+        expand="lg"
+        className="shadow-sm py-3 custom-navbar"
+        data-bs-theme="dark"
+      >
         <Container>
           <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
             <svg
-              xmlns="http://www.w3.org/2000/svg"
+              xmlns="http://www.w3.org/1000/svg"
               width="26"
               height="26"
               viewBox="0 0 24 24"
@@ -160,27 +159,56 @@ export default function UserNavbar({
               <Nav.Link as={Link} to="/about" className="mx-2 custom-nav-link">
                 Giới thiệu
               </Nav.Link>
-              <Nav.Link as={Link} to="/contact" className="mx-2 custom-nav-link">
+              <Nav.Link
+                as={Link}
+                to="/contact"
+                className="mx-2 custom-nav-link"
+              >
                 Liên hệ
               </Nav.Link>
             </Nav>
 
             <Nav className="d-flex align-items-center">
-              <Form className="d-flex me-2" role="search" aria-label="Tìm kiếm sản phẩm">
-                <FormControl type="search" placeholder="Tìm kiếm…" className="custom-search-input" />
-                <Button className="custom-search-button" aria-label="Thực hiện tìm kiếm">
+              <Form
+                className="d-flex me-2"
+                role="search"
+                aria-label="Tìm kiếm sản phẩm"
+              >
+                <FormControl
+                  type="search"
+                  placeholder="Tìm kiếm…"
+                  className="custom-search-input"
+                />
+                <Button
+                  className="custom-search-button"
+                  aria-label="Thực hiện tìm kiếm"
+                >
                   <FaSearch />
                 </Button>
               </Form>
 
-              <Nav.Link as={Link} to="/notifications" className="position-relative" aria-label="Thông báo">
+              <Nav.Link
+                as={Link}
+                to="/notifications"
+                className="position-relative"
+                aria-label="Thông báo"
+              >
                 <FaBell size={20} />
-                {!!notifCount && <span className="custom-badge">{notifCount}</span>}
+                {!!notifCount && (
+                  <span className="custom-badge">{notifCount}</span>
+                )}
               </Nav.Link>
 
-              <Nav.Link as={Link} to="/cart" className="position-relative ms-3" aria-label="Giỏ hàng">
+              <Nav.Link
+                as={Link}
+                to="/cart"
+                className="position-relative ms-3"
+                aria-label="Giỏ hàng"
+              >
                 <FaShoppingCart size={20} />
-                {!!cartCount && <span className="custom-badge">{cartCount}</span>}
+                {!!cartCount && (
+                  <span className="custom-badge">{cartCount}</span>
+                )}
               </Nav.Link>
 
               <NavDropdown

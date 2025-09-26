@@ -27,11 +27,9 @@ export default function Header() {
 
   const dropdownRef = useRef(null);
 
-  // Regex kiểm tra mật khẩu mạnh
   const passwordRegex =
     /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{6,}$/;
 
-  // Validate realtime
   useEffect(() => {
     const newErrors = { oldPassword: "", newPassword: "", confirmPassword: "" };
 
@@ -47,7 +45,6 @@ export default function Header() {
     setErrors(newErrors);
   }, [newPassword, confirmPassword]);
 
-  // Đóng dropdown khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -90,7 +87,7 @@ export default function Header() {
           setNewPassword("");
           setConfirmPassword("");
           setMessage("");
-        }, 2000);
+        }, 1000);
       } else {
         setMessage(res.data.message || "Có lỗi xảy ra!");
       }
@@ -101,27 +98,35 @@ export default function Header() {
 
   return (
     <header className="admin-header">
-      <h3 className="logo">SuLiCoffee</h3>
+      {/* Bên trái (để trống hoặc sau này thêm nút) */}
+      <div className="admin-header-left"></div>
 
-      {/* Avatar + Dropdown */}
-      <div className="dropdown-wrapper" ref={dropdownRef}>
-        <div
-          className="user-info"
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-        >
-          <img
-            src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
-            alt="avatar"
-            className="avatar"
-          />
-          <span className="username">{user?.name || "Admin"}</span>
+      {/* Logo / tiêu đề ở giữa */}
+      <div className="admin-header-center">
+        <h3 className="logo">Chào mừng đến với trang Admin</h3>
+      </div>
+
+      {/* Avatar + Dropdown bên phải */}
+      <div className="admin-header-right">
+        <div className="dropdown-wrapper" ref={dropdownRef}>
+          <div
+            className="user-info"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+          >
+            <img
+              src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
+              alt="avatar"
+              className="avatar"
+            />
+            <span className="username">{user?.name || "Admin"}</span>
+          </div>
+
+          <ul className={`dropdown-menu ${dropdownOpen ? "show" : ""}`}>
+            <li onClick={() => setShowProfile(true)}>Hồ sơ</li>
+            <li onClick={() => setShowChangePassword(true)}>Đổi mật khẩu</li>
+            <li onClick={handleLogout}>Đăng xuất</li>
+          </ul>
         </div>
-
-        <ul className={`dropdown-menu ${dropdownOpen ? "show" : ""}`}>
-          <li onClick={() => setShowProfile(true)}>Hồ sơ</li>
-          <li onClick={() => setShowChangePassword(true)}>Đổi mật khẩu</li>
-          <li onClick={handleLogout}>Đăng xuất</li>
-        </ul>
       </div>
 
       {/* Modal Hồ sơ */}

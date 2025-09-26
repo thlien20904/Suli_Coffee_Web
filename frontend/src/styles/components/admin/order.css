@@ -1,0 +1,108 @@
+.order-page {
+  padding: 20px;
+  background: #f5f5f5;
+  border-radius: 12px;
+}
+
+.order-filter {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  justify-content: flex-end; /* đẩy hết sang bên phải */
+}
+
+.search-box,
+.date-group input,
+.order-filter select {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  color: #000;
+}
+
+.date-group {
+  display: flex;
+  gap: 8px;
+}
+
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.order-table th,
+.order-table td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  text-align: center;
+  color: #000;
+}
+
+.order-table th {
+  background: #fafafa;
+}
+
+.btn-green {
+  background: #28a745;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-green:hover {
+  background: #34c759;
+}
+
+.btn-gray {
+  background: #6c757d;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pagination {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.pagination button {
+  margin: 0 3px;
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #fff;
+}
+
+.pagination .active {
+  background: #28a745;
+  color: #fff;
+  border: none;
+}
+
+/* Select trạng thái trong hành động */
+.order-table select {
+  padding: 5px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  color: #000;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.order-table select:focus {
+  outline: none;
+  border-color: #28a745;
+  box-shadow: 0 0 3px rgba(40, 167, 69, 0.4);
+}
