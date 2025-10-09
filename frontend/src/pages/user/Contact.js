@@ -43,7 +43,7 @@ export default function Contact() {
           <Row className="align-items-center">
             
             <Col>
-              <h1 className="fw-bold mb-1" style={{color:'#333'}}>Liên hệ Lily Shoes</h1>
+              <h1 className="fw-bold mb-1" style={{color:'#333'}}>Liên hệ SuLi Coffee</h1>
               <p className="text-muted mb-0">Rất hân hạnh được lắng nghe bạn — đội CSKH phản hồi trong vòng <strong>24h</strong>.</p>
             </Col>
           </Row>
@@ -155,7 +155,7 @@ export default function Contact() {
                   </ListGroup.Item>
                   <ListGroup.Item className="px-0 d-flex align-items-center border-0">
                     <FiMail className="me-3" color={gold} />
-                    <a href="mailto:support@lilyshoe.vn" className="text-decoration-none">support@lilyshoe.vn</a>
+                    <a href="mailto:support@sulicoffee.vn" className="text-decoration-none">support@sulicoffee.vn</a>
                   </ListGroup.Item>
                   <ListGroup.Item className="px-0 d-flex align-items-start border-0">
                     <FiClock className="me-3 mt-1" color={gold} />
@@ -184,7 +184,7 @@ export default function Contact() {
               <Card.Body className="p-2">
                 <Ratio aspectRatio="16x9">
                   <iframe
-                    title="Bản đồ Lily Shoes"
+                    title="Bản đồ SuLi Coffee"
                     src="https://www.google.com/maps?q=123+Tr%E1%BA%A7n+Ph%C3%BA,+H%C3%A0+N%E1%BB%99i&output=embed"
                     style={{ border: 0, borderRadius: 12 }}
                     loading="lazy"

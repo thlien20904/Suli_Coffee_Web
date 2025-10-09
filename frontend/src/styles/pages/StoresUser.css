@@ -1,0 +1,59 @@
+.stores-container {
+  padding: 40px;
+  background-color: #fafafa;
+  text-align: center;
+}
+
+.stores-title {
+  font-size: 28px;
+  margin-bottom: 30px;
+  color: #3e2723;
+  font-weight: bold;
+}
+
+.stores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 25px;
+}
+
+.store-card {
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: all 0.2s ease-in-out;
+}
+
+.store-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.store-img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.store-info {
+  padding: 15px;
+  text-align: left;
+}
+
+.store-info h3 {
+  margin-bottom: 8px;
+  color: #5d4037;
+  font-size: 20px;
+}
+
+.store-info p {
+  margin: 4px 0;
+  color: #555;
+}
+
+.stores-loading {
+  text-align: center;
+  font-size: 18px;
+  padding: 40px;
+}

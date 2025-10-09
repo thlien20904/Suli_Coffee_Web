@@ -8,7 +8,7 @@ const dbConfig = {
   user: process.env.DB_USER, // sa
   password: process.env.DB_PASSWORD,
   server: process.env.DB_SERVER, // localhost
-  database: process.env.DB_NAME, // ShoeStoreDB
+  database: process.env.DB_NAME, 
   options: {
     encrypt: false, // Không cần encrypt cho localhost
     trustServerCertificate: true, // Cho local development

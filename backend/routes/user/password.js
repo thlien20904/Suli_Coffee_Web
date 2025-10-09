@@ -40,7 +40,7 @@ router.post("/forgot", async (req, res) => {
     });
 
     await transporter.sendMail({
-      from: `"Shoe Store" <${process.env.GMAIL_USER}>`,
+      from: `"SuLi Coffee" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: "Mã đặt lại mật khẩu",
       text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 10 phút.`,

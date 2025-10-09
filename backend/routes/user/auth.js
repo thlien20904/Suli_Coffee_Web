@@ -12,8 +12,8 @@ const { poolPromise, sql } = require("../../db");
 
 // ====== Helpers ======
 
-// SECRET cho JWT (đặt qua biến môi trường ở production)
-const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
+// SECRET cho JWT (từ .env)
+const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_fallback"; // ✅ Từ .env
 
 // Ký JWT với thời gian sống tùy chọn
 const signToken = (payload, expiresIn = "7d") =>
@@ -136,7 +136,7 @@ router.post("/register", async (req, res) => {
  * - Validate
  * - So khớp mật khẩu (hash/plain – nếu DB cũ)
  * - Nếu remember=true -> token 30 ngày, ngược lại 2 giờ
- * - Nếu Role = 'Banned' => chặn đăng nhập
+ * - Trả { token, role, user }
  */
 router.post("/login", async (req, res) => {
   try {
@@ -166,15 +166,6 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({
         errors: [errObj(null, "Username/Email hoặc mật khẩu không đúng.")],
       });
-
-    // ❌ Check tài khoản bị ban
-    if (user.Role === "Banned") {
-      return res.status(403).json({
-        errors: [
-          errObj(null, "Tài khoản của bạn đã bị khóa, vui lòng liên hệ admin."),
-        ],
-      });
-    }
 
     const passInDb = user.PasswordHash || "";
     const looksHashed =
@@ -225,6 +216,11 @@ router.post("/login", async (req, res) => {
     console.error("LOGIN ERROR:", err);
     res.status(500).json({ errors: [errObj(null, "Lỗi máy chủ")] });
   }
+});
+
+// ✅ Thêm logout (clear token client-side, server stateless)
+router.post("/logout", (req, res) => {
+  res.json({ success: true, message: "Đăng xuất thành công. Token đã hết hạn." });
 });
 
 module.exports = router;

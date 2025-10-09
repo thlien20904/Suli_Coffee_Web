@@ -9,9 +9,12 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.0.1",
+    "@fortawesome/free-solid-svg-icons": "^7.1.0",
+    "@fortawesome/react-fontawesome": "^3.1.0",
     "@reduxjs/toolkit": "^2.9.0",
     "axios": "^1.12.2",
     "bootstrap": "^5.3.8",
+    "concurrently": "^9.2.1",
     "chart.js": "^4.5.0",
     "exceljs": "^4.4.0",
     "jwt-decode": "^4.0.0",

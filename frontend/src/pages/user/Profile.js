@@ -1,325 +1,423 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner, ListGroup, Image } from 'react-bootstrap';
-import axios from 'axios';
-import { FaUserCircle, FaEdit, FaLock, FaMapMarkerAlt, FaBox } from 'react-icons/fa';
+// frontend/src/pages/user/Profile.js
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "../../styles/pages/profile.css";
+
+const API_BASE = "http://localhost:5000";
 
 function Profile() {
-  // Lấy user từ Redux
-  const { userId, username, email, avatar, token } = useSelector((state) => state.user);
-  const [activeSection, setActiveSection] = useState('info'); // Quản lý phần đang xem
-  const [profile, setProfile] = useState({ username, email, phone: '', avatar });
-  const [orders, setOrders] = useState([]);
-  const [addresses, setAddresses] = useState([]);
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token"); // Token từ login
+
+  const [activeSection, setActiveSection] = useState("profile");
+  const [userState, setUserState] = useState(null);
+  const [formData, setFormData] = useState({
+    username: "",
+    fullname: "",
+    email: "",
+    phone: "",
+    address: "",
   });
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [successMsg, setSuccessMsg] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [avatar, setAvatar] = useState(`${API_BASE}/images/no-image.png`);
+  const [orders, setOrders] = useState([]);
+  const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1 });
+  const [loading, setLoading] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [error, setError] = useState("");
 
-  // Lấy thông tin user, đơn hàng, địa chỉ khi mount
+  // ✅ Helper fetch với Authorization
+  const apiFetch = async (url, options = {}) => {
+    const headers = {
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE}${url}`, { ...options, headers });
+
+    const contentType = res.headers.get("content-type");
+    if (!contentType?.includes("application/json")) {
+      throw new Error("Server trả về không phải JSON (kiểm tra backend).");
+    }
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        navigate("/login");
+        return;
+      }
+      throw new Error(data.message || `Lỗi ${res.status}`);
+    }
+
+    return res.json();
+  };
+
+  // Fetch user
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await axios.get('http://localhost:5000/api/profile', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setProfile({
-          username: res.data.username,
-          email: res.data.email,
-          phone: res.data.phone || '',
-          avatar: res.data.avatar || null,
-        });
-      } catch (err) {
-        setErrors({ general: err.response?.data?.message || 'Lỗi khi tải thông tin' });
-      }
-    };
-
-    const fetchOrders = async () => {
-      try {
-        const res = await axios.get('http://localhost:5000/api/orders', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setOrders(res.data);
-      } catch (err) {
-        setErrors((prev) => ({ ...prev, orders: 'Lỗi khi tải đơn hàng' }));
-      }
-    };
-
-    const fetchAddresses = async () => {
-      try {
-        const res = await axios.get('http://localhost:5000/api/addresses', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setAddresses(res.data);
-      } catch (err) {
-        setErrors((prev) => ({ ...prev, addresses: 'Lỗi khi tải địa chỉ' }));
-      }
-    };
-
-    if (token) {
-      fetchProfile();
-      fetchOrders();
-      fetchAddresses();
+    if (!token) {
+      navigate("/login");
+      return;
     }
-  }, [token]);
 
-  // Xử lý upload avatar
-  const handleAvatarChange = (e) => {
-    setAvatarFile(e.target.files[0]);
+    const fetchUser = async () => {
+      try {
+        setLoading(true);
+        const data = await apiFetch("/api/profile");
+        if (data.success && data.user) {
+          setUserState(data.user);
+          setFormData({
+            username: data.user.Username || "",
+            fullname: data.user.FullName || "",
+            email: data.user.Email || "",
+            phone: data.user.Phone || "",
+            address: data.user.Address || "",
+          });
+          setAvatar(
+            data.user.AvatarUrl
+              ? `${API_BASE}${data.user.AvatarUrl}`
+              : `${API_BASE}/images/no-image.png`
+          );
+          setError("");
+        } else {
+          throw new Error("Không tìm thấy user");
+        }
+      } catch (err) {
+        console.error("FETCH USER ERROR:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [token, navigate]);
+
+  const showSection = (section) => {
+    setActiveSection(section);
+    if (section === "orders") fetchOrders("cho-xac-nhan", 1);
   };
 
-  const handleAvatarUpload = async () => {
-    if (!avatarFile) return;
-    setLoading(true);
+  const fetchOrders = async (tab, page) => {
+    setLoadingOrders(true);
     try {
-      const formData = new FormData();
-      formData.append('avatar', avatarFile);
-      const res = await axios.put('http://localhost:5000/api/profile/upload', formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
+      const data = await apiFetch(`/api/profile/orders?page=${page}&pageSize=5&tab=${tab}`);
+      if (data.success) {
+        setOrders(data.orders);
+        setPagination({ currentPage: data.currentPage, totalPages: data.totalPages });
+      } else {
+        setOrders([]);
+      }
+      setError("");
+    } catch (err) {
+      console.error("FETCH ORDERS ERROR:", err);
+      setError(err.message);
+    }
+    setLoadingOrders(false);
+  };
+
+  const cancelOrder = async (orderId) => {
+    if (!window.confirm("Hủy đơn hàng này?")) return;
+    try {
+      const data = await apiFetch("/api/profile/orders/cancel", {
+        method: "POST",
+        body: JSON.stringify({ orderId }),
       });
-      setProfile((prev) => ({ ...prev, avatar: res.data.avatar }));
-      setSuccessMsg('Cập nhật avatar thành công!');
-      setAvatarFile(null);
+      if (data.success) {
+        alert(data.message);
+        fetchOrders("cho-xac-nhan", pagination.currentPage);
+      } else {
+        alert(data.message);
+      }
     } catch (err) {
-      setErrors({ avatar: err.response?.data?.message || 'Lỗi khi upload avatar' });
-    } finally {
-      setLoading(false);
+      console.error("CANCEL ERROR:", err);
+      alert("Lỗi hủy đơn hàng!");
     }
   };
 
-  // Xử lý đổi mật khẩu
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    setErrors({});
-    setSuccessMsg('');
-    setLoading(true);
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatar(URL.createObjectURL(file));
+      setFormData({ ...formData, avatarFile: file });
+    }
+  };
 
-    const { currentPassword, newPassword, confirmPassword } = passwordData;
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setErrors({ password: 'Vui lòng điền đầy đủ các trường' });
-      setLoading(false);
-      return;
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!userState || !token) return;
+
+    // Avatar
+    if (formData.avatarFile) {
+      const fd = new FormData();
+      fd.append("id", userState.Id);
+      fd.append("AvatarFile", formData.avatarFile);
+      const avatarRes = await fetch(`${API_BASE}/api/profile/avatar`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${token}` },
+  body: fd,
+});
+const avatarData = await avatarRes.json();
+if (!avatarRes.ok || !avatarData.success) {
+  alert("Lỗi upload avatar: " + avatarData.message);
+  return;
+}
+
+// ✅ Lưu token mới để khi reload không mất avatar
+if (avatarData.token) {
+  localStorage.setItem("token", avatarData.token);
+}
+
+setAvatar(`${API_BASE}${avatarData.avatarUrl}`);
+
     }
-    if (newPassword !== confirmPassword) {
-      setErrors({ password: 'Mật khẩu mới không khớp' });
-      setLoading(false);
-      return;
-    }
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/.test(newPassword)) {
-      setErrors({ password: 'Mật khẩu mới cần ≥8 ký tự, gồm chữ HOA, thường, số, ký tự đặc biệt' });
-      setLoading(false);
-      return;
-    }
+
+    // Các field
+    const updates = [
+      { field: "Username", value: formData.username },
+      { field: "FullName", value: formData.fullname },
+      { field: "Email", value: formData.email },
+      { field: "Phone", value: formData.phone },
+      { field: "Address", value: formData.address },
+    ];
 
     try {
-      await axios.put(
-        'http://localhost:5000/api/password',
-        { currentPassword, newPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const results = await Promise.all(
+        updates.map((u) =>
+          apiFetch("/api/profile/update", {
+            method: "POST",
+            body: JSON.stringify({ id: userState.Id, field: u.field, value: u.value }),
+          })
+        )
       );
-      setSuccessMsg('Đổi mật khẩu thành công!');
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      const allSuccess = results.every((r) => r.success);
+      if (allSuccess) {
+        alert("Cập nhật thành công!");
+        window.location.reload();
+      } else {
+        alert("Lỗi: " + results.filter((r) => !r.success).map((r) => r.message).join("\n"));
+      }
     } catch (err) {
-      setErrors({ password: err.response?.data?.message || 'Lỗi khi đổi mật khẩu' });
-    } finally {
-      setLoading(false);
+      console.error("UPDATE ERROR:", err);
+      alert("Lỗi cập nhật!");
     }
   };
 
-  // CSS
-  const styles = `
-    .profile-container { min-height: 100vh; background: #fce0ea; padding: 2rem 0; }
-    .profile-card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .sidebar { background: #fff; border-right: 1px solid #eee; padding: 1.5rem; }
-    .sidebar-item { cursor: pointer; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; }
-    .sidebar-item.active { background: #d81b60; color: #fff; }
-    .sidebar-item:hover { background: #f1b4c9; color: #fff; }
-    .content-card { background: #fff; padding: 2rem; border-radius: 12px; }
-    .avatar-img { width: 120px; height: 120px; object-fit: cover; border-radius: 50%; }
-    .order-item { border-bottom: 1px solid #eee; padding: 1rem 0; }
-    .address-item { border-bottom: 1px solid #eee; padding: 1rem 0; }
-    .btn-primary-auth { background: #d81b60; border-color: #d81b60; border-radius: 999px; }
-    @media (max-width: 768px) { .sidebar { border-right: none; border-bottom: 1px solid #eee; } }
-  `;
+  if (loading) return <div className="text-center py-5">Đang tải...</div>;
+  if (error)
+    return (
+      <div className="alert alert-danger text-center py-5">
+        {error}
+        <button className="btn btn-primary mt-2" onClick={() => window.location.reload()}>
+          Thử lại
+        </button>
+      </div>
+    );
+  if (!userState) return <div className="text-center py-5">Không tìm thấy user</div>;
 
   return (
     <div className="profile-container">
-      <style>{styles}</style>
-      <Container>
-        <Row>
-          {/* Sidebar */}
-          <Col md={3}>
-            <Card className="sidebar">
-              <ListGroup variant="flush">
-                <ListGroup.Item
-                  className={`sidebar-item ${activeSection === 'info' ? 'active' : ''}`}
-                  onClick={() => setActiveSection('info')}
-                >
-                  <FaUserCircle className="me-2" /> Thông tin tài khoản
-                </ListGroup.Item>
-                <ListGroup.Item
-                  className={`sidebar-item ${activeSection === 'orders' ? 'active' : ''}`}
-                  onClick={() => setActiveSection('orders')}
-                >
-                  <FaBox className="me-2" /> Đơn hàng của bạn
-                </ListGroup.Item>
-                <ListGroup.Item
-                  className={`sidebar-item ${activeSection === 'password' ? 'active' : ''}`}
-                  onClick={() => setActiveSection('password')}
-                >
-                  <FaLock className="me-2" /> Đổi mật khẩu
-                </ListGroup.Item>
-                <ListGroup.Item
-                  className={`sidebar-item ${activeSection === 'addresses' ? 'active' : ''}`}
-                  onClick={() => setActiveSection('addresses')}
-                >
-                  <FaMapMarkerAlt className="me-2" /> Địa chỉ ({addresses.length})
-                </ListGroup.Item>
-              </ListGroup>
-            </Card>
-          </Col>
-
-          {/* Content */}
-          <Col md={9}>
-            <Card className="content-card">
-              {errors.general && <Alert variant="danger">{errors.general}</Alert>}
-              {successMsg && <Alert variant="success">{successMsg}</Alert>}
-
-              {activeSection === 'info' && (
-                <>
-                  <h4>Thông tin tài khoản</h4>
-                  <div className="d-flex align-items-center mb-3">
-                    {profile.avatar ? (
-                      <Image src={profile.avatar} alt="Avatar" className="avatar-img me-3" />
-                    ) : (
-                      <FaUserCircle size={120} className="me-3 text-muted" />
-                    )}
-                    <div>
-                      <Form.Group controlId="avatarUpload" className="mb-3">
-                        <Form.Label>Thay đổi avatar</Form.Label>
-                        <Form.Control type="file" accept="image/*" onChange={handleAvatarChange} />
-                        {avatarFile && (
-                          <Button
-                            className="mt-2 btn-primary-auth"
-                            onClick={handleAvatarUpload}
-                            disabled={loading}
-                          >
-                            {loading ? <Spinner size="sm" /> : 'Tải lên'}
-                          </Button>
-                        )}
-                        {errors.avatar && <Alert variant="danger" className="mt-2">{errors.avatar}</Alert>}
-                      </Form.Group>
-                    </div>
-                  </div>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Tên</Form.Label>
-                    <Form.Control type="text" value={profile.username} readOnly />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Email</Form.Label>
-                    <Form.Control type="email" value={profile.email} readOnly />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Số điện thoại</Form.Label>
-                    <Form.Control type="text" value={profile.phone} readOnly />
-                  </Form.Group>
-                </>
-              )}
-
-              {activeSection === 'orders' && (
-                <>
-                  <h4>Đơn hàng của bạn</h4>
-                  {errors.orders && <Alert variant="danger">{errors.orders}</Alert>}
-                  {orders.length === 0 ? (
-                    <p>Chưa có đơn hàng nào.</p>
+      {/* Sidebar */}
+      <div className="profile-sidebar">
+        <div className="profile-header">
+          <img src={avatar} alt="Avatar" className="rounded-circle" width="80" />
+          <h5>{userState.Username}</h5>
+          <p>
+            {userState.CreatedDate
+              ? new Date(userState.CreatedDate).toLocaleDateString()
+              : "N/A"}
+          </p>
+        </div>
+        <ul className="profile-menu">
+          <li>
+            <button onClick={() => showSection("orders")}>📦 Orders</button>
+          </li>
+          <li>
+            <button onClick={() => showSection("profile")}>⚙ Profile</button>
+          </li>
+          <li>
+            <button onClick={() => showSection("vouchers")}>🎁 Vouchers</button>
+          </li>
+          <li>
+            <button onClick={() => showSection("notifications")}>🔔 Notifications</button>
+          </li>
+          <li>
+            <button onClick={() => showSection("help")}>❓ Help</button>
+          </li>
+        </ul>
+      </div>
+      {/* Content */}
+      <div className="profile-content">
+        {activeSection === "profile" && (
+          <form onSubmit={handleUpdate} className="p-4">
+            <div className="mb-3">
+              <label>Avatar</label>
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,.gif,.webp"
+                onChange={handleAvatarChange}
+                className="form-control"
+              />
+              <img src={avatar} alt="Preview" width="150" className="mt-2" />
+            </div>
+            <div className="mb-3">
+              <label>Username</label>
+              <input
+                type="text"
+                className="form-control"
+                value={formData.username}
+                onChange={(e) =>
+                  setFormData({ ...formData, username: e.target.value })
+                }
+                autoComplete="username"
+              />
+            </div>
+            <div className="mb-3">
+              <label>Full Name</label>
+              <input
+                type="text"
+                className="form-control"
+                value={formData.fullname}
+                onChange={(e) =>
+                  setFormData({ ...formData, fullname: e.target.value })
+                }
+                autoComplete="name"
+              />
+            </div>
+            <div className="mb-3">
+              <label>Email</label>
+              <input
+                type="email"
+                className="form-control"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                autoComplete="email"
+              />
+            </div>
+            <div className="mb-3">
+              <label>Phone</label>
+              <input
+                type="tel"
+                className="form-control"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                autoComplete="tel"
+              />
+            </div>
+            <div className="mb-3">
+              <label>Address</label>
+              <textarea
+                className="form-control"
+                rows="3"
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                autoComplete="street-address"
+              ></textarea>
+            </div>
+            <button type="submit" className="btn btn-primary">
+              Update Profile
+            </button>
+          </form>
+        )}
+        {activeSection === "orders" && (
+          <div className="p-4">
+            <h4>Orders List</h4>
+            {loadingOrders ? (
+              <p>Đang tải...</p>
+            ) : (
+              <table className="table table-striped">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.length > 0 ? (
+                    orders.map((o) => (
+                      <tr key={o.OrderId}>
+                        <td>{o.OrderId}</td>
+                        <td>
+                          {o.CreatedAt
+                            ? new Date(o.CreatedAt).toLocaleString()
+                            : "N/A"}
+                        </td>
+                        <td>
+                          {o.Total
+                            ? o.Total.toLocaleString("vi-VN") + " ₫"
+                            : "N/A"}
+                        </td>
+                        <td>{o.TenPhuongThuc || o.PaymentMethod || "N/A"}</td>
+                        <td>
+                          <span className="badge bg-secondary">
+                            {o.StatusName || "N/A"}
+                          </span>
+                        </td>
+                        <td>
+                          {(o.StatusId === 1 || o.StatusId === 2) && (
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => cancelOrder(o.OrderId)}
+                            >
+                              Hủy
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
                   ) : (
-                    <ListGroup variant="flush">
-                      {orders.map((order) => (
-                        <ListGroup.Item key={order.OrderID} className="order-item">
-                          <div><strong>Mã đơn: </strong>{order.OrderID}</div>
-                          <div><strong>Ngày đặt: </strong>{new Date(order.OrderDate).toLocaleDateString()}</div>
-                          <div><strong>Tổng tiền: </strong>{order.TotalAmount?.toLocaleString()} VND</div>
-                          <div><strong>Trạng thái: </strong>{order.Status}</div>
-                        </ListGroup.Item>
-                      ))}
-                    </ListGroup>
+                    <tr>
+                      <td colSpan="6" className="text-center">
+                        Chưa có đơn hàng
+                      </td>
+                    </tr>
                   )}
-                </>
-              )}
-
-              {activeSection === 'password' && (
-                <>
-                  <h4>Đổi mật khẩu</h4>
-                  <Form onSubmit={handlePasswordChange}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Mật khẩu hiện tại</Form.Label>
-                      <Form.Control
-                        type="password"
-                        value={passwordData.currentPassword}
-                        onChange={(e) =>
-                          setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value }))
-                        }
-                      />
-                    </Form.Group>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Mật khẩu mới</Form.Label>
-                      <Form.Control
-                        type="password"
-                        value={passwordData.newPassword}
-                        onChange={(e) =>
-                          setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))
-                        }
-                      />
-                    </Form.Group>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Xác nhận mật khẩu mới</Form.Label>
-                      <Form.Control
-                        type="password"
-                        value={passwordData.confirmPassword}
-                        onChange={(e) =>
-                          setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))
-                        }
-                      />
-                    </Form.Group>
-                    {errors.password && <Alert variant="danger">{errors.password}</Alert>}
-                    <Button type="submit" className="btn-primary-auth" disabled={loading}>
-                      {loading ? <Spinner size="sm" /> : 'Đổi mật khẩu'}
-                    </Button>
-                  </Form>
-                </>
-              )}
-
-              {activeSection === 'addresses' && (
-                <>
-                  <h4>Địa chỉ ({addresses.length})</h4>
-                  {errors.addresses && <Alert variant="danger">{errors.addresses}</Alert>}
-                  {addresses.length === 0 ? (
-                    <p>Chưa có địa chỉ nào.</p>
-                  ) : (
-                    <ListGroup variant="flush">
-                      {addresses.map((address) => (
-                        <ListGroup.Item key={address.AddressID} className="address-item">
-                          <div><strong>Địa chỉ: </strong>{address.Address}</div>
-                          <div><strong>Tên người nhận: </strong>{address.RecipientName}</div>
-                          <div><strong>Số điện thoại: </strong>{address.Phone}</div>
-                        </ListGroup.Item>
-                      ))}
-                    </ListGroup>
-                  )}
-                </>
-              )}
-            </Card>
-          </Col>
-        </Row>
-      </Container>
+                </tbody>
+              </table>
+            )}
+            {pagination.totalPages > 1 && (
+              <div className="d-flex justify-content-center mt-3">
+                <button
+                  className="btn btn-outline-secondary me-2"
+                  disabled={pagination.currentPage === 1}
+                  onClick={() =>
+                    fetchOrders("cho-xac-nhan", pagination.currentPage - 1)
+                  }
+                >
+                  Trước
+                </button>
+                <span className="align-self-center">
+                  Trang {pagination.currentPage} / {pagination.totalPages}
+                </span>
+                <button
+                  className="btn btn-outline-secondary ms-2"
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  onClick={() =>
+                    fetchOrders("cho-xac-nhan", pagination.currentPage + 1)
+                  }
+                >
+                  Sau
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {activeSection === "vouchers" && <p className="p-4">Chưa có voucher.</p>}
+        {activeSection === "notifications" && (
+          <p className="p-4">Chưa có thông báo.</p>
+        )}
+        {activeSection === "help" && <p className="p-4">Liên hệ: hi@sulicoffee.vn</p>}
+      </div>
     </div>
   );
 }

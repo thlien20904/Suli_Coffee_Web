@@ -1,114 +1,249 @@
-import { useState, useEffect } from 'react'; // Thêm useState
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { Card, Table, Button, Form, Alert } from 'react-bootstrap';
-import { removeFromCart, updateQuantity } from '../../redux/cartSlice'; // Sửa tên import
+// frontend/src/pages/Cart.js
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { Table, Button, Spinner, Alert, Form } from "react-bootstrap";
 
-function Cart() {
-  const dispatch = useDispatch();
-  const { token } = useSelector((state) => state.user);
-  const cartItems = useSelector((state) => state.cart.items);
+const API = "http://localhost:5000";
+
+export default function Cart() {
+  const [cart, setCart] = useState([]);
+  const [selected, setSelected] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const token = localStorage.getItem("token");
   const navigate = useNavigate();
-  const [error, setError] = useState('');
-  const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    if (!token) {
-      setError('Vui lòng đăng nhập để xem giỏ hàng.');
-      navigate('/login');
-      return;
-    }
-    // Tính tổng tiền
-    const newTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    setTotal(newTotal);
-  }, [cartItems, token, navigate]);
-
-  const handleUpdateQuantity = async (variantId, newQuantity) => {
-    if (newQuantity <= 0) {
-      setError('Số lượng phải lớn hơn 0.');
-      return;
-    }
+  const fetchCart = async () => {
+    setLoading(true);
+    setError("");
     try {
-      const response = await axios.put(
-        'http://localhost:5000/api/cart/update',
-        { variantId, quantity: newQuantity }, // Gửi variantId và quantity
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (response.data.success) {
-        dispatch(updateQuantity({ cartItemId: variantId, quantity: newQuantity })); // Sử dụng cartItemId
-        setError('');
+      if (!token) {
+        setError("Bạn chưa đăng nhập");
+        setLoading(false);
+        return;
+      }
+      const { data } = await axios.get(`${API}/api/cart`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!data || !data.cart) {
+        setCart([]);
+        setSelected([]);
+      } else {
+        setCart(data.cart);
+        setSelected(data.cart.map((it) => it.GioHangID));
       }
     } catch (err) {
-      setError('Cập nhật số lượng thất bại. Vui lòng thử lại.');
+      console.error("FETCH CART ERROR:", err);
+      setError("Không tải được giỏ hàng");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRemoveItem = async (variantId) => {
+  useEffect(() => {
+    fetchCart();
+    // eslint-disable-next-line
+  }, []);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) setSelected(cart.map((c) => c.GioHangID));
+    else setSelected([]);
+  };
+
+  const handleSelectItem = (id) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const calcItemTotal = (item) => {
+    const base = item.DiscountPrice ?? item.Price ?? 0;
+    const sizeExtra = item.Size?.ExtraPrice ?? 0;
+    const toppingExtra = (item.Toppings || []).reduce(
+      (s, t) => s + (t.ToppingPrice ?? 0),
+      0
+    );
+    return (base + sizeExtra + toppingExtra) * (item.SoLuong ?? 1);
+  };
+
+  const calcSelectedTotal = () => {
+    return cart
+      .filter((it) => selected.includes(it.GioHangID))
+      .reduce((s, it) => s + calcItemTotal(it), 0);
+  };
+
+  const handleDelete = async (gioHangId) => {
+    if (!window.confirm("Bạn có chắc muốn xóa sản phẩm này?")) return;
     try {
-      const response = await axios.delete(
-        `http://localhost:5000/api/cart/remove/${variantId}`,
+      await axios.post(
+        `${API}/api/cart/delete`,
+        { gioHangId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (response.data.success) {
-        dispatch(removeFromCart(variantId)); // Sử dụng variantId
-        setError('');
+      setCart((prev) => prev.filter((it) => it.GioHangID !== gioHangId));
+      setSelected((prev) => prev.filter((x) => x !== gioHangId));
+    } catch (err) {
+      console.error("DELETE ERROR:", err);
+      alert("Xóa thất bại");
+    }
+  };
+
+  const handleUpdateQty = async (gioHangId, newQty) => {
+    if (newQty < 1) {
+      alert("Số lượng phải lớn hơn 0");
+      return;
+    }
+    try {
+      const res = await axios.post(
+        `${API}/api/cart/update`,
+        { gioHangId, quantity: newQty },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data && res.data.success) {
+        setCart((prev) =>
+          prev.map((it) =>
+            it.GioHangID === gioHangId
+              ? {
+                  ...it,
+                  SoLuong: newQty,
+                  TotalPrice: res.data.newItemTotal,
+                }
+              : it
+          )
+        );
+      } else {
+        alert("Cập nhật thất bại");
       }
     } catch (err) {
-      setError('Xóa sản phẩm thất bại. Vui lòng thử lại.');
+      console.error("UPDATE ERROR:", err);
+      alert("Cập nhật thất bại");
     }
   };
 
   const handleCheckout = () => {
-    if (cartItems.length === 0) {
-      setError('Giỏ hàng trống. Vui lòng thêm sản phẩm.');
+    if (!token) {
+      alert("Vui lòng đăng nhập");
       return;
     }
-    navigate('/checkout');
+    if (selected.length === 0) {
+      alert("Vui lòng chọn sản phẩm để thanh toán");
+      return;
+    }
+
+    // 👉 Chuyển sang trang Checkout, không reload
+    navigate("/checkout", {
+      state: { items: cart.filter((it) => selected.includes(it.GioHangID)) },
+    });
   };
 
+  if (loading)
+    return (
+      <div className="text-center py-5">
+        <Spinner animation="border" />
+      </div>
+    );
+  if (error)
+    return (
+      <div className="container py-5">
+        <Alert variant="danger">{error}</Alert>
+      </div>
+    );
+
   return (
-    <div className="container mt-4">
-      {error && <Alert variant="danger">{error}</Alert>}
-      <h2>Giỏ hàng</h2>
-      {cartItems.length === 0 ? (
-        <p>Giỏ hàng của bạn trống. <a href="/products">Mua sắm ngay</a></p>
+    <div className="container py-5">
+      <h2 className="text-center mb-4">Giỏ hàng của bạn</h2>
+      {cart.length === 0 ? (
+        <p className="text-center">Giỏ hàng của bạn đang trống.</p>
       ) : (
         <>
-          <Table striped bordered hover>
-            <thead>
+          <Table bordered hover responsive className="align-middle text-center">
+            <thead className="table-dark">
               <tr>
-                <th>Sản phẩm</th>
-                <th>Giá</th>
+                <th>
+                  <Form.Check
+                    type="checkbox"
+                    checked={selected.length === cart.length}
+                    onChange={handleSelectAll}
+                  />{" "}
+                  Chọn
+                </th>
+                <th>Hình ảnh</th>
+                <th>Tên sản phẩm</th>
+                <th>Size</th>
+                <th>Topping</th>
+                <th>Đơn giá</th>
                 <th>Số lượng</th>
-                <th>Tổng</th>
+                <th>Thành tiền</th>
                 <th>Hành động</th>
               </tr>
             </thead>
             <tbody>
-              {cartItems.map((item) => (
-                <tr key={item.variantId}>
+              {cart.map((item) => (
+                <tr key={item.GioHangID}>
+                  <td>
+                    <Form.Check
+                      type="checkbox"
+                      checked={selected.includes(item.GioHangID)}
+                      onChange={() => handleSelectItem(item.GioHangID)}
+                    />
+                  </td>
                   <td>
                     <img
-                      src={item.image || 'https://via.placeholder.com/50'}
-                      alt={item.name}
-                      style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                      src={
+                        item.ImageURL ? `${API}${item.ImageURL}` : "/placeholder.jpg"
+                      }
+                      alt={item.FoodName}
+                      style={{ width: 90, height: 90 }}
+                      className="img-thumbnail"
                     />
-                    {item.name}
                   </td>
-                  <td>${item.price}</td>
+                  <td style={{ minWidth: 200 }}>{item.FoodName}</td>
                   <td>
+                    {item.Size
+                      ? `${item.Size.SizeName} (+${item.Size.ExtraPrice?.toLocaleString(
+                          "vi-VN"
+                        )} ₫)`
+                      : "Không có"}
+                  </td>
+                  <td>
+                    {item.Toppings && item.Toppings.length > 0
+                      ? item.Toppings.map((t) => (
+                          <div key={t.ToppingID}>
+                            {t.ToppingName} (+{(t.ToppingPrice ?? 0).toLocaleString(
+                              "vi-VN"
+                            )} ₫)
+                          </div>
+                        ))
+                      : "Không có"}
+                  </td>
+                  <td>
+                    {((item.DiscountPrice ?? item.Price) || 0).toLocaleString(
+                      "vi-VN"
+                    )}{" "}
+                    ₫
+                  </td>
+                  <td style={{ width: 120 }}>
                     <Form.Control
                       type="number"
-                      min="1"
-                      max={item.stock}
-                      value={item.quantity}
-                      onChange={(e) => handleUpdateQuantity(item.variantId, parseInt(e.target.value) || 1)}
+                      min={1}
+                      value={item.SoLuong}
+                      onChange={(e) =>
+                        handleUpdateQty(
+                          item.GioHangID,
+                          parseInt(e.target.value || "1", 10)
+                        )
+                      }
                     />
                   </td>
-                  <td>${(item.price * item.quantity).toFixed(2)}</td>
+                  <td>{calcItemTotal(item).toLocaleString("vi-VN")} ₫</td>
                   <td>
-                    <Button variant="danger" onClick={() => handleRemoveItem(item.variantId)}>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleDelete(item.GioHangID)}
+                    >
                       Xóa
                     </Button>
                   </td>
@@ -116,8 +251,12 @@ function Cart() {
               ))}
             </tbody>
           </Table>
+
+          <h4 className="text-end">
+            Tổng tiền:{" "}
+            <strong>{calcSelectedTotal().toLocaleString("vi-VN")} ₫</strong>
+          </h4>
           <div className="text-end mt-3">
-            <h4>Tổng cộng: ${total.toFixed(2)}</h4>
             <Button variant="success" onClick={handleCheckout}>
               Thanh toán
             </Button>
@@ -127,5 +266,3 @@ function Cart() {
     </div>
   );
 }
-
-export default Cart;

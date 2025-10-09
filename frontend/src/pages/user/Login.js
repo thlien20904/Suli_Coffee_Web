@@ -14,15 +14,19 @@ import {
   BsEyeSlash,
 } from "react-icons/bs";
 
+// ✅ Thêm đoạn này ngay sau import
+if (!sessionStorage.getItem("sessionActive")) {
+  // Nếu là phiên mới (vừa npm start)
+  localStorage.removeItem("token"); // Xóa token cũ để chưa đăng nhập
+  sessionStorage.setItem("sessionActive", "true"); // Ghi nhớ phiên hiện tại
+}
+
 function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [errors, setErrors] = useState({ identifier: "", password: "" });
-  const [touched, setTouched] = useState({
-    identifier: false,
-    password: false,
-  });
+  const [touched, setTouched] = useState({ identifier: false, password: false });
   const [serverError, setServerErr] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -31,45 +35,32 @@ function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Tự động login nếu có token trong localStorage
-  useEffect(() => {
-    const rememberedIdentifier = localStorage.getItem(
-      "auth:rememberIdentifier"
-    );
-    if (rememberedIdentifier) {
-      setIdentifier(rememberedIdentifier);
-      setRemember(true);
-    }
+  
+useEffect(() => {
+  const rememberedIdentifier = localStorage.getItem("auth:rememberIdentifier");
+  if (rememberedIdentifier) {
+    setIdentifier(rememberedIdentifier);
+    setRemember(true);
+  }
 
-    const token = localStorage.getItem("token");
-    if (token && window.location.pathname !== "/login") {
-      try {
-        const decoded = jwtDecode(token);
-        if (decoded?.exp && decoded.exp * 1000 > Date.now()) {
-          dispatch(
-            login({
-              token,
-              role: decoded.role,
-              userId: decoded.id,
-              username: decoded.username,
-              email: decoded.email,
-              avatar: decoded.avatar,
-            })
-          );
-          navigate(decoded.role === "admin" ? "/admin/dashboard" : "/", {
-            replace: true,
-          });
-        } else {
-          localStorage.removeItem("token");
-        }
-      } catch (e) {
-        console.error("Token decode error:", e);
+  // Nếu đã có token thì chỉ kiểm tra — KHÔNG tự navigate
+  const token = localStorage.getItem("token");
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      if (!decoded?.exp || decoded.exp * 1000 < Date.now()) {
+        // Token hết hạn → xóa
         localStorage.removeItem("token");
+        console.warn("⚠ Token hết hạn, xoá khỏi localStorage");
       }
+    } catch (err) {
+      console.error("❌ Token decode error:", err);
+      localStorage.removeItem("token");
     }
-  }, [dispatch, navigate]);
+  }
+}, []);
 
-  // Xử lý Google redirect callback
+  // ✅ Nếu đăng nhập qua Google hoặc Facebook
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get("token");
@@ -91,8 +82,8 @@ function Login() {
         localStorage.setItem("token", token);
         navigate(role === "admin" ? "/admin/dashboard" : "/");
       } catch (err) {
-        console.error("Google token decode failed:", err);
-        setServerErr("Đăng nhập thất bại.");
+        console.error("Google/Facebook login decode failed:", err);
+        setServerErr("Đăng nhập thất bại");
       }
     }
   }, [location, dispatch, navigate]);
@@ -109,26 +100,6 @@ function Login() {
     identifier: validateField("identifier", identifier),
     password: validateField("password", password),
   });
-
-  const onChangeIdentifier = (e) => {
-    const val = e.target.value;
-    setIdentifier(val);
-    setErrors((prev) => ({
-      ...prev,
-      identifier: touched.identifier ? validateField("identifier", val) : "",
-    }));
-    setServerErr("");
-  };
-
-  const onChangePassword = (e) => {
-    const val = e.target.value;
-    setPassword(val);
-    setErrors((prev) => ({
-      ...prev,
-      password: touched.password ? validateField("password", val) : "",
-    }));
-    setServerErr("");
-  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -149,18 +120,20 @@ function Login() {
 
       const { token, role } = res.data;
 
+      // ✅ Decode và lưu redux + localStorage
+      const decoded = jwtDecode(token);
       dispatch(
         login({
           token,
           role,
-          userId: res.data.user.id,
-          username: res.data.user.username,
-          email: res.data.user.email,
-          avatar: res.data.user.avatar,
+          userId: decoded.id,
+          username: decoded.username,
+          email: decoded.email,
+          avatar: decoded.avatar,
         })
       );
-      localStorage.setItem("token", token);
 
+      localStorage.setItem("token", token);
       if (remember)
         localStorage.setItem("auth:rememberIdentifier", identifier.trim());
       else localStorage.removeItem("auth:rememberIdentifier");
@@ -168,29 +141,13 @@ function Login() {
       navigate(role === "admin" ? "/admin/dashboard" : "/", { replace: true });
     } catch (err) {
       console.error("Login error:", err.response?.data);
-
-      if (err.response) {
-        const status = err.response.status;
-        const list = err.response.data?.errors;
-
-        if (status === 403) {
-          // 🚫 Bị cấm
-          setServerErr("Tài khoản của bạn đã bị khóa, vui lòng liên hệ admin.");
-        } else if (status === 401) {
-          // 🔑 Sai thông tin
-          setServerErr("Sai Username/Email hoặc mật khẩu.");
-        } else if (Array.isArray(list)) {
-          // Các lỗi validate khác
-          const mapped = { identifier: "", password: "" };
-          list.forEach((x) => (mapped[x.field] = x.msg));
-          setErrors((prev) => ({ ...prev, ...mapped }));
-          setServerErr(list[0]?.msg || "Đăng nhập thất bại.");
-        } else {
-          setServerErr("Đăng nhập thất bại.");
-        }
-      } else {
-        setServerErr("Không thể kết nối server.");
+      const list = err.response?.data?.errors;
+      if (Array.isArray(list)) {
+        const mapped = { identifier: "", password: "" };
+        list.forEach((x) => (mapped[x.field] = x.msg));
+        setErrors((prev) => ({ ...prev, ...mapped }));
       }
+      setServerErr(err.response?.data?.message || "Đăng nhập thất bại");
     } finally {
       setLoading(false);
     }
@@ -239,12 +196,15 @@ function Login() {
         .or-divider::before { left: 0; }
         .or-divider::after { right: 0; }
         .invalid-feedback { color: #dc3545; font-size: 12px; margin-top: 5px; }`}</style>
+
       <div className="login-card">
         <div className="login-title">Sign In</div>
         <div className="login-sub">
           Welcome to SuLi Coffee! Please login to continue.
         </div>
+
         {serverError && <Alert variant="danger">{serverError}</Alert>}
+
         <Form onSubmit={handleLogin} noValidate>
           <div className="input-group">
             <BsPerson className="input-icon" />
@@ -255,7 +215,7 @@ function Login() {
               type="text"
               placeholder="Username"
               value={identifier}
-              onChange={onChangeIdentifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, identifier: true }))}
               autoFocus
             />
@@ -263,6 +223,7 @@ function Login() {
               <div className="invalid-feedback">{errors.identifier}</div>
             )}
           </div>
+
           <div className="input-group">
             <BsLock className="input-icon" />
             <Form.Control
@@ -272,20 +233,18 @@ function Login() {
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
-              onChange={onChangePassword}
+              onChange={(e) => setPassword(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, password: true }))}
               autoComplete="current-password"
             />
-            <span
-              className="password-toggle"
-              onClick={togglePasswordVisibility}
-            >
+            <span className="password-toggle" onClick={togglePasswordVisibility}>
               {showPassword ? <BsEyeSlash /> : <BsEye />}
             </span>
             {touched.password && errors.password && (
               <div className="invalid-feedback">{errors.password}</div>
             )}
           </div>
+
           <div className="options">
             <Form.Check
               type="checkbox"
@@ -296,13 +255,17 @@ function Login() {
             />
             <Link to="/forgot-password">Forgot Password?</Link>
           </div>
+
           <Button type="submit" className="btn-login" disabled={loading}>
             {loading ? <Spinner size="sm" animation="border" /> : "Sign In"}
           </Button>
+
           <div className="signup">
             Don’t have an account? <Link to="/register">Sign up</Link>
           </div>
+
           <div className="or-divider">OR</div>
+
           <Button
             className="btn-social btn-facebook"
             as="a"
@@ -310,6 +273,7 @@ function Login() {
           >
             <BsFacebook className="social-icon" /> Connect with Facebook
           </Button>
+
           <Button
             className="btn-social btn-google"
             as="a"

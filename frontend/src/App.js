@@ -1,4 +1,8 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { jwtDecode } from "jwt-decode";
+import { login } from "./redux/userSlice";
 
 // user pages
 import Home from "./pages/user/Home";
@@ -10,12 +14,12 @@ import ProductList from "./pages/user/ProductList";
 import ProductDetail from "./pages/user/ProductDetail";
 import Cart from "./pages/user/Cart";
 import Checkout from "./pages/user/Checkout";
+import Successful from "./pages/user/successful"; // 📌 Sửa import
 import Profile from "./pages/user/Profile";
-import BlogList from "./pages/user/BlogList";
-import BlogDetail from "./pages/user/BlogDetail";
+import Stores from "./pages/user/StoresUser";
+import VnpayReturn from "./pages/user/VnpayReturn";
 import About from "./pages/user/About";
 import Contact from "./pages/user/Contact";
-
 // admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Food from "./pages/admin/Food/Food";
@@ -39,12 +43,44 @@ import Invoice from "./pages/admin/invoice";
 import Order from "./pages/admin/order";
 import RevenueReport from "./pages/admin/report/revenue";
 import BestsellerReport from "./pages/admin/report/bestseller";
-
 // layout
 import UserLayout from "./components/layout/user/UserLayout";
 import AdminLayout from "./components/layout/admin/AdminLayout";
 
+function PrivateRoute({ children }) {
+  const token = localStorage.getItem("token");
+  return token ? children : <Navigate to="/login" />;
+}
+
 function App() {
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        if (decoded?.exp && decoded.exp * 1000 > Date.now()) {
+          dispatch(
+            login({
+              token,
+              role: decoded.role,
+              userId: decoded.id,
+              username: decoded.username,
+              email: decoded.email,
+              avatar: decoded.avatar,
+            })
+          );
+        } else {
+          localStorage.removeItem("token");
+        }
+      } catch (err) {
+        console.error("Token decode error:", err);
+        localStorage.removeItem("token");
+      }
+    }
+  }, [dispatch]);
+
   return (
     <Routes>
       {/* Auth routes */}
@@ -52,54 +88,68 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+
       {/* User routes */}
       <Route path="/" element={<UserLayout />}>
         <Route index element={<Home />} />
         <Route path="products" element={<ProductList />} />
         <Route path="product/:id" element={<ProductDetail />} />
         <Route path="cart" element={<Cart />} />
-        <Route path="checkout" element={<Checkout />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="blogs" element={<BlogList />} />
-        <Route path="blog/:id" element={<BlogDetail />} />
+        <Route
+          path="checkout"
+          element={
+            <PrivateRoute>
+              <Checkout />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="successful"
+          element={
+            <PrivateRoute>
+              <Successful />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="profile"
+          element={
+            <PrivateRoute>
+              <Profile />
+            </PrivateRoute>
+          }
+        />
+        <Route path="stores" element={<Stores />} />
+        <Route path="/vnpay-return" element={<VnpayReturn />} />
         <Route path="about" element={<About />} />
         <Route path="contact" element={<Contact />} />
       </Route>
+
       {/* Admin routes */}
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="dashboard" element={<AdminDashboard />} />
-        {/* Food CRUD */}
         <Route path="food" element={<Food />} />
         <Route path="food/add" element={<AddFood />} />
         <Route path="food/edit/:id" element={<EditFood />} />
-        {/* Category CRUD */}
-        <Route path="category" element={<Category />} /> {/* ✅ danh sách */}
+        <Route path="category" element={<Category />} />
         <Route path="category/add" element={<CategoryAdd />} />
         <Route path="category/edit/:id" element={<CategoryEdit />} />
-        {/* Ingredient CRUD */}
-        <Route path="ingredient" element={<Ingredient />} />{" "}
-        {/* ✅ danh sách */}
+        <Route path="ingredient" element={<Ingredient />} />
         <Route path="ingredient/add" element={<AddIngredient />} />
         <Route path="ingredient/edit/:id" element={<EditIngredient />} />
         <Route path="export" element={<ExportIngredient />} />
-        {/* Payment Method */}
         <Route path="payment" element={<Payment />} />
         <Route path="payment/add" element={<AddPayment />} />
         <Route path="payment/edit/:id" element={<EditPayment />} />
-        {/* Users */}
         <Route path="users" element={<UserList />} />
-        {/* Staff */}
         <Route path="staff" element={<Staff />} />
-        <Route path="staff/add" element={<AddStaff />} /> {/* Thêm */}
-        <Route path="staff/edit/:id" element={<EditStaff />} /> {/* Sửa */}
-        {/* Invoice */}
+        <Route path="staff/add" element={<AddStaff />} />
+        <Route path="staff/edit/:id" element={<EditStaff />} />
         <Route path="invoice" element={<Invoice />} />
-        {/* Order */}
         <Route path="order" element={<Order />} />
-        {/* Report */}
         <Route path="revenue" element={<RevenueReport />} />
         <Route path="bestseller" element={<BestsellerReport />} />
-      </Route>{" "}
+      </Route>
     </Routes>
   );
 }

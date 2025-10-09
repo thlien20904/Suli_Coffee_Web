@@ -1,113 +1,99 @@
-// routes/api/products.js
 const express = require('express');
 const router = express.Router();
 const { poolPromise, sql } = require('../../db');
 
-/**
- * Map tham số 'category' từ FE -> pattern cho tên Category trong DB.
- * Bạn đang lưu:
- *  - Giày Thể Thao Nam/Nữ
- *  - Giày Công Sở Nam/Nữ
- *  - Giày Sandal Nam/Nữ
- *  - Sneaker Unisex
- */
+// ================== HÀM HỖ TRỢ ==================
 const mapCategoryToLike = (cat) => {
   switch ((cat || '').toLowerCase()) {
-    case 'sport':   return 'Giày Thể Thao%';
-    case 'office':  return 'Giày Công Sở%';
-    case 'sandal':  return 'Giày Sandal%';
-    case 'sneaker': return 'Sneaker%';
-    default:        return ''; // không lọc theo danh mục
+    case 'coffee':    return 'Cà phê%';
+    case 'milktea':   return 'Trà sữa%';
+    case 'frappe':    return 'Thức uống đá xay%';
+    case 'snack':     return 'Bánh & Snack%';
+    case 'fruittea':  return 'Trà trái cây%';
+    default:          return '';
   }
 };
 
-// Chỉ cho phép sắp xếp theo whitelist
 const sortToOrderBy = (sort) => {
   switch ((sort || '').toLowerCase()) {
-    case 'name_asc':   return 'p.Name ASC';
-    case 'name_desc':  return 'p.Name DESC';
-    case 'price_asc':  return 'COALESCE(p.DiscountedPrice, p.Price) ASC, p.Price ASC';
-    case 'price_desc': return 'COALESCE(p.DiscountedPrice, p.Price) DESC, p.Price DESC';
-    default:           return 'p.CreatedAt DESC, p.ProductID DESC';
+    case 'name_asc':   return 'f.FoodName ASC';
+    case 'name_desc':  return 'f.FoodName DESC';
+    case 'price_asc':  return 'ISNULL(f.DiscountPrice, f.Price * (1 - ISNULL(f.Discount, 0) / 100.0)) ASC, f.Price ASC';
+    case 'price_desc': return 'ISNULL(f.DiscountPrice, f.Price * (1 - ISNULL(f.Discount, 0) / 100.0)) DESC, f.Price DESC';
+    case 'id_asc':     return 'f.FoodId ASC'; 
+    // Mặc định: Sắp xếp theo FoodId ASC để hiển thị từ 1 đến 35
+    default:           return 'f.FoodId ASC';
   }
 };
 
-/**
- * GET /api/products
- * Query: page, limit, keyword, category(sport|office|sandal|sneaker), targetGroup(Men|Women|Unisex), sort
- */
+// ================== DANH SÁCH SP ==================
 router.get('/', async (req, res) => {
   try {
-    const page        = Math.max(parseInt(req.query.page || '1', 10), 1);
-    const limit       = Math.max(parseInt(req.query.limit || '10', 10), 1);
-    const offset      = (page - 1) * limit;
+    const page   = Math.max(parseInt(req.query.page || '1', 10), 1);
+    const limit  = Math.max(parseInt(req.query.limit || '10', 10), 1);
+    const offset = (page - 1) * limit;
 
-    const keyword     = (req.query.keyword || '').trim();
-    const category    = (req.query.category || '').trim();
-    const targetGroup = (req.query.targetGroup || '').trim();
-    const sort        = (req.query.sort || '').trim();
+    const keyword  = (req.query.keyword || '').trim();
+    const category = (req.query.category || '').trim();
+    const sort     = (req.query.sort || '').trim(); 
+    const minPrice = parseFloat(req.query.minPrice) || null;
+    const maxPrice = parseFloat(req.query.maxPrice) || null;
 
     const pool = await poolPromise;
 
-    // ===== WHERE động (chỉ thêm điều kiện cần thiết) =====
     const where = ['1=1'];
     const listReq = pool.request();
 
     if (keyword) {
-      where.push('(p.Name LIKE @kw OR p.Description LIKE @kw)');
+      where.push('(f.FoodName LIKE @kw OR f.Description LIKE @kw)');
       listReq.input('kw', sql.NVarChar, `%${keyword}%`);
     }
 
     const catLike = mapCategoryToLike(category);
     if (catLike) {
-      // chỉ áp điều kiện vào bảng Categories khi thật sự lọc theo category
-      where.push('c.Name LIKE @catLike');
+      where.push('c.CategoryName LIKE @catLike');
       listReq.input('catLike', sql.NVarChar, catLike);
     }
 
-    if (targetGroup) {
-      where.push('c.TargetGroup = @tg');
-      listReq.input('tg', sql.NVarChar, targetGroup);
+    if (minPrice !== null && !isNaN(minPrice)) {
+      where.push('ISNULL(f.DiscountPrice, f.Price * (1 - ISNULL(f.Discount, 0) / 100.0)) >= @minPrice');
+      listReq.input('minPrice', sql.Decimal(18, 2), minPrice);
+    }
+    if (maxPrice !== null && !isNaN(maxPrice)) {
+      where.push('ISNULL(f.DiscountPrice, f.Price * (1 - ISNULL(f.Discount, 0) / 100.0)) <= @maxPrice');
+      listReq.input('maxPrice', sql.Decimal(18, 2), maxPrice);
     }
 
     const orderBy = sortToOrderBy(sort);
 
-    // ===== LƯU Ý: Dùng LEFT JOIN để không bị rơi sản phẩm mồ côi Category =====
     const baseFrom = `
-      FROM Products p
-      LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
+      FROM Food f
+      LEFT JOIN Category c ON f.CategoryId = c.CategoryId
       WHERE ${where.join(' AND ')}
     `;
 
-    // Danh sách có phân trang
     const listSql = `
-      SELECT
-        p.ProductID,
-        p.Name,
-        p.Description,
-        p.Price,
-        p.DiscountPercent,
-        COALESCE(p.DiscountedPrice, p.Price) AS DiscountedPrice,
-        c.CategoryID,
-        c.Name AS CategoryName,
-        c.TargetGroup,
-        (SELECT TOP 1 ImageURL
-           FROM ProductImages i
-          WHERE i.ProductID = p.ProductID AND i.IsDefault = 1) AS DefaultImage,
-        (SELECT TOP 1 ImageURL
-           FROM ProductImages i
-          WHERE i.ProductID = p.ProductID AND (i.IsDefault = 0 OR i.IsDefault IS NULL)) AS HoverImage
+      SELECT f.FoodId, f.FoodName, f.Description,
+             f.Price, f.Discount,
+             ISNULL(f.DiscountPrice, f.Price * (1 - ISNULL(f.Discount, 0) / 100.0)) AS DiscountPrice,
+             f.Stock, f.CreatedDate, f.UpdatedDate,
+             f.Status, f.ImageURL,
+             c.CategoryId, c.CategoryName
       ${baseFrom}
       ORDER BY ${orderBy}
       OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;
     `;
     listReq.input('offset', sql.Int, offset).input('limit', sql.Int, limit);
 
-    // Total dùng cùng WHERE (cũng LEFT JOIN)
     const totalReq = pool.request();
-    if (keyword)     totalReq.input('kw', sql.NVarChar, `%${keyword}%`);
-    if (catLike)     totalReq.input('catLike', sql.NVarChar, catLike);
-    if (targetGroup) totalReq.input('tg', sql.NVarChar, targetGroup);
+    if (keyword) totalReq.input('kw', sql.NVarChar, `%${keyword}%`);
+    if (catLike) totalReq.input('catLike', sql.NVarChar, catLike);
+    if (minPrice !== null && !isNaN(minPrice)) {
+      totalReq.input('minPrice', sql.Decimal(18, 2), minPrice);
+    }
+    if (maxPrice !== null && !isNaN(maxPrice)) {
+      totalReq.input('maxPrice', sql.Decimal(18, 2), maxPrice);
+    }
 
     const totalSql = `SELECT COUNT_BIG(1) AS Total ${baseFrom};`;
 
@@ -121,51 +107,78 @@ router.get('/', async (req, res) => {
       total: Number(totalResult.recordset[0]?.Total ?? 0),
       page,
       limit,
+      totalPages: Math.ceil(Number(totalResult.recordset[0]?.Total ?? 0) / limit)
     });
   } catch (err) {
     console.error('LIST PRODUCTS ERROR:', err);
-    res.status(500).send('Lỗi khi lấy danh sách sản phẩm: ' + err.message);
+    res.status(500).json({ error: 'Lỗi khi lấy danh sách món ăn', detail: err.message });
   }
 });
 
-/**
- * GET /api/products/:id  — Chi tiết sản phẩm
- */
+// ================== CHI TIẾT SP ==================
 router.get('/:id', async (req, res) => {
   try {
     const pool = await poolPromise;
     const id = parseInt(req.params.id, 10);
 
-    // Dùng LEFT JOIN để vẫn trả về sản phẩm nếu Category bị thiếu
-    const product = await pool.request()
-      .input('id', sql.Int, id)
-      .query(`
-        SELECT p.*,
-               c.CategoryID,
-               c.Name AS CategoryName,
-               c.TargetGroup
-        FROM Products p
-        LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
-        WHERE p.ProductID = @id
-      `);
-
-    if (!product.recordset.length) {
-      return res.status(404).send('Không tìm thấy sản phẩm');
+    if (isNaN(id) || id <= 0) {
+      return res.status(400).json({ error: 'ID sản phẩm không hợp lệ.' });
     }
 
-    const variants = await pool.request()
+    const productRes = await pool.request()
       .input('id', sql.Int, id)
       .query(`
-        SELECT v.*, i.ImageURL
-        FROM ProductVariants v
-        LEFT JOIN ProductImages i ON v.VariantID = i.VariantID
-        WHERE v.ProductID = @id
+        SELECT f.FoodId, f.FoodName, f.Description, f.Price, f.Discount, 
+               ISNULL(f.DiscountPrice, f.Price * (1 - ISNULL(f.Discount, 0) / 100.0)) AS DiscountPrice,
+               f.Stock, f.ImageURL, f.Status,
+               c.CategoryId, c.CategoryName
+        FROM Food f
+        LEFT JOIN Category c ON f.CategoryId = c.CategoryId
+        WHERE f.FoodId = @id
       `);
 
-    res.json({ product: product.recordset[0], variants: variants.recordset });
+    if (!productRes.recordset.length) {
+      return res.status(404).json({ error: 'Không tìm thấy món ăn.' });
+    }
+
+    const product = productRes.recordset[0];
+
+    const sizesRes = await pool.request().query(`
+      SELECT SizeID, SizeName, ExtraPrice 
+      FROM Size ORDER BY ExtraPrice ASC
+    `);
+
+    const toppingsRes = await pool.request().query(`
+      SELECT ToppingID, ToppingName, ToppingPrice 
+      FROM Topping ORDER BY ToppingName ASC
+    `);
+
+    let related = [];
+    if (product.CategoryId) {
+      const relatedRes = await pool.request()
+        .input('catId', sql.Int, product.CategoryId)
+        .input('id', sql.Int, id)
+        .query(`
+          SELECT TOP 4 f.FoodId, f.FoodName, f.Price, 
+                 ISNULL(f.DiscountPrice, f.Price * (1 - ISNULL(f.Discount, 0) / 100.0)) AS DiscountPrice, 
+                 f.ImageURL, c.CategoryName
+          FROM Food f
+          LEFT JOIN Category c ON f.CategoryId = c.CategoryId
+          WHERE f.CategoryId = @catId AND f.FoodId <> @id
+          ORDER BY NEWID();
+        `);
+      related = relatedRes.recordset;
+    }
+
+    res.json({
+      product,
+      sizes: sizesRes.recordset,
+      toppings: toppingsRes.recordset,
+      related
+    });
   } catch (err) {
     console.error('PRODUCT DETAIL ERROR:', err);
-    res.status(500).send('Lỗi khi lấy chi tiết sản phẩm: ' + err.message);
+    res.status(500).json({ error: 'Lỗi khi lấy chi tiết món ăn', detail: err.message });
   }
 });
 

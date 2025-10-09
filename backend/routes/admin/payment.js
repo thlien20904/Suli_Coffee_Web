@@ -143,12 +143,10 @@ router.post("/delete", async (req, res) => {
     const { id } = req.body;
 
     if (!id || isNaN(parseInt(id))) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "ID phương thức thanh toán không hợp lệ.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "ID phương thức thanh toán không hợp lệ.",
+      });
     }
 
     const pool = await poolPromise;
@@ -162,12 +160,10 @@ router.post("/delete", async (req, res) => {
 
     if (!methodResult.recordset.length) {
       await transaction.rollback();
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Không tìm thấy phương thức thanh toán.",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy phương thức thanh toán.",
+      });
     }
 
     const paymentMethod = methodResult.recordset[0];

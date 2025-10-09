@@ -1,16 +1,18 @@
-// src/components/layout/user/UserLayout.js
+import React from "react";
 import { Outlet } from "react-router-dom";
-import Navbar from "./Navbar";
+import UserNavbar from "./Navbar"; // 👈 đổi tên import
 import Footer from "./Footer";
 
-export default function UserLayout() {
+const UserLayout = () => {
   return (
     <div className="user-layout">
-      <Navbar />
+      <UserNavbar />
       <main className="content">
         <Outlet /> {/* ✅ render các route con như Home, Products,... */}
       </main>
       <Footer />
     </div>
   );
-}
+};
+
+export default UserLayout;

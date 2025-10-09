@@ -1,5 +1,5 @@
 {
-  "name": "shoe-store-backend",
+  "name": "suli-coffee-backend",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "concurrently": "^9.2.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "exceljs": "^4.4.0",

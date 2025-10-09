@@ -7,7 +7,6 @@ const multer = require("multer");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const { poolPromise } = require("./db");
-
 const { expressjwt } = require("express-jwt"); // v8.5.1
 dotenv.config();
 
@@ -21,7 +20,49 @@ app.use(
 app.use(express.json());
 app.use(passport.initialize());
 
-/* ---------------- MIDDLEWARE JWT ---------------- */
+// 📌 Phục vụ ảnh tĩnh (chỉ dùng một thư mục images/)
+app.use("/images", express.static(path.join(__dirname, "../images"))); // Thư mục images/ trong backend/
+app.use("/uploads", express.static(path.join(__dirname, "Uploads")));
+app.use("/images", express.static(path.join(__dirname, "public/images")));
+// 📌 Route cho trang thành công
+app.get("/successful", async (req, res) => {
+  try {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Không có token xác thực!" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "dev_secret_fallback"
+    );
+
+    // Kiểm tra user tồn tại
+    const pool = await poolPromise;
+    const user = await pool
+      .request()
+      .input("UserID", decoded.id)
+      .query("SELECT UserID, Username FROM Users WHERE UserID = @UserID");
+
+    if (user.recordset.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy người dùng!" });
+    }
+
+    res.json({ success: true, message: "Đặt hàng thành công!" });
+  } catch (err) {
+    console.error("SUCCESS ROUTE ERROR:", err);
+    return res
+      .status(401)
+      .json({ success: false, message: "Token hết hạn hoặc không hợp lệ!" });
+  }
+});
+
+// /* ---------------- MIDDLEWARE JWT ---------------- */
 // app.use(
 //   "/api/admin",
 //   expressjwt({ secret: process.env.JWT_SECRET, algorithms: ["HS256"] }),
@@ -61,7 +102,7 @@ passport.use(
             .request()
             .input("Username", username)
             .input("Email", email)
-            .input("Password", "google") // placeholder
+            .input("Password", "google")
             .input("AvatarURL", avatar)
             .query(
               "INSERT INTO Users (Username, Email, Password, Role, AvatarURL) VALUES (@Username, @Email, @Password, 'User', @AvatarURL)"
@@ -91,7 +132,6 @@ passport.use(
 );
 
 /* ---------------- MULTER UPLOAD ---------------- */
-// chỉnh multer: lưu vào public/images
 const storage = multer.diskStorage({
   destination: (req, file, cb) =>
     cb(null, path.join(__dirname, "public/images")),
@@ -100,26 +140,18 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// cho FE truy cập ảnh qua /images
-app.use("/images", express.static(path.join(__dirname, "public/images")));
-app.use("/uploads", express.static("uploads"));
-
-// Thêm cấu hình cho thư mục SuLi/images/
-app.use("/images", express.static(path.join(__dirname, "../images")));
-
 /* ---------------- IMPORT ROUTERS ---------------- */
 const authRouter = require("./routes/user/auth");
 const profileRouter = require("./routes/user/profile");
 const productsUserRouter = require("./routes/user/productsUser");
 const cartUserRouter = require("./routes/user/cartUser");
 const ordersUserRouter = require("./routes/user/ordersUser");
-const blogsUserRouter = require("./routes/user/blogsUser");
+const StoresUserRouter = require("./routes/user/StoresUser");
 const addressesUserRouter = require("./routes/user/addressesUser");
 const homeRouter = require("./routes/user/homeUser");
 
 const FoodRouter = require("./routes/admin/Food");
 const homeAdminRouter = require("./routes/admin/homeAdmin");
-
 const authAdminRoutes = require("./routes/admin/authAdmin");
 const ingredientRouter = require("./routes/admin/ingredient");
 const categoryRouter = require("./routes/admin/category");
@@ -132,13 +164,14 @@ const roleRouter = require("./routes/admin/role");
 const invoiceRouter = require("./routes/admin/invoice");
 const orderAdminRouter = require("./routes/admin/order");
 const reportRouter = require("./routes/admin/report");
+
 /* ---------------- USE ROUTERS ---------------- */
 app.use("/api/auth", authRouter);
 app.use("/api/profile", profileRouter);
 app.use("/api/products", productsUserRouter);
 app.use("/api/cart", cartUserRouter);
 app.use("/api/orders", ordersUserRouter);
-app.use("/api/blogs", blogsUserRouter);
+app.use("/api/Stores", StoresUserRouter);
 app.use("/api/addresses", addressesUserRouter);
 app.use("/api/home", homeRouter);
 
@@ -204,7 +237,7 @@ app.get(
 );
 
 /* ---------------- API CURRENT USER ---------------- */
-app.get("/api/current_user", (req, res) => {
+app.get("/api/current_user", async (req, res) => {
   try {
     const authHeader = req.headers["authorization"];
     if (!authHeader) return res.json(null);
