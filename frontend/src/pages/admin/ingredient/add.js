@@ -73,7 +73,7 @@ const AddIngredient = () => {
       ];
       if (!allowed.includes(file.type)) {
         Swal.fire(
-          "Lỗi",
+          "",
           "Chỉ chấp nhận file ảnh (png, jpg, jpeg, gif, webp)",
           "error"
         );
@@ -91,7 +91,7 @@ const AddIngredient = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
-      Swal.fire("Lỗi", "Vui lòng kiểm tra lại các trường nhập!", "error");
+      Swal.fire("", "Vui lòng kiểm tra lại các trường nhập!", "error");
       return;
     }
 
@@ -122,14 +122,14 @@ const AddIngredient = () => {
         }).then(() => window.history.back());
       } else {
         Swal.fire(
-          "Lỗi",
+          "",
           res.data.message || "Không thể thêm nguyên liệu",
           "error"
         );
       }
     } catch (err) {
       console.error("❌ Lỗi thêm nguyên liệu:", err);
-      Swal.fire("Lỗi", "Không thể kết nối server!", "error");
+      Swal.fire("", "Không thể kết nối server!", "error");
     }
   };
 

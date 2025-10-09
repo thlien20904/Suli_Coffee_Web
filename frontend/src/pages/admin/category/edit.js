@@ -24,12 +24,12 @@ const CategoryEdit = () => {
         if (res.data.success && res.data.data) {
           setName(res.data.data.CategoryName);
         } else {
-          Swal.fire("Lỗi", "Không tìm thấy danh mục", "error");
+          Swal.fire("", "Không tìm thấy danh mục", "error");
           navigate("/admin/category");
         }
       } catch (err) {
         console.error("❌ Fetch category error:", err);
-        Swal.fire("Lỗi", "Không thể kết nối server", "error");
+        Swal.fire("", "Không thể kết nối server", "error");
       }
     };
     fetchCategory();
@@ -40,7 +40,7 @@ const CategoryEdit = () => {
     e.preventDefault();
 
     if (!name.trim()) {
-      return Swal.fire("Lỗi", "Tên danh mục không được để trống", "error");
+      return Swal.fire("", "Tên danh mục không được để trống", "error");
     }
 
     try {
@@ -63,11 +63,11 @@ const CategoryEdit = () => {
           navigate("/admin/category"); // ✅ quay lại trang
         });
       } else {
-        Swal.fire("Lỗi", res.data.message || "Không thể cập nhật", "error");
+        Swal.fire("", res.data.message || "Không thể cập nhật", "error");
       }
     } catch (err) {
       console.error("❌ Update category error:", err);
-      Swal.fire("Lỗi", "Không thể kết nối server", "error");
+      Swal.fire("", "Không thể kết nối server", "error");
     }
   };
 

@@ -67,7 +67,11 @@ const Food = () => {
             },
           });
         } catch (err) {
-          Swal.fire("Lỗi", "Không thể xóa món ăn", "error");
+          Swal.fire(
+            "",
+            err.response?.data?.message || "Không thể xóa danh mục",
+            "error"
+          );
         } finally {
           setLoadingId(null); // ✅ tắt loading
         }

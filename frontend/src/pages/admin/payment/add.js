@@ -12,7 +12,7 @@ const AddPayment = () => {
     e.preventDefault();
 
     if (!name.trim()) {
-      Swal.fire("Lỗi", "Tên phương thức không được để trống", "error");
+      Swal.fire("", "Tên phương thức không được để trống", "error");
       return;
     }
 
@@ -39,11 +39,11 @@ const AddPayment = () => {
           navigate("/admin/payment");
         });
       } else {
-        Swal.fire("Lỗi", res.data.message || "Không thể thêm", "error");
+        Swal.fire("", res.data.message || "Không thể thêm", "error");
       }
     } catch (err) {
       console.error("❌ Lỗi khi thêm:", err.response || err);
-      Swal.fire("Lỗi", "Không thể thêm phương thức", "error");
+      Swal.fire("", "Không thể thêm phương thức", "error");
     }
   };
 

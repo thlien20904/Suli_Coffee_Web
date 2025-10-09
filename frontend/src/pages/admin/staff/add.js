@@ -95,7 +95,7 @@ const AddStaff = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
-      Swal.fire("Lỗi", "Vui lòng kiểm tra lại các trường nhập!", "error");
+      Swal.fire("", "Vui lòng kiểm tra lại các trường nhập!", "error");
       return;
     }
 
@@ -116,15 +116,11 @@ const AddStaff = () => {
           timerProgressBar: true,
         }).then(() => window.history.back());
       } else {
-        Swal.fire(
-          "Lỗi",
-          res.data.message || "Không thể thêm nhân viên",
-          "error"
-        );
+        Swal.fire("", res.data.message || "Không thể thêm nhân viên", "error");
       }
     } catch (err) {
       console.error("❌ Lỗi thêm staff:", err);
-      Swal.fire("Lỗi", "Không thể kết nối server!", "error");
+      Swal.fire("", "Không thể kết nối server!", "error");
     }
   };
 

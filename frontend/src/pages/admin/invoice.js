@@ -1,4 +1,3 @@
-// src/pages/admin/Invoice.js
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -18,6 +17,7 @@ const Invoice = () => {
   const [currentInvoice, setCurrentInvoice] = useState(null);
   const itemsPerPage = 10;
 
+  // 🔹 Lấy danh sách hóa đơn
   const fetchData = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/admin/invoice", {
@@ -25,9 +25,10 @@ const Invoice = () => {
         params: { limit: 1000 },
       });
       setInvoices(res.data.data);
-      setFiltered(res.data.data); // mặc định hiển thị hết
+      setFiltered(res.data.data);
     } catch (err) {
       console.error("❌ Lỗi fetch invoices:", err);
+      Swal.fire("", "Không thể tải danh sách hóa đơn", "error");
     }
   };
 
@@ -35,18 +36,16 @@ const Invoice = () => {
     fetchData();
   }, []);
 
-  // 👉 Hàm lọc thủ công khi bấm nút
+  // 🔹 Lọc hóa đơn
   const applyFilter = () => {
     let result = [...invoices];
 
-    // search
     result = result.filter(
       (item) =>
-        item.UserName.toLowerCase().includes(search.toLowerCase()) ||
+        item.UserName?.toLowerCase().includes(search.toLowerCase()) ||
         String(item.OrderId).includes(search)
     );
 
-    // date range
     result = result.filter((item) => {
       if (!startDate && !endDate) return true;
       const d = new Date(item.OrderDate);
@@ -55,7 +54,6 @@ const Invoice = () => {
       return (!from || d >= from) && (!to || d <= to);
     });
 
-    // sort
     result = result.sort((a, b) => {
       switch (sort) {
         case "newest":
@@ -75,6 +73,7 @@ const Invoice = () => {
     setCurrentPage(1);
   };
 
+  // 🔹 Phân trang
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const pageData = filtered.slice(
     (currentPage - 1) * itemsPerPage,
@@ -85,6 +84,7 @@ const Invoice = () => {
     if (p >= 1 && p <= totalPages) setCurrentPage(p);
   };
 
+  // 🔹 Xem chi tiết
   const viewDetail = async (id) => {
     try {
       const res = await axios.get(
@@ -93,22 +93,28 @@ const Invoice = () => {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
-      setDetails(res.data.details);
-      setCurrentInvoice(res.data.invoice);
+
+      // Kiểm tra dữ liệu
+      console.log("📦 Chi tiết hóa đơn:", res.data);
+
+      setDetails(res.data.details || []);
+      setCurrentInvoice(res.data.invoice || null);
       setShowDetailModal(true);
     } catch (err) {
-      Swal.fire("Lỗi", "Không thể lấy chi tiết hóa đơn", "error");
+      console.error(err);
+      Swal.fire("", "Không thể lấy chi tiết hóa đơn", "error");
     }
   };
 
+  // 🔹 In hóa đơn
   const printInvoice = () => {
     if (!currentInvoice) return;
-    // ... (giữ nguyên code in hoá đơn của bạn)
+    window.print();
   };
 
   return (
     <div className="invoice-page">
-      {/* Filter */}
+      {/* Bộ lọc */}
       <div className="invoice-filter">
         <input
           className="search-box"
@@ -140,7 +146,7 @@ const Invoice = () => {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Bảng hóa đơn */}
       <table className="invoice-table">
         <thead>
           <tr>
@@ -154,28 +160,36 @@ const Invoice = () => {
           </tr>
         </thead>
         <tbody>
-          {pageData.map((item) => (
-            <tr key={item.OrderId}>
-              <td>{item.OrderId}</td>
-              <td>{item.UserName}</td>
-              <td>{new Date(item.OrderDate).toLocaleString()}</td>
-              <td>{item.PaymentMethod}</td>
-              <td>{item.Status}</td>
-              <td>{item.TotalAmount.toLocaleString()} đ</td>
-              <td>
-                <button
-                  className="btn-green"
-                  onClick={() => viewDetail(item.OrderId)}
-                >
-                  <i className="fas fa-eye"></i> Xem chi tiết
-                </button>
+          {pageData.length > 0 ? (
+            pageData.map((item) => (
+              <tr key={item.OrderId}>
+                <td>{item.OrderId}</td>
+                <td>{item.UserName}</td>
+                <td>{new Date(item.OrderDate).toLocaleString()}</td>
+                <td>{item.PaymentMethod}</td>
+                <td>{item.Status}</td>
+                <td>{item.TotalAmount.toLocaleString()} đ</td>
+                <td>
+                  <button
+                    className="btn-green"
+                    onClick={() => viewDetail(item.OrderId)}
+                  >
+                    <i className="fas fa-eye"></i> Xem chi tiết
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="7" style={{ textAlign: "center" }}>
+                Không có dữ liệu
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
 
-      {/* Pagination */}
+      {/* Phân trang */}
       <div className="pagination">
         <button
           onClick={() => changePage(currentPage - 1)}
@@ -200,14 +214,111 @@ const Invoice = () => {
         </button>
       </div>
 
-      {/* Modal giữ nguyên */}
       {showDetailModal && (
         <div
           className="modal-overlay"
           onClick={() => setShowDetailModal(false)}
         >
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            {/* ... giữ nguyên code modal chi tiết */}
+          <div className="invoice-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="invoice-print">
+              <h2 className="brand-title">SULI COFFEE HOUSE</h2>
+              <p className="brand-address">
+                234 Hoàng Quốc Việt, Bắc Từ Liêm, Hà Nội
+              </p>
+              <hr />
+
+              <div className="invoice-info">
+                <p>
+                  <b>Số HĐ:</b> {currentInvoice?.OrderId}
+                </p>
+                <p>
+                  <b>Ngày:</b>{" "}
+                  {new Date(currentInvoice?.OrderDate).toLocaleString()}
+                </p>
+                <p>
+                  <b>Khách hàng:</b> {currentInvoice?.UserName}
+                </p>
+                <p>
+                  <b>Phương thức:</b> {currentInvoice?.PaymentMethod}
+                </p>
+                <p>
+                  <b>Trạng thái:</b> {currentInvoice?.Status}
+                </p>
+              </div>
+
+              <table className="invoice-detail-table">
+                <thead>
+                  <tr>
+                    <th>TT</th>
+                    <th>Tên món</th>
+                    <th>SL</th>
+                    <th>Đ.Giá</th>
+                    <th>T.Tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {details.map((d, i) => (
+                    <tr key={d.OrderDetailId}>
+                      <td>{i + 1}</td>
+                      <td>
+                        {d.FoodName}
+                        {d.SizeName ? ` (${d.SizeName})` : ""}
+                        {d.ToppingName ? ` - ${d.ToppingName}` : ""}
+                      </td>
+                      <td>{d.Quantity}</td>
+                      <td>{d.Price.toLocaleString()}</td>
+                      <td>{(d.Quantity * d.Price).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="invoice-summary">
+                <p>
+                  <b>Tổng số lượng:</b>{" "}
+                  {details.reduce((sum, d) => sum + d.Quantity, 0)}
+                </p>
+                <p>
+                  <b>Thành tiền:</b>{" "}
+                  {currentInvoice?.TotalAmount?.toLocaleString()} đ
+                </p>
+                <p>
+                  <b>Thanh toán:</b>{" "}
+                  {currentInvoice?.TotalAmount?.toLocaleString()} đ
+                </p>
+                <p>
+                  <b>Tiền khách đưa:</b>{" "}
+                  {currentInvoice?.TotalAmount?.toLocaleString()} đ
+                </p>
+                <p>
+                  <b>Tiền thừa:</b> 0 đ
+                </p>
+              </div>
+
+              <div className="qr-section">
+                <p>
+                  Giá sản phẩm đã bao gồm VAT 8%. Hóa đơn GTGT chỉ xuất tại thời
+                  điểm thanh toán. Nếu bạn cần xuất hóa đơn, hãy truy cập
+                  website
+                  <br />
+                  <a href="https://evat.suli.com">https://evat.suli.com</a>
+                </p>
+                <p>Mọi thắc mắc xin liên hệ: 086868686</p>
+                <p className="wifi">Password Wifi: sulicoffee</p>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn-green" onClick={printInvoice}>
+                <i className="fas fa-print"></i> In hóa đơn
+              </button>
+              <button
+                className="btn-red"
+                onClick={() => setShowDetailModal(false)}
+              >
+                Đóng
+              </button>
+            </div>
           </div>
         </div>
       )}

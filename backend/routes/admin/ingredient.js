@@ -289,54 +289,93 @@ router.post("/delete", async (req, res) => {
   let transaction;
   try {
     const { id } = req.body;
-    if (!id) return res.json({ success: false, message: "ID không hợp lệ" });
+    if (!id || isNaN(parseInt(id))) {
+      return res
+        .status(400)
+        .json({ success: false, message: "ID nguyên liệu không hợp lệ." });
+    }
 
     const pool = await poolPromise;
     transaction = new sql.Transaction(pool);
     await transaction.begin();
 
-    // Lấy ingredient
+    // 🔹 Kiểm tra nguyên liệu có tồn tại không
     const ingredientResult = await new sql.Request(transaction)
       .input("IngredientId", sql.Int, id)
       .query(`SELECT * FROM Ingredient WHERE IngredientId = @IngredientId`);
 
     if (!ingredientResult.recordset.length) {
+      await transaction.rollback();
       return res
         .status(404)
-        .json({ success: false, message: "Không tìm thấy nguyên liệu" });
+        .json({ success: false, message: "Không tìm thấy nguyên liệu." });
     }
+
     const ingredient = ingredientResult.recordset[0];
 
-    // Xóa FoodIngredient liên quan
-    await new sql.Request(transaction)
+    // 🔹 Kiểm tra xem nguyên liệu có đang được sử dụng trong bảng FoodIngredient không
+    const checkFoodIngredient = await new sql.Request(transaction)
       .input("IngredientId", sql.Int, id)
-      .query(`DELETE FROM FoodIngredient WHERE IngredientId=@IngredientId`);
+      .query(
+        `SELECT COUNT(*) AS count FROM FoodIngredient WHERE IngredientId = @IngredientId`
+      );
 
-    // Xóa ảnh (nếu không phải ảnh mặc định)
+    if (checkFoodIngredient.recordset[0].count > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa nguyên liệu "${ingredient.IngredientName}" vì đang được sử dụng trong công thức món ăn.`,
+      });
+    }
+
+    // 🔹 Kiểm tra xem nguyên liệu có đang được liên kết trực tiếp trong bảng Food không
+    const checkFood = await new sql.Request(transaction)
+      .input("IngredientId", sql.Int, id)
+      .query(
+        `SELECT COUNT(*) AS count FROM Food WHERE IngredientId = @IngredientId`
+      );
+
+    if (checkFood.recordset[0].count > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa nguyên liệu "${ingredient.IngredientName}" vì đang được liên kết với món ăn.`,
+      });
+    }
+
+    // 🔹 Xóa ảnh nếu có (trừ ảnh mặc định)
     if (ingredient.ImageURL && ingredient.ImageURL !== "/images/no-image.png") {
       const fullPath = path.join(
         __dirname,
         "../../public",
         ingredient.ImageURL
       );
-      if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+      if (fs.existsSync(fullPath)) {
+        try {
+          fs.unlinkSync(fullPath);
+        } catch (err) {
+          console.warn("⚠️ Không thể xóa file ảnh:", err.message);
+        }
+      }
     }
 
-    // Xóa Ingredient
+    // 🔹 Xóa nguyên liệu
     await new sql.Request(transaction)
       .input("IngredientId", sql.Int, id)
-      .query(`DELETE FROM Ingredient WHERE IngredientId=@IngredientId`);
+      .query(`DELETE FROM Ingredient WHERE IngredientId = @IngredientId`);
 
     await transaction.commit();
 
     res.json({
       success: true,
-      message: `Đã xóa nguyên liệu ${ingredient.IngredientName}`,
+      message: `Đã xóa nguyên liệu "${ingredient.IngredientName}" thành công.`,
     });
   } catch (err) {
     if (transaction) await transaction.rollback();
     console.error("❌ Lỗi delete ingredient:", err);
-    res.status(500).json({ success: false, message: "Lỗi server" });
+    res
+      .status(500)
+      .json({ success: false, message: `Lỗi server: ${err.message}` });
   }
 });
 

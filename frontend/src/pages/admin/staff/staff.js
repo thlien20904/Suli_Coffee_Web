@@ -65,13 +65,13 @@ const Staff = () => {
             }).then(() => fetchData());
           } else {
             Swal.fire(
-              "Lỗi",
+              "",
               res.data.message || "Không thể xóa nhân viên",
               "error"
             );
           }
         } catch (err) {
-          Swal.fire("Lỗi", "Không thể kết nối server", "error");
+          Swal.fire("", "Không thể kết nối server", "error");
         } finally {
           setLoadingId(null);
         }

@@ -127,7 +127,7 @@ router.post("/edit/:id", async (req, res) => {
   }
 });
 
-// ================== XÓA CATEGORY ==================
+// ================== XÓA CATEGORY (CHẶN NẾU ĐANG DÙNG) ==================
 router.post("/delete", async (req, res) => {
   try {
     const { id } = req.body;
@@ -139,7 +139,7 @@ router.post("/delete", async (req, res) => {
 
     const pool = await poolPromise;
 
-    // Kiểm tra danh mục có tồn tại
+    // Kiểm tra danh mục có tồn tại không
     const category = await pool
       .request()
       .input("CategoryId", sql.Int, id)
@@ -150,7 +150,22 @@ router.post("/delete", async (req, res) => {
         .json({ success: false, message: "Danh mục không tồn tại" });
     }
 
-    // Xóa
+    // Kiểm tra xem có món ăn nào đang thuộc danh mục này không
+    const checkFood = await pool
+      .request()
+      .input("CategoryId", sql.Int, id)
+      .query(
+        "SELECT COUNT(*) AS count FROM Food WHERE CategoryId = @CategoryId"
+      );
+
+    if (checkFood.recordset[0].count > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Không thể xóa danh mục vì đang có ${checkFood.recordset[0].count} món ăn thuộc danh mục này.`,
+      });
+    }
+
+    // Nếu không có món ăn nào thì cho phép xóa
     await pool
       .request()
       .input("CategoryId", sql.Int, id)

@@ -111,3 +111,19 @@
   border-radius: 12px;
   margin-bottom: 10px;
 }
+
+/* Ảnh nguyên liệu trong bảng */
+.ingredient-img {
+  width: 80px; /* tăng size */
+  height: 80px;
+  object-fit: cover;
+  border-radius: 10px; /* bo góc mềm mại */
+  display: block;
+  margin: 0 auto; /* căn giữa trong ô */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); /* đổ bóng nhẹ */
+  transition: transform 0.3s ease;
+}
+
+.ingredient-img:hover {
+  transform: scale(1.1); /* hover phóng to nhẹ */
+}

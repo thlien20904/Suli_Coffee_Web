@@ -104,12 +104,12 @@ const StaffEdit = () => {
             RoleId: s.RoleId ? String(s.RoleId) : "",
           });
         } else {
-          Swal.fire("Lỗi", "Không tìm thấy nhân viên", "error");
+          Swal.fire("", "Không tìm thấy nhân viên", "error");
           navigate("/admin/staff");
         }
       } catch (err) {
         console.error("❌ Fetch staff error:", err);
-        Swal.fire("Lỗi", "Không thể kết nối server", "error");
+        Swal.fire("", "Không thể kết nối server", "error");
       }
     };
     fetchData();
@@ -130,7 +130,7 @@ const StaffEdit = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
-      Swal.fire("Lỗi", "Vui lòng kiểm tra lại các trường nhập!", "error");
+      Swal.fire("", "Vui lòng kiểm tra lại các trường nhập!", "error");
       return;
     }
 
@@ -153,11 +153,11 @@ const StaffEdit = () => {
           timerProgressBar: true,
         }).then(() => navigate("/admin/staff"));
       } else {
-        Swal.fire("Lỗi", res.data.message || "Không thể cập nhật", "error");
+        Swal.fire("", res.data.message || "Không thể cập nhật", "error");
       }
     } catch (err) {
       console.error("❌ Update staff error:", err);
-      Swal.fire("Lỗi", "Không thể kết nối server", "error");
+      Swal.fire("", "Không thể kết nối server", "error");
     }
   };
 

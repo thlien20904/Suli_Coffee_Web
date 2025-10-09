@@ -24,12 +24,12 @@ const EditPayment = () => {
         if (res.data.success && res.data.data) {
           setName(res.data.data.TenPhuongThuc);
         } else {
-          Swal.fire("Lỗi", "Không tìm thấy phương thức", "error");
+          Swal.fire("", "Không tìm thấy phương thức", "error");
           navigate("/admin/payment");
         }
       } catch (err) {
         console.error("❌ Fetch payment error:", err);
-        Swal.fire("Lỗi", "Không thể kết nối server", "error");
+        Swal.fire("", "Không thể kết nối server", "error");
       }
     };
     fetchPayment();
@@ -40,7 +40,7 @@ const EditPayment = () => {
     e.preventDefault();
 
     if (!name.trim()) {
-      return Swal.fire("Lỗi", "Tên phương thức không được để trống", "error");
+      return Swal.fire("", "Tên phương thức không được để trống", "error");
     }
 
     try {
@@ -63,11 +63,11 @@ const EditPayment = () => {
           navigate("/admin/payment");
         });
       } else {
-        Swal.fire("Lỗi", res.data.message || "Không thể cập nhật", "error");
+        Swal.fire("", res.data.message || "Không thể cập nhật", "error");
       }
     } catch (err) {
       console.error("❌ Update payment error:", err);
-      Swal.fire("Lỗi", "Không thể kết nối server", "error");
+      Swal.fire("", "Không thể kết nối server", "error");
     }
   };
 

@@ -69,7 +69,11 @@ const Ingredient = () => {
             fetchData(); // load lại bảng sau khi bấm OK hoặc khi tự đóng
           });
         } catch (err) {
-          Swal.fire("Lỗi", "Không thể xóa nguyên liệu", "error");
+          Swal.fire(
+            "",
+            err.response?.data?.message || "Không thể xóa danh mục",
+            "error"
+          );
         } finally {
           setLoadingId(null);
         }

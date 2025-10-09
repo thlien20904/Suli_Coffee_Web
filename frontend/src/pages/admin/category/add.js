@@ -13,7 +13,7 @@ const AddCategory = () => {
 
     // 👉 Validate trước khi gửi
     if (!categoryName.trim()) {
-      Swal.fire("Lỗi", "Tên danh mục không được để trống", "error");
+      Swal.fire("", "Tên danh mục không được để trống", "error");
       return;
     }
 
@@ -40,15 +40,11 @@ const AddCategory = () => {
           navigate("/admin/category");
         });
       } else {
-        Swal.fire(
-          "Lỗi",
-          res.data.message || "Không thể thêm danh mục",
-          "error"
-        );
+        Swal.fire("", res.data.message || "Không thể thêm danh mục", "error");
       }
     } catch (err) {
       console.error("❌ Lỗi khi thêm:", err.response || err);
-      Swal.fire("Lỗi", "Không thể thêm danh mục", "error");
+      Swal.fire("", "Không thể thêm danh mục", "error");
     }
   };
 

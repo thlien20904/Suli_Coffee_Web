@@ -136,40 +136,75 @@ router.post("/edit/:id", async (req, res) => {
   }
 });
 
-// ================== XÓA PAYMENT METHOD ==================
+// ================== DELETE PAYMENT METHOD ==================
 router.post("/delete", async (req, res) => {
+  let transaction;
   try {
     const { id } = req.body;
+
     if (!id || isNaN(parseInt(id))) {
       return res
         .status(400)
-        .json({ success: false, message: "ID không hợp lệ" });
+        .json({
+          success: false,
+          message: "ID phương thức thanh toán không hợp lệ.",
+        });
     }
 
     const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
+    await transaction.begin();
 
-    // Kiểm tra tồn tại
-    const check = await pool
-      .request()
+    // 🔹 Kiểm tra phương thức thanh toán có tồn tại không
+    const methodResult = await new sql.Request(transaction)
       .input("Id", sql.Int, id)
-      .query("SELECT * FROM PhuongThucThanhToan WHERE Id = @Id");
+      .query(`SELECT * FROM PhuongThucThanhToan WHERE Id = @Id`);
 
-    if (!check.recordset.length) {
+    if (!methodResult.recordset.length) {
+      await transaction.rollback();
       return res
         .status(404)
-        .json({ success: false, message: "Phương thức không tồn tại" });
+        .json({
+          success: false,
+          message: "Không tìm thấy phương thức thanh toán.",
+        });
     }
 
-    // Xóa
-    await pool
-      .request()
-      .input("Id", sql.Int, id)
-      .query("DELETE FROM PhuongThucThanhToan WHERE Id = @Id");
+    const paymentMethod = methodResult.recordset[0];
 
-    return res.json({ success: true, message: "Xóa phương thức thành công!" });
+    // 🔹 Kiểm tra xem phương thức này có đang được dùng trong bảng Orders không
+    const orderCheck = await new sql.Request(transaction)
+      .input("PaymentMethodId", sql.Int, id)
+      .query(
+        `SELECT COUNT(*) AS count FROM Orders WHERE PaymentMethodId = @PaymentMethodId`
+      );
+
+    if (orderCheck.recordset[0].count > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa phương thức thanh toán "${paymentMethod.TenPhuongThuc}" vì đang được sử dụng trong đơn hàng.`,
+      });
+    }
+
+    // 🔹 Xóa phương thức thanh toán
+    await new sql.Request(transaction)
+      .input("Id", sql.Int, id)
+      .query(`DELETE FROM PhuongThucThanhToan WHERE Id = @Id`);
+
+    await transaction.commit();
+
+    return res.json({
+      success: true,
+      message: `Đã xóa phương thức thanh toán "${paymentMethod.TenPhuongThuc}" thành công.`,
+    });
   } catch (err) {
-    console.error("❌ Lỗi xóa phương thức:", err);
-    res.status(500).json({ success: false, message: "Lỗi server" });
+    if (transaction) await transaction.rollback();
+    console.error("❌ Lỗi khi xóa phương thức thanh toán:", err);
+    res.status(500).json({
+      success: false,
+      message: `Lỗi khi xóa phương thức thanh toán: ${err.message}`,
+    });
   }
 });
 

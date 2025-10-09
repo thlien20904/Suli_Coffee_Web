@@ -70,13 +70,17 @@ const Category = () => {
             });
           } else {
             Swal.fire(
-              "Lỗi",
+              "",
               res.data.message || "Không thể xóa danh mục",
               "error"
             );
           }
         } catch (err) {
-          Swal.fire("Lỗi", "Không thể kết nối server", "error");
+          Swal.fire(
+            "",
+            err.response?.data?.message || "Không thể xóa danh mục",
+            "error"
+          );
         } finally {
           setLoadingId(null);
         }

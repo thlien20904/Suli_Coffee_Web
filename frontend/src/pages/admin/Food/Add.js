@@ -38,8 +38,8 @@ const AddFood = () => {
           axios.get("http://localhost:5000/api/admin/categories"),
           axios.get("http://localhost:5000/api/admin/ingredients"),
         ]);
-        setCategories(catRes.data || []);
-        setIngredients(ingRes.data || []);
+        setCategories(catRes.data.data || []);
+        setIngredients(ingRes.data.data || []);
       } catch (err) {
         console.error("❌ Lỗi load categories/ingredients:", err);
       }
@@ -125,7 +125,7 @@ const AddFood = () => {
       ];
       if (!allowed.includes(file.type)) {
         Swal.fire(
-          "Lỗi",
+          "",
           "Chỉ chấp nhận file ảnh (png, jpg, jpeg, gif, webp)",
           "error"
         );
@@ -143,7 +143,7 @@ const AddFood = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
-      Swal.fire("Lỗi", "Vui lòng kiểm tra lại các trường nhập!", "error");
+      Swal.fire("", "Vui lòng kiểm tra lại các trường nhập!", "error");
       return;
     }
 
@@ -176,11 +176,11 @@ const AddFood = () => {
           timer: 1000,
         }).then(() => window.history.back()); // quay lại trang trước
       } else {
-        Swal.fire("Lỗi", res.data.message || "Không thể thêm món ăn", "error");
+        Swal.fire("", res.data.message || "Không thể thêm món ăn", "error");
       }
     } catch (err) {
       console.error("❌ Lỗi thêm món ăn:", err);
-      Swal.fire("Lỗi", "Không thể kết nối server!", "error");
+      Swal.fire("", "Không thể kết nối server!", "error");
     }
   };
 

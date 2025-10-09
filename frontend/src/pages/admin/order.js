@@ -95,7 +95,7 @@ const Order = () => {
       } else {
         Swal.fire({
           icon: "error",
-          title: "Lỗi",
+          title: "",
           text: res.data.message || "Không thể cập nhật trạng thái",
           showConfirmButton: true,
           timer: 1000,
@@ -104,7 +104,7 @@ const Order = () => {
         });
       }
     } catch (err) {
-      Swal.fire("Lỗi", "Không thể kết nối server", "error");
+      Swal.fire("", "Không thể kết nối server", "error");
     }
   };
 

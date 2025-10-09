@@ -74,10 +74,17 @@ router.get("/", async (req, res) => {
         : `http://localhost:5000/images/no-image.png`,
     }));
 
-    // 5. Nguyên liệu sắp hết (<10)
+    // 5. Nguyên liệu sắp hết (<10) + xử lý ImageURL
     const lowStockRes = await pool.request().query(`
       SELECT * FROM Ingredient WHERE SoLuong < 10
     `);
+
+    const lowStock = lowStockRes.recordset.map((item) => ({
+      ...item,
+      ImageURL: item.ImageURL
+        ? `http://localhost:5000${item.ImageURL}`
+        : `http://localhost:5000/images/no-image.png`,
+    }));
 
     // 6. Top Address (giả định là quốc gia trong Users.Address)
     const topCountriesRes = await pool.request().query(`
@@ -106,7 +113,7 @@ router.get("/", async (req, res) => {
       totalSales,
       monthlySales,
       bestSellers, // đã xử lý ImageURL
-      lowStockIngredients: lowStockRes.recordset,
+      lowStockIngredients: lowStock, // đã xử lý ImageURL
       topCountries: topCountriesRes.recordset,
       recentOrders: recentOrdersRes.recordset,
       customersNeedHelp: [

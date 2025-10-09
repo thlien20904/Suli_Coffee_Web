@@ -242,11 +242,7 @@ const AdminDashboard = () => {
                     <img
                       src={item.ImageURL || "/images/no-image.png"}
                       alt={item.IngredientName}
-                      style={{
-                        width: "50px",
-                        height: "50px",
-                        objectFit: "cover",
-                      }}
+                      className="ingredient-img"
                     />
                   </td>
                   <td>{item.IngredientName}</td>

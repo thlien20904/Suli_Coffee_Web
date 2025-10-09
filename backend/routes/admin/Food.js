@@ -345,89 +345,89 @@ router.post("/delete", async (req, res) => {
     if (!id || isNaN(parseInt(id))) {
       return res
         .status(400)
-        .json({ success: false, message: "ID món ăn không hợp lệ" });
+        .json({ success: false, message: "ID món ăn không hợp lệ." });
     }
 
-    // Bắt đầu transaction
-    transaction = new sql.Transaction(await poolPromise);
+    const pool = await poolPromise;
+    transaction = new sql.Transaction(pool);
     await transaction.begin();
 
-    // Kiểm tra món ăn
-    const checkRequest = new sql.Request(transaction);
-    const foodResult = await checkRequest
+    // 🔹 Kiểm tra món ăn có tồn tại không
+    const checkFood = await new sql.Request(transaction)
       .input("FoodId", sql.Int, id)
-      .query(`SELECT * FROM Food WHERE FoodId = @FoodId`);
-    if (!foodResult.recordset.length) {
+      .query("SELECT * FROM Food WHERE FoodId = @FoodId");
+    if (!checkFood.recordset.length) {
       await transaction.rollback();
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy món ăn." });
     }
-    const food = foodResult.recordset[0];
 
-    // Xóa FoodIngredient
-    const ingredientRequest = new sql.Request(transaction);
-    await ingredientRequest
+    const food = checkFood.recordset[0];
+
+    // 🔹 Kiểm tra xem món ăn có trong đơn hàng hay không
+    const checkOrder = await new sql.Request(transaction)
       .input("FoodId", sql.Int, id)
-      .query(`DELETE FROM FoodIngredient WHERE FoodId = @FoodId`);
+      .query(
+        "SELECT COUNT(*) AS count FROM OrderDetails WHERE FoodId = @FoodId"
+      );
 
-    // Kiểm tra và xóa Ingredient nếu không dùng ở nơi khác
-    const ingredientCheckRequest = new sql.Request(transaction);
-    const isIngredientUsedElsewhere = await ingredientCheckRequest
-      .input("IngredientId", sql.Int, food.IngredientId)
-      .input("FoodId", sql.Int, id).query(`
-        SELECT COUNT(*) as count 
-        FROM Food 
-        WHERE IngredientId = @IngredientId AND FoodId != @FoodId
-      `);
-    if (
-      isIngredientUsedElsewhere.recordset[0].count === 0 &&
-      food.IngredientId
-    ) {
-      const ingredientDeleteRequest = new sql.Request(transaction);
-      await ingredientDeleteRequest
-        .input("IngredientId", sql.Int, food.IngredientId)
-        .query(`DELETE FROM Ingredients WHERE IngredientId = @IngredientId`);
+    if (checkOrder.recordset[0].count > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa món "${food.FoodName}" vì đang tồn tại trong đơn hàng.`,
+      });
     }
 
-    // Xóa ảnh
+    // 🔹 Kiểm tra xem món ăn có trong giỏ hàng không
+    const checkCart = await new sql.Request(transaction)
+      .input("FoodId", sql.Int, id)
+      .query("SELECT COUNT(*) AS count FROM GioHang WHERE FoodId = @FoodId");
+
+    if (checkCart.recordset[0].count > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa món "${food.FoodName}" vì đang có trong giỏ hàng của khách.`,
+      });
+    }
+
+    // 🔹 Xóa bảng phụ FoodIngredient (nếu có)
+    await new sql.Request(transaction)
+      .input("FoodId", sql.Int, id)
+      .query("DELETE FROM FoodIngredient WHERE FoodId = @FoodId");
+
+    // 🔹 Xóa file ảnh (nếu tồn tại)
     if (food.ImageURL) {
       const fullPath = path.join(__dirname, "../../public", food.ImageURL);
       if (fs.existsSync(fullPath)) {
         try {
           fs.unlinkSync(fullPath);
         } catch (err) {
-          console.warn("Không thể xóa file ảnh:", err.message);
+          console.warn("⚠️ Không thể xóa file ảnh:", err.message);
         }
       }
     }
 
-    // Xóa món ăn
-    const deleteRequest = new sql.Request(transaction);
-    await deleteRequest
+    // 🔹 Xóa món ăn
+    await new sql.Request(transaction)
       .input("FoodId", sql.Int, id)
-      .query(`DELETE FROM Food WHERE FoodId = @FoodId`);
+      .query("DELETE FROM Food WHERE FoodId = @FoodId");
 
-    // Commit transaction
     await transaction.commit();
-
     return res.json({
       success: true,
-      message: `Đã xóa món ăn ${food.FoodName} thành công`,
+      message: `Đã xóa món "${food.FoodName}" thành công.`,
     });
   } catch (err) {
-    if (transaction) {
-      try {
-        await transaction.rollback();
-      } catch (rollbackErr) {
-        console.error("Lỗi rollback:", rollbackErr);
-      }
-    }
+    if (transaction) await transaction.rollback();
     console.error("❌ Lỗi khi xóa món ăn:", err);
     return res.status(500).json({
       success: false,
-      message: `Lỗi khi xóa sản phẩm: ${err.message}`,
+      message: `Lỗi khi xóa món ăn: ${err.message}`,
     });
   }
 });
+
 module.exports = router;

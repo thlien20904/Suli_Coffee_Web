@@ -17,7 +17,7 @@ const ExportIngredient = () => {
         setIngredients(res.data.data || []);
       } catch (err) {
         console.error("❌ Lỗi khi tải nguyên liệu:", err);
-        Swal.fire("Lỗi", "Không thể tải danh sách nguyên liệu", "error");
+        Swal.fire("", "Không thể tải danh sách nguyên liệu", "error");
       }
     };
     fetchIngredients();
@@ -39,7 +39,7 @@ const ExportIngredient = () => {
       document.body.removeChild(link);
     } catch (err) {
       console.error("❌ Lỗi export:", err);
-      Swal.fire("Lỗi", "Không thể export Excel", "error");
+      Swal.fire("", "Không thể export Excel", "error");
     }
   };
 

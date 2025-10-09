@@ -69,7 +69,7 @@ const UserList = () => {
           } else {
             Swal.fire({
               icon: "error",
-              title: "Lỗi",
+              title: "",
               text: res.data.message,
               confirmButtonText: "OK",
               timer: 1000,
@@ -79,7 +79,7 @@ const UserList = () => {
         } catch (err) {
           Swal.fire({
             icon: "error",
-            title: "Lỗi",
+            title: "",
             text: "Không thể kết nối server",
             confirmButtonText: "OK",
             timer: 1000,

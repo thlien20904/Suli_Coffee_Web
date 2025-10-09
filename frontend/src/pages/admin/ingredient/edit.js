@@ -30,7 +30,7 @@ const EditIngredient = () => {
     (async () => {
       try {
         if (!id) {
-          Swal.fire("Lỗi", "ID nguyên liệu không hợp lệ", "error");
+          Swal.fire("", "ID nguyên liệu không hợp lệ", "error");
           return;
         }
 
@@ -53,7 +53,7 @@ const EditIngredient = () => {
         setPreview(ing.ImageURL || "/images/no-image.png");
       } catch (err) {
         console.error("❌ Lỗi load nguyên liệu:", err);
-        Swal.fire("Lỗi", "Không thể tải thông tin nguyên liệu", "error");
+        Swal.fire("", "Không thể tải thông tin nguyên liệu", "error");
       }
     })();
   }, [id]);
@@ -117,7 +117,7 @@ const EditIngredient = () => {
       ];
       if (!allowed.includes(file.type)) {
         Swal.fire(
-          "Lỗi",
+          "",
           "Chỉ chấp nhận file ảnh (png, jpg, jpeg, gif, webp)",
           "error"
         );
@@ -135,7 +135,7 @@ const EditIngredient = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
-      Swal.fire("Lỗi", "Vui lòng kiểm tra lại các trường nhập!", "error");
+      Swal.fire("", "Vui lòng kiểm tra lại các trường nhập!", "error");
       return;
     }
 
@@ -166,14 +166,14 @@ const EditIngredient = () => {
         }).then(() => window.history.back());
       } else {
         Swal.fire(
-          "Lỗi",
+          "",
           res.data.message || "Không thể cập nhật nguyên liệu",
           "error"
         );
       }
     } catch (err) {
       console.error("❌ Lỗi cập nhật nguyên liệu:", err);
-      Swal.fire("Lỗi", "Không thể kết nối server!", "error");
+      Swal.fire("", "Không thể kết nối server!", "error");
     }
   };
 

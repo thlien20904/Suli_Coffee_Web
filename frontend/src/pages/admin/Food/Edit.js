@@ -37,7 +37,7 @@ const EditFood = () => {
     (async () => {
       try {
         if (!id) {
-          Swal.fire("Lỗi", "ID món ăn không hợp lệ", "error");
+          Swal.fire("", "ID món ăn không hợp lệ", "error");
           return;
         }
 
@@ -51,8 +51,8 @@ const EditFood = () => {
           }),
         ]);
 
-        setCategories(catRes.data || []);
-        setIngredients(ingRes.data || []);
+        setCategories(catRes.data.data || []);
+        setIngredients(ingRes.data.data || []);
 
         const foodData = foodRes.data.food;
         setForm({
@@ -71,7 +71,7 @@ const EditFood = () => {
         setPreview(foodData.ImageURL || "/images/no-image.png");
       } catch (err) {
         console.error("❌ Lỗi load dữ liệu:", err);
-        Swal.fire("Lỗi", "Không thể tải thông tin món ăn", "error");
+        Swal.fire("", "Không thể tải thông tin món ăn", "error");
       }
     })();
   }, [id]);
@@ -155,7 +155,7 @@ const EditFood = () => {
       ];
       if (!allowed.includes(file.type)) {
         Swal.fire(
-          "Lỗi",
+          "",
           "Chỉ chấp nhận file ảnh (png, jpg, jpeg, gif, webp)",
           "error"
         );
@@ -173,7 +173,7 @@ const EditFood = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
-      Swal.fire("Lỗi", "Vui lòng kiểm tra lại các trường nhập!", "error");
+      Swal.fire("", "Vui lòng kiểm tra lại các trường nhập!", "error");
       return;
     }
 
@@ -206,15 +206,11 @@ const EditFood = () => {
           timer: 1000,
         }).then(() => window.history.back());
       } else {
-        Swal.fire(
-          "Lỗi",
-          res.data.message || "Không thể cập nhật món ăn",
-          "error"
-        );
+        Swal.fire("", res.data.message || "Không thể cập nhật món ăn", "error");
       }
     } catch (err) {
       console.error("❌ Lỗi cập nhật món ăn:", err);
-      Swal.fire("Lỗi", "Không thể kết nối server!", "error");
+      Swal.fire("", "Không thể kết nối server!", "error");
     }
   };
 
