@@ -1,30 +1,56 @@
-import React, { useEffect } from "react";
-import {
-  Navbar as BSNavbar, // 👈 đổi tên react-bootstrap Navbar để tránh trùng
-  Nav,
-  Container,
-  NavDropdown,
-  Form,
-  FormControl,
-} from "react-bootstrap";
+import React, { useEffect, useState } from "react";
+import { Navbar as BSNavbar, Container } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import { FaSearch, FaBell, FaShoppingCart, FaUser } from "react-icons/fa";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
-import { logout as logoutAction, setCartCount } from "../../../redux/userSlice";
+import {
+  logout,
+  setCartCount,
+  setUnreadCount,
+  updateUser,
+} from "../../../redux/userSlice";
 import "../../../styles/components/Navbar.css";
 
-export default function UserNavbar({ brandText = "SuLi Coffee", notifCount = 0 }) {
-  const token = useSelector((state) => state.user.token);
-  const username = useSelector((state) => state.user.username);
-  const avatar = useSelector((state) => state.user.avatar);
-  const cartCount = useSelector((state) => state.user.cartCount);
-
-  const isAuthenticated = !!token;
-  const navigate = useNavigate();
+export default function Navbar({ brandText = "SuLi Coffee" }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
-  // 🛒 Fetch số lượng giỏ hàng khi login/logout
+  const { token, username, avatar, cartCount, unreadCount } = useSelector(
+    (state) => state.user
+  );
+
+  const [menuVisible, setMenuVisible] = useState(false);
+  const isAuthenticated = !!token;
+
+  /* =============================
+     🧩 FETCH AVATAR
+  ============================= */
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      try {
+        if (!isAuthenticated) return;
+        const res = await axios.get(
+          "http://localhost:5000/api/profile/avatar",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (res.data?.success && res.data.avatarUrl) {
+          const fullUrl = res.data.avatarUrl.startsWith("http")
+            ? res.data.avatarUrl
+            : `http://localhost:5000${res.data.avatarUrl}`;
+          dispatch(updateUser({ avatar: fullUrl }));
+        }
+      } catch (err) {
+        console.error("FETCH AVATAR ERROR:", err);
+      }
+    };
+    fetchAvatar();
+  }, [isAuthenticated, token, dispatch]);
+
+  /* =============================
+     🛒 FETCH CART COUNT
+  ============================= */
   useEffect(() => {
     const fetchCart = async () => {
       try {
@@ -49,36 +75,72 @@ export default function UserNavbar({ brandText = "SuLi Coffee", notifCount = 0 }
     fetchCart();
   }, [isAuthenticated, token, dispatch]);
 
-  const handleLogout = async () => {
-    localStorage.removeItem("token");
-    sessionStorage.removeItem("token");
-    delete axios.defaults.headers?.common?.Authorization;
-    dispatch(logoutAction());
+  /* =============================
+     🔔 FETCH UNREAD NOTIFICATIONS
+  ============================= */
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        if (!isAuthenticated) {
+          dispatch(setUnreadCount(0));
+          return;
+        }
+
+        const res = await axios.get(
+          "http://localhost:5000/api/profile/notifications",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (res.data?.success && res.data.notifications) {
+          const unread = res.data.notifications.filter((n) => !n.IsRead).length;
+          dispatch(setUnreadCount(unread));
+        }
+      } catch (err) {
+        console.error("FETCH UNREAD NOTIFICATIONS ERROR:", err);
+      }
+    };
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000); // refresh mỗi 30s
+    return () => clearInterval(interval);
+  }, [isAuthenticated, token, dispatch]);
+
+  /* =============================
+     🚪 LOGOUT
+  ============================= */
+  const handleLogout = () => {
+    dispatch(logout());
     navigate("/login", { replace: true });
   };
 
+  /* =============================
+     👤 AVATAR
+  ============================= */
   const renderUserAvatar = () => {
     if (avatar) {
-      return (
-        <img
-          src={avatar}
-          alt="User avatar"
-          className="rounded-circle avatar-img"
-        />
-      );
+      return <img src={avatar} alt="User avatar" className="avatar-img" />;
     } else if (username) {
       return <div className="avatar-initial">{username[0].toUpperCase()}</div>;
     } else {
-      return <FaUser size={24} className="icon-white" />;
+      return <FaUser size={22} className="icon-white" />;
     }
   };
 
+  /* =============================
+     🎨 GIAO DIỆN NAVBAR
+  ============================= */
   return (
     <BSNavbar
       expand="lg"
       className="header"
       data-bs-theme="dark"
-      style={{ position: "fixed", top: 0, width: "100%", zIndex: 1000 }}
+      style={{
+        position: "fixed",
+        top: 0,
+        width: "100%",
+        zIndex: 1000,
+        backgroundColor: "transparent",
+      }}
     >
       <Container className="d-flex align-items-center justify-content-between flex-grow-1">
         {/* Logo */}
@@ -89,135 +151,110 @@ export default function UserNavbar({ brandText = "SuLi Coffee", notifCount = 0 }
         </div>
 
         {/* Thanh tìm kiếm */}
-        <div className="search-bar mx-4">
-          <Form className="d-flex" role="search">
-            <FormControl
-              type="search"
-              placeholder="Tìm kiếm sản phẩm..."
-              className="custom-search-input"
-            />
-            <button type="submit" className="btn btn-dark ms-2">
-              <FaSearch />
-            </button>
-          </Form>
+        <div className="search-bar">
+          <input
+            type="text"
+            className="form-control custom-search-input"
+            placeholder="Tìm kiếm sản phẩm..."
+          />
+          <FaSearch className="search-icon-right" />
         </div>
 
-        {/* Menu */}
+        {/* Menu điều hướng */}
         <nav className="nav">
           <ul className="d-flex list-unstyled mb-0">
             <li>
-              <Nav.Link as={Link} to="/" className="nav-link">
+              <Link to="/" className="nav-link">
                 Trang chủ
-              </Nav.Link>
+              </Link>
             </li>
-            <li className="menu-item">
-              <Nav.Link as={Link} to="/products" className="nav-link">
+            <li>
+              <Link to="/products" className="nav-link">
                 Sản phẩm
-              </Nav.Link>
-              <div className="submenu">
-                <ul>
-                  <li>
-                    <Nav.Link as={Link} to="/products?category=all">
-                      Tất cả
-                    </Nav.Link>
-                  </li>
-                  <li>
-                    <Nav.Link as={Link} to="/products?category=coffee">
-                      Cà phê
-                    </Nav.Link>
-                  </li>
-                  <li>
-                    <Nav.Link as={Link} to="/products?category=milktea">
-                      Trà sữa
-                    </Nav.Link>
-                  </li>
-                  <li>
-                    <Nav.Link as={Link} to="/products?category=frappe">
-                      Thức uống đá xay
-                    </Nav.Link>
-                  </li>
-                  <li>
-                    <Nav.Link as={Link} to="/products?category=snack">
-                      Bánh & Snack
-                    </Nav.Link>
-                  </li>
-                  <li>
-                    <Nav.Link as={Link} to="/products?category=fruittea">
-                      Trà trái cây
-                    </Nav.Link>
-                  </li>
-                </ul>
-              </div>
+              </Link>
             </li>
             <li>
-              <Nav.Link as={Link} to="/about" className="nav-link">
+              <Link to="/about" className="nav-link">
                 Giới thiệu
-              </Nav.Link>
+              </Link>
             </li>
             <li>
-              <Nav.Link as={Link} to="/stores" className="nav-link">
+              <Link to="/stores" className="nav-link">
                 Cửa hàng
-              </Nav.Link>
+              </Link>
             </li>
           </ul>
         </nav>
 
-        {/* Bên phải */}
-        <Nav className="navbar-right ms-auto">
-          <Nav.Link
-            as={Link}
-            to="/notifications"
-            className="position-relative"
-            aria-label="Thông báo"
+        {/* Khu vực bên phải */}
+        <div className="navbar-right ms-auto d-flex align-items-center">
+          {/* 🔔 Thông báo */}
+          <div
+            className="position-relative me-3"
+            onClick={() => navigate("/profile/notifications")}
+            style={{ cursor: "pointer" }}
           >
-            <FaBell size={20} />
-            {!!notifCount && <span className="custom-badge">{notifCount}</span>}
-          </Nav.Link>
-          <Nav.Link
-            as={Link}
-            to="/cart"
-            className="position-relative ms-3"
-            aria-label="Giỏ hàng"
-          >
-            <FaShoppingCart size={20} />
-            {!!cartCount && <span className="custom-badge">{cartCount}</span>}
-          </Nav.Link>
-          <NavDropdown
-            title={
-              <span className="d-flex align-items-center gap-2">
-                {renderUserAvatar()}
-                {isAuthenticated && <span>{username}</span>}
-              </span>
-            }
-            id="user-dropdown"
-            align="end"
-            className="ms-3"
-          >
-            {isAuthenticated ? (
-              <>
-                <NavDropdown.Item as={Link} to="/profile">
-                  Hồ sơ
-                </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/settings">
-                  Cài đặt
-                </NavDropdown.Item>
-                <NavDropdown.Divider />
-                <NavDropdown.Item onClick={handleLogout}>
-                  Đăng xuất
-                </NavDropdown.Item>
-              </>
-            ) : (
-              <>
-                <NavDropdown.Item as={Link} to="/login">
-                  Đăng nhập
-                </NavDropdown.Item>
-                <NavDropdown.Item as={Link} to="/register">
-                  Đăng ký
-                </NavDropdown.Item>
-              </>
+            <FaBell size={20} color="#f9d2b5ff" />
+            {!!unreadCount && (
+              <span className="custom-badge">{unreadCount}</span>
             )}
-          </NavDropdown>
-        </Nav>
+          </div>
+
+          {/* 🛒 Giỏ hàng */}
+          <div
+            className="position-relative me-3"
+            onClick={() => navigate("/cart")}
+            style={{ cursor: "pointer" }}
+          >
+            <FaShoppingCart size={20} color="#f9d2b5ff" />
+            {!!cartCount && <span className="custom-badge">{cartCount}</span>}
+          </div>
+          {/* 🛒 ảnh */}
+          <div
+            className="avatar-container"
+            onMouseEnter={() => setMenuVisible(true)}
+            onMouseLeave={() => {
+              setTimeout(() => setMenuVisible(false), 200);
+            }}
+          >
+            {renderUserAvatar()}
+
+            <div
+              className={`avatar-dropdown ${menuVisible ? "show" : ""}`}
+              onMouseEnter={() => setMenuVisible(true)}
+              onMouseLeave={() => setMenuVisible(false)}
+            >
+              {isAuthenticated ? (
+                <>
+                  <p
+                    onClick={() => navigate("/Profile")}
+                    className="dropdown-item"
+                  >
+                    👤 Hồ sơ
+                  </p>
+                  <p onClick={handleLogout} className="dropdown-item">
+                    🚪 Đăng xuất
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p
+                    onClick={() => navigate("/login")}
+                    className="dropdown-item"
+                  >
+                    🔐 Đăng nhập
+                  </p>
+                  <p
+                    onClick={() => navigate("/register")}
+                    className="dropdown-item"
+                  >
+                    📝 Đăng ký
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </Container>
     </BSNavbar>
   );

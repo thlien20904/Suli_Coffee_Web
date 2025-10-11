@@ -1,0 +1,169 @@
+.notifications-page {
+  max-width: 820px;
+  margin: 18px auto;
+  padding: 18px;
+  padding-top: 60px;
+}
+
+/* --- Header --- */
+.notif-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.top-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* --- Buttons --- */
+.btn-mark-all {
+  background: #5c6bc0; /* xanh tím nhẹ */
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.25s ease;
+}
+
+.btn-mark-all:hover {
+  background: #3f51b5;
+}
+
+.btn-refresh {
+  background: transparent;
+  border: 1px solid #ccc;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #3f51b5;
+  transition: all 0.25s ease;
+}
+
+.btn-refresh:hover {
+  background: #e8eaf6;
+}
+
+/* --- Notification List --- */
+.notification-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+/* --- Notification Card --- */
+.notification-card {
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.notification-card:hover {
+  box-shadow: 0 2px 10px rgba(63, 81, 181, 0.15);
+  transform: translateY(-1px);
+}
+
+/* --- Unread / Read --- */
+.notification-card.unread {
+  background: #f5f7ff;
+  border-left: 4px solid #5c6bc0;
+}
+.notification-card.read {
+  opacity: 0.85;
+}
+
+/* --- Content --- */
+.notification-content .title-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin-right: 12px;
+  color: #2c387e; /* xanh tím đậm */
+  font-weight: 600;
+}
+
+.time {
+  color: #666;
+  font-size: 12px;
+}
+
+.message {
+  color: #333;
+  font-size: 14px;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+/* --- Unread dot --- */
+.unread-dot {
+  width: 10px;
+  height: 10px;
+  background: #5c6bc0;
+  border-radius: 50%;
+  margin-left: 12px;
+}
+
+/* --- Delete button --- */
+.btn-delete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #777; /* xám đậm nhẹ */
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: color 0.25s ease, transform 0.2s ease;
+}
+
+.btn-delete:hover {
+  color: #3f51b5; /* xanh tím nhẹ khi hover */
+  transform: scale(1.2);
+}
+.text-center {
+  color: #000; /* hoặc color: black; */
+}
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 15px;
+  gap: 12px;
+}
+
+.btn-page {
+  background: rgba(249, 210, 181, 0.9);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-page:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-page:hover:not(:disabled) {
+  background: rgba(249, 210, 181, 1);
+}

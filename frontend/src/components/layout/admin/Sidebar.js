@@ -148,6 +148,15 @@ const Sidebar = () => {
             </p>
           </div>
         )} */}
+        {/* Voucher */}
+        <li className="toggleMenu">
+          <NavLink
+            to="/admin/voucher"
+            className="text-decoration-none text-dark"
+          >
+            <span>Voucher</span>
+          </NavLink>
+        </li>
         {/* Thanh toán */}
         <li className="toggleMenu">
           <NavLink

@@ -2,6 +2,9 @@
 .home-root {
   /* Giữ nguyên style hiện có */
 }
+.home-carousel {
+  margin-top: -25px; /* Đẩy lên cao hơn, tùy chỉnh giá trị này */
+}
 
 .best-sellers .carousel {
   padding: 20px 0;

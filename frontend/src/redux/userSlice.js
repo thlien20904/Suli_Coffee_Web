@@ -9,6 +9,7 @@ const initialState = {
   email: null,
   avatar: null,
   cartCount: 0, // 🛒 số lượng sản phẩm trong giỏ
+  unreadCount: 0, // 🔔 số thông báo chưa đọc
 };
 
 const userSlice = createSlice({
@@ -33,6 +34,7 @@ const userSlice = createSlice({
       state.email = null;
       state.avatar = null;
       state.cartCount = 0;
+      state.unreadCount = 0;
     },
     updateUser: (state, action) => {
       console.log("Reducer updateUser, payload:", action.payload);
@@ -45,8 +47,12 @@ const userSlice = createSlice({
     setCartCount: (state, action) => {
       state.cartCount = action.payload;
     },
+    setUnreadCount: (state, action) => {
+      state.unreadCount = action.payload;
+    },
   },
 });
 
-export const { login, logout, updateUser, setCartCount } = userSlice.actions;
+export const { login, logout, updateUser, setCartCount, setUnreadCount } =
+  userSlice.actions;
 export default userSlice.reducer;

@@ -5,14 +5,13 @@
   left: 0;
   width: 100%;
   z-index: 1000;
-  background-color: rgba(255, 255, 255, 0.668); /* Nền trắng mờ */
+  background-color: transparent; /* 🔥 Trong suốt hoàn toàn */
   padding: 10px 0;
-  backdrop-filter: blur(1px); /* Hiệu ứng mờ thêm */
+  box-shadow: none; /* Bỏ hiệu ứng mờ */
 }
 
-/* Tạo khoảng trống để tránh nội dung bị che */
 body {
-  padding-top: 70px; /* điều chỉnh đúng bằng chiều cao header */
+  padding-top: 70px;
 }
 
 /* ====== Logo ====== */
@@ -22,10 +21,10 @@ body {
 
 .logo-middle {
   white-space: nowrap;
-  font-family: 'Great Vibes', cursive;
+  font-family: "Great Vibes", cursive;
   font-size: 32px;
-  color: #333;
-  text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
+  color: #fff; /* logo trắng để nổi bật trên nền ảnh */
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
   transition: color 0.3s ease-in-out;
 }
 
@@ -44,7 +43,7 @@ body {
 }
 
 .nav-link {
-  color: #333 !important;
+  color: #fff !important;
   font-weight: bold;
   text-decoration: none !important;
   padding: 10px 15px;
@@ -69,8 +68,8 @@ body {
   position: absolute;
   top: -5px;
   right: -5px;
-  background-color: #f5935b;
-  color: white;
+  background-color: #000; /* 🖤 Badge đen */
+  color: #fff;
   font-size: 12px;
   font-weight: bold;
   width: 18px;
@@ -81,139 +80,126 @@ body {
   justify-content: center;
 }
 
-.icon-white {
-  color: white;
+/* ====== Avatar & Dropdown ====== */
+.avatar-container {
+  position: relative;
+  cursor: pointer;
+  height: 32px;
 }
 
-/* ====== Dropdown ====== */
-.dropdown-toggle i {
-  color: #c4a48c;
-}
-
-.dropdown-menu {
-  background-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  padding: 10px;
-  min-width: 150px;
-  z-index: 999;
-  white-space: nowrap;
-  transition: all 0.3s ease;
-  position: absolute;
-  right: 0;
-  border-radius: 5px;
-}
-
-.dropdown-menu a {
-  display: block;
-  padding: 8px 12px;
-  color: #666;
-  text-decoration: none;
-  border-radius: 5px;
-  transition: all 0.3s ease;
-}
-
-.dropdown-menu a:hover {
-  background-color: rgba(196, 164, 140, 0.2);
-  color: #333;
-}
-
-/* ====== Avatar ====== */
 .avatar-img {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  margin-right: 8px;
+  transition: transform 0.2s ease;
 }
 
-.avatar-initial {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background-color: #666;
-  color: #fff;
-  font-size: 14px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.avatar-img:hover {
+  transform: scale(1.05);
+}
+
+/* Dropdown ẩn mặc định */
+.avatar-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 110%;
+  background-color: rgba(255, 255, 255, 0.1); /* 🌫️ Nền trong suốt */
+  border: 1px solid rgba(0, 0, 0, 0.2); /* Viền đen mảnh */
+  backdrop-filter: blur(3px); /* Tăng độ rõ khi có nền ảnh */
+  padding: 8px 0;
+  border-radius: 8px;
+  min-width: 160px;
+  z-index: 999;
+}
+
+/* Khi hover vào avatar hoặc menu vẫn giữ hiển thị */
+.avatar-container:hover .avatar-dropdown,
+.avatar-dropdown:hover {
+  display: block;
+}
+
+/* Link trong dropdown */
+.avatar-dropdown a,
+.avatar-dropdown p {
+  display: block;
+  padding: 10px 14px;
+  color: #000;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.avatar-dropdown a:hover,
+.avatar-dropdown p:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #8ebe86;
 }
 
 /* ====== Search Bar ====== */
 .search-bar {
+  position: relative;
   flex: 1;
   max-width: 300px;
   margin-left: 20px;
 }
-
+/* Icon 🔍 bên phải trong ô tìm kiếm */
+.search-bar .search-icon-right {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+}
 .custom-search-input {
+  width: 100%;
   background-color: #fff;
   border: none;
   color: #222;
   height: 38px;
   border-radius: 20px;
-  padding-left: 15px;
+  padding-left: 40px; /* chừa chỗ cho icon */
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+}
+.avatar-container {
+  position: relative;
+  cursor: pointer;
+}
+
+.avatar-dropdown {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.dropdown-item {
+  margin: 0;
+  padding: 10px 15px;
+  color: #333;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background-color: #f5f5f5;
+  color: #000;
 }
 
 .custom-search-input::placeholder {
   color: #888;
 }
 
-.btn-dark {
-  background-color: #333;
-  border-color: #333;
-  height: 38px;
-  border-radius: 0 20px 20px 0;
-}
-
-.btn-dark:hover {
-  background-color: #555;
-}
-
-/* ====== Submenu (Mega menu) ====== */
-.menu-item {
-  position: relative;
-}
-
-.menu-item .submenu {
-  display: none;
+/* 🔍 Icon tìm kiếm nằm trong ô input */
+.search-bar .search-icon {
   position: absolute;
-  top: 100%;
-  left: 0;
-  background: #fff;
-  min-width: 220px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  z-index: 999;
-  padding: 10px 0;
-  border-radius: 5px;
-}
-
-.menu-item:hover .submenu {
-  display: block;
-}
-
-.submenu ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.submenu ul li {
-  padding: 6px 20px;
-}
-
-.submenu ul li a {
-  color: #333;
-  text-decoration: none;
-  display: block;
-  font-size: 13px;
-  transition: all 0.3s ease;
-}
-
-.submenu ul li a:hover {
-  background: #f2f2f2;
-  color: #c4a48c;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
 }
 
 /* ====== Responsive ====== */
@@ -223,12 +209,6 @@ body {
   }
   .search-bar {
     max-width: 200px;
-  }
-  .submenu {
-    position: static;
-    box-shadow: none;
-    background-color: transparent;
-    padding: 0;
   }
   .navbar-right {
     margin-left: auto;

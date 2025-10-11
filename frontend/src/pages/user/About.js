@@ -49,10 +49,7 @@ export default function About() {
               </p>
             </Col>
 
-            <Col
-              md={4}
-              className="d-flex justify-content-center mb-4 mb-md-0"
-            >
+            <Col md={4} className="d-flex justify-content-center mb-4 mb-md-0">
               <div className="center-image-wrap">
                 <Image
                   src={COFFEE_IMG}
@@ -71,8 +68,8 @@ export default function About() {
               <h3 className="about-subtitle">NGUYÊN LIỆU ĐẶC SẢN</h3>
               <p className="about-text">
                 Trà Ô Long đặc sản tại SuLi còn được ươm trồng với phương pháp
-                chăm bón hữu cơ, hoàn toàn với trứng gà, đậu nành và thu hái
-                thủ công để có được những búp trà tươi và non nhất, tạo nên điểm
+                chăm bón hữu cơ, hoàn toàn với trứng gà, đậu nành và thu hái thủ
+                công để có được những búp trà tươi và non nhất, tạo nên điểm
                 khác biệt mạnh mẽ so với các thương hiệu khác.
               </p>
               <p className="about-text">
@@ -204,12 +201,17 @@ export default function About() {
       <style>{`
         .about-section {
           background: #fff;
+          padding-bottom: 40px;
+
         }
         .about-title {
           color: #e91e63;
           font-weight: 700;
           letter-spacing: 1px;
           font-size: 22px;
+          margin-bottom: 30px;
+                    padding-top: 40px;
+
         }
         .about-subtitle {
           color: #333;

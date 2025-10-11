@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import {
-  Row, Col, Card, Form, Button, Spinner
-} from "react-bootstrap";
+import { Row, Col, Card, Form, Button, Spinner } from "react-bootstrap";
 import { FaSearch } from "react-icons/fa";
 import "../../styles/pages/ProductList.css";
 const API = "http://localhost:5000";
@@ -18,20 +16,30 @@ const CATEGORIES = [
 ];
 const fmtVND = (n) =>
   typeof n === "number"
-    ? n.toLocaleString("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 })
+    ? n.toLocaleString("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0,
+      })
     : "";
-const getVariantImage = (p) => (p.ImageURL ? `${API}${p.ImageURL}` : PLACEHOLDER);
+const getVariantImage = (p) =>
+  p.ImageURL ? `${API}${p.ImageURL}` : PLACEHOLDER;
 function ProductCardItem({ p }) {
   const navigate = useNavigate();
   const finalPrice = p.DiscountPrice ?? p.Price;
   return (
-    <Card className="product-card" onClick={() => navigate(`/product/${p.FoodId}`)}>
+    <Card
+      className="product-card"
+      onClick={() => navigate(`/product/${p.FoodId}`)}
+    >
       <div className="product-img-wrapper">
         <Card.Img
           variant="top"
           src={getVariantImage(p)}
           alt={p.FoodName}
-          onError={(e) => { e.currentTarget.src = PLACEHOLDER; }}
+          onError={(e) => {
+            e.currentTarget.src = PLACEHOLDER;
+          }}
         />
       </div>
       <Card.Body>
@@ -70,11 +78,14 @@ export default function ProductList() {
       try {
         const params = new URLSearchParams();
         if (filters.keyword) params.set("keyword", filters.keyword);
-        if (filters.category !== "all") params.set("category", filters.category);
+        if (filters.category !== "all")
+          params.set("category", filters.category);
         if (filters.minPrice) params.set("minPrice", filters.minPrice);
         if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
         params.set("limit", "100");
-        const { data } = await axios.get(`${API}/api/products?${params.toString()}`);
+        const { data } = await axios.get(
+          `${API}/api/products?${params.toString()}`
+        );
         setProducts(data.products || []);
       } catch (e) {
         console.error("FETCH PRODUCTS ERROR:", e);
@@ -145,7 +156,7 @@ export default function ProductList() {
           </Row>
         </Form>
       </div>
-      <Row className="product-layout" style={{ marginTop: "180px" }}>
+      <Row className="product-layout" style={{ marginTop: "30px" }}>
         <Col lg={3} md={4} sm={12}>
           <aside className="filter-sidebar">
             <h5 className="category-title">Danh mục</h5>
@@ -153,7 +164,9 @@ export default function ProductList() {
               {CATEGORIES.map((c) => (
                 <li
                   key={c.key}
-                  className={`category-item ${filters.category === c.key ? "active" : ""}`}
+                  className={`category-item ${
+                    filters.category === c.key ? "active" : ""
+                  }`}
                   onClick={() => setFilters({ ...filters, category: c.key })}
                 >
                   {c.label}
@@ -185,7 +198,8 @@ export default function ProductList() {
               ) : (
                 <div className="category-section">
                   <h2 className="section-title">
-                    {CATEGORIES.find((c) => c.key === filters.category)?.label || "Danh mục"}
+                    {CATEGORIES.find((c) => c.key === filters.category)
+                      ?.label || "Danh mục"}
                   </h2>
                   <Row xs={2} sm={3} md={3} lg={3} className="g-4">
                     {products.map((p) => (

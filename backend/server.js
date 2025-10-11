@@ -164,6 +164,7 @@ const roleRouter = require("./routes/admin/role");
 const invoiceRouter = require("./routes/admin/invoice");
 const orderAdminRouter = require("./routes/admin/order");
 const reportRouter = require("./routes/admin/report");
+const voucherRouter = require("./routes/admin/voucher");
 
 /* ---------------- USE ROUTERS ---------------- */
 app.use("/api/auth", authRouter);
@@ -190,6 +191,7 @@ app.use("/api/admin/roles", roleRouter);
 app.use("/api/admin/invoice", invoiceRouter);
 app.use("/api/admin/orders", orderAdminRouter);
 app.use("/api/admin/report", reportRouter);
+app.use("/api/admin/voucher", voucherRouter);
 
 /* ---------------- CONNECT DB ---------------- */
 const connectDB = async () => {

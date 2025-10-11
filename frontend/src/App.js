@@ -1,8 +1,9 @@
+// frontend/src/App.js
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { jwtDecode } from "jwt-decode";
 import { login } from "./redux/userSlice";
+import { jwtDecode } from "jwt-decode";
 
 // user pages
 import Home from "./pages/user/Home";
@@ -14,12 +15,21 @@ import ProductList from "./pages/user/ProductList";
 import ProductDetail from "./pages/user/ProductDetail";
 import Cart from "./pages/user/Cart";
 import Checkout from "./pages/user/Checkout";
-import Successful from "./pages/user/successful"; // 📌 Sửa import
-import Profile from "./pages/user/Profile";
+import Successful from "./pages/user/successful";
+
+// profile pages
+import Profile from "./pages/user/profile/Profile";
+import ProfileInfo from "./pages/user/profile/ProfileInfo";
+import OrdersList from "./pages/user/profile/OrdersList";
+import Vouchers from "./pages/user/profile/Vouchers";
+import Notifications from "./pages/user/profile/Notifications";
+import Help from "./pages/user/profile/Help";
+
 import Stores from "./pages/user/StoresUser";
 import VnpayReturn from "./pages/user/VnpayReturn";
 import About from "./pages/user/About";
 import Contact from "./pages/user/Contact";
+
 // admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Food from "./pages/admin/Food/Food";
@@ -41,12 +51,17 @@ import AddStaff from "./pages/admin/staff/add";
 import EditStaff from "./pages/admin/staff/edit";
 import Invoice from "./pages/admin/invoice";
 import Order from "./pages/admin/order";
+import Voucher from "./pages/admin/voucher/Voucher";
+import VoucherList from "./pages/admin/voucher/VoucherList";
+import AssignVoucher from "./pages/admin/voucher/AssignVoucher";
 import RevenueReport from "./pages/admin/report/revenue";
 import BestsellerReport from "./pages/admin/report/bestseller";
+
 // layout
 import UserLayout from "./components/layout/user/UserLayout";
 import AdminLayout from "./components/layout/admin/AdminLayout";
 
+// PrivateRoute
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;
@@ -111,6 +126,12 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route path="stores" element={<Stores />} />
+        <Route path="/vnpay-return" element={<VnpayReturn />} />
+        <Route path="about" element={<About />} />
+        <Route path="contact" element={<Contact />} />
+
+        {/* Profile routes */}
         <Route
           path="profile"
           element={
@@ -119,10 +140,46 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route path="stores" element={<Stores />} />
-        <Route path="/vnpay-return" element={<VnpayReturn />} />
-        <Route path="about" element={<About />} />
-        <Route path="contact" element={<Contact />} />
+        <Route
+          path="profile/info"
+          element={
+            <PrivateRoute>
+              <ProfileInfo />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="profile/orders"
+          element={
+            <PrivateRoute>
+              <OrdersList />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="profile/vouchers"
+          element={
+            <PrivateRoute>
+              <Vouchers />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="profile/notifications"
+          element={
+            <PrivateRoute>
+              <Notifications />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="profile/help"
+          element={
+            <PrivateRoute>
+              <Help />
+            </PrivateRoute>
+          }
+        />
       </Route>
 
       {/* Admin routes */}
@@ -149,6 +206,9 @@ function App() {
         <Route path="order" element={<Order />} />
         <Route path="revenue" element={<RevenueReport />} />
         <Route path="bestseller" element={<BestsellerReport />} />
+        <Route path="voucher" element={<Voucher />} />
+        <Route path="voucher/assign" element={<AssignVoucher />} />
+        <Route path="voucher/list" element={<VoucherList />} />
       </Route>
     </Routes>
   );
