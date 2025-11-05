@@ -10,6 +10,8 @@ const {
   Topping,
   Orders,
   OrderDetails,
+  Vouchers,
+  UserVouchers,
   OrderDetails_Topping,
   PhuongThucThanhToan,
   OrderStatus,
@@ -172,10 +174,16 @@ exports.prepareOrder = async (req, res) => {
 exports.placeOrder = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { newAddress, paymentMethodId, selectedItems, orderItems } = req.body;
+    const {
+      newAddress,
+      paymentMethodId,
+      selectedItems,
+      orderItems,
+      voucherCode,
+    } = req.body;
     let itemsToOrder = [];
 
-    // Lấy sản phẩm cần đặt
+    // Lấy sản phẩm cần đặt (giữ nguyên logic cũ)
     if (selectedItems?.length) {
       const cartItems = await GioHang.findAll({
         where: { Id: req.user.id, GioHangID: { [Op.in]: selectedItems } },
@@ -188,7 +196,6 @@ exports.placeOrder = async (req, res) => {
           },
         ],
       });
-
       if (!cartItems.length) {
         await transaction.rollback();
         return res.json({
@@ -196,7 +203,6 @@ exports.placeOrder = async (req, res) => {
           message: "Không tìm thấy sản phẩm trong giỏ!",
         });
       }
-
       itemsToOrder = cartItems.map((item) => ({
         FoodId: item.FoodId,
         SizeID: item.SizeID,
@@ -230,7 +236,6 @@ exports.placeOrder = async (req, res) => {
         message: "Không tìm thấy người dùng!",
       });
     }
-
     const finalAddress = newAddress?.trim() || user.Address;
     if (!finalAddress) {
       await transaction.rollback();
@@ -239,7 +244,6 @@ exports.placeOrder = async (req, res) => {
         message: "Địa chỉ giao hàng không được để trống!",
       });
     }
-
     await Users.update(
       { Address: finalAddress },
       { where: { Id: req.user.id }, transaction }
@@ -251,7 +255,47 @@ exports.placeOrder = async (req, res) => {
       0
     );
     const shipping = 20000;
-    const totalAmount = subtotal + shipping;
+    let discountAmount = 0;
+    let appliedVoucherId = null;
+
+    // =============================
+    // ✅ XỬ LÝ VOUCHER
+    // =============================
+    if (voucherCode) {
+      const userVoucher = await UserVouchers.findOne({
+        where: { UserId: req.user.id, IsUsed: false },
+        include: [
+          {
+            model: Vouchers,
+            as: "Voucher",
+            where: { Code: voucherCode, IsActive: true },
+          },
+        ],
+        transaction,
+      });
+
+      if (!userVoucher) {
+        await transaction.rollback();
+        return res.json({
+          success: false,
+          message: "Voucher không hợp lệ hoặc đã dùng!",
+        });
+      }
+
+      const voucher = userVoucher.Voucher;
+      appliedVoucherId = voucher.VoucherId;
+
+      if (voucher.DiscountAmount)
+        discountAmount = parseFloat(voucher.DiscountAmount);
+      else if (voucher.DiscountPercentage)
+        discountAmount =
+          (subtotal * parseFloat(voucher.DiscountPercentage)) / 100;
+
+      // Cập nhật voucher đã dùng
+      await userVoucher.update({ IsUsed: true }, { transaction });
+    }
+
+    const totalAmount = subtotal + shipping - discountAmount;
 
     // Lấy StatusId
     const status = await OrderStatus.findOne({
@@ -275,11 +319,12 @@ exports.placeOrder = async (req, res) => {
         PaymentMethodId: paymentMethodId,
         StatusId: status.StatusId,
         DeliveryAddress: finalAddress,
+        VoucherId: appliedVoucherId,
       },
       { transaction }
     );
 
-    // Thêm chi tiết đơn hàng
+    // Thêm chi tiết đơn hàng (giữ nguyên)
     for (const item of itemsToOrder) {
       const unitPrice = item.TotalPrice / item.Quantity;
       const orderDetail = await OrderDetails.create(
@@ -309,7 +354,7 @@ exports.placeOrder = async (req, res) => {
       });
     }
 
-    // Thanh toán VNPay
+    // Thanh toán VNPay (giữ nguyên)
     if (paymentMethodId === 1) {
       const ipAddr =
         req.headers["x-forwarded-for"] ||
@@ -318,7 +363,6 @@ exports.placeOrder = async (req, res) => {
         "127.0.0.1";
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-
       const paymentUrl = await vnpay.buildPaymentUrl({
         vnp_Amount: totalAmount,
         vnp_IpAddr: ipAddr,
@@ -331,7 +375,6 @@ exports.placeOrder = async (req, res) => {
         vnp_CreateDate: dateFormat(new Date()),
         vnp_ExpireDate: dateFormat(tomorrow),
       });
-
       await transaction.commit();
       return res.json({
         success: true,

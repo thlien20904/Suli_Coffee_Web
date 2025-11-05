@@ -493,6 +493,78 @@ const getUserVouchers = async (req, res) => {
     });
   }
 };
+// 📌 Áp dụng voucher vào đơn hàng
+const applyVoucher = async (req, res) => {
+  try {
+    const { voucherCode, subtotal } = req.body; // sửa từ code -> voucherCode
+    const userId = req.user.id;
+
+    if (!voucherCode) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu mã voucher!" });
+    }
+
+    // Kiểm tra voucher tồn tại
+    const voucher = await Vouchers.findOne({
+      where: {
+        Code: voucherCode,
+        IsActive: true,
+        ExpiryDate: { [Op.gt]: sequelize.fn("getdate") },
+      },
+    });
+
+    if (!voucher) {
+      return res.status(404).json({
+        success: false,
+        message: "Voucher không tồn tại hoặc đã hết hạn",
+      });
+    }
+
+    // Kiểm tra user đã nhận voucher
+    const userVoucher = await UserVouchers.findOne({
+      where: { UserId: userId, VoucherId: voucher.VoucherId },
+    });
+
+    if (!userVoucher) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Bạn chưa nhận voucher này" });
+    }
+
+    if (userVoucher.IsUsed) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Voucher đã được sử dụng" });
+    }
+
+    // Kiểm tra subtotal
+    if (voucher.MinOrderAmount && subtotal < voucher.MinOrderAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Đơn hàng phải >= ${voucher.MinOrderAmount} ₫ để áp dụng voucher`,
+      });
+    }
+
+    // Tính giảm giá
+    let discount = 0;
+    if (voucher.DiscountAmount) discount += parseFloat(voucher.DiscountAmount);
+    if (voucher.DiscountPercentage)
+      discount +=
+        (parseFloat(voucher.DiscountPercentage) / 100) * (subtotal || 0);
+
+    res.json({
+      success: true,
+      discountAmount: discount, // luôn có giá trị
+      message: "Voucher áp dụng thành công!",
+    });
+  } catch (err) {
+    console.error("APPLY VOUCHER ERROR:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi khi áp dụng voucher" });
+  }
+};
 
 // =========================
 // 📌 LẤY DANH SÁCH THÔNG BÁO
@@ -617,6 +689,7 @@ module.exports = {
   getVouchers,
   receiveVoucher,
   getUserVouchers,
+  applyVoucher,
   getNotifications,
   readNotification,
   readAllNotifications,

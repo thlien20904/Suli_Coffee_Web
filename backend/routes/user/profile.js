@@ -37,7 +37,8 @@ router.post(
 
 // Lấy danh sách voucher đã nhận
 router.get("/vouchers/my", authenticate, profileController.getUserVouchers);
-
+// ✅ Áp dụng voucher
+router.post("/apply", authenticate, profileController.applyVoucher);
 // Lấy danh sách thông báo
 router.get("/notifications", authenticate, profileController.getNotifications);
 
