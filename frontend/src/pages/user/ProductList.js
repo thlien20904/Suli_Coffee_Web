@@ -4,8 +4,10 @@ import axios from "axios";
 import { Row, Col, Card, Form, Button, Spinner } from "react-bootstrap";
 import { FaSearch } from "react-icons/fa";
 import "../../styles/pages/ProductList.css";
+
 const API = "http://localhost:5000";
 const PLACEHOLDER = "/placeholder.jpg";
+
 const CATEGORIES = [
   { key: "all", label: "Tất cả" },
   { key: "coffee", label: "Cà phê" },
@@ -14,6 +16,7 @@ const CATEGORIES = [
   { key: "snack", label: "Bánh & Snack" },
   { key: "fruittea", label: "Trà trái cây" },
 ];
+
 const fmtVND = (n) =>
   typeof n === "number"
     ? n.toLocaleString("vi-VN", {
@@ -22,8 +25,10 @@ const fmtVND = (n) =>
         maximumFractionDigits: 0,
       })
     : "";
+
 const getVariantImage = (p) =>
   p.ImageURL ? `${API}${p.ImageURL}` : PLACEHOLDER;
+
 function ProductCardItem({ p }) {
   const navigate = useNavigate();
   const finalPrice = p.DiscountPrice ?? p.Price;
@@ -54,6 +59,7 @@ function ProductCardItem({ p }) {
     </Card>
   );
 }
+
 export default function ProductList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -64,6 +70,7 @@ export default function ProductList() {
     minPrice: searchParams.get("minPrice") || "",
     maxPrice: searchParams.get("maxPrice") || "",
   });
+
   const setQS = (patch) => {
     const next = new URLSearchParams(searchParams);
     Object.entries(patch).forEach(([k, v]) => {
@@ -72,21 +79,23 @@ export default function ProductList() {
     });
     setSearchParams(next);
   };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         const params = new URLSearchParams();
         if (filters.keyword) params.set("keyword", filters.keyword);
-        if (filters.category !== "all")
+        if (filters.category && filters.category !== "all")
           params.set("category", filters.category);
         if (filters.minPrice) params.set("minPrice", filters.minPrice);
         if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
         params.set("limit", "100");
+
         const { data } = await axios.get(
           `${API}/api/products?${params.toString()}`
         );
-        setProducts(data.products || []);
+        setProducts(data.data.products || []);
       } catch (e) {
         console.error("FETCH PRODUCTS ERROR:", e);
       } finally {
@@ -95,14 +104,17 @@ export default function ProductList() {
     };
     fetchData();
   }, [filters]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setQS(filters);
   };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
+
   const groupByCategory = (items) => {
     const grouped = {};
     items.forEach((p) => {
@@ -112,7 +124,9 @@ export default function ProductList() {
     });
     return grouped;
   };
+
   const groupedProducts = groupByCategory(products);
+
   return (
     <div className="container py-4">
       <div className="fixed-search-bar">
@@ -156,6 +170,7 @@ export default function ProductList() {
           </Row>
         </Form>
       </div>
+
       <Row className="product-layout" style={{ marginTop: "30px" }}>
         <Col lg={3} md={4} sm={12}>
           <aside className="filter-sidebar">
@@ -175,6 +190,7 @@ export default function ProductList() {
             </ul>
           </aside>
         </Col>
+
         <Col lg={9} md={8} sm={12}>
           {loading ? (
             <div className="text-center py-5">

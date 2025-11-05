@@ -1,0 +1,29 @@
+const Sequelize = require('sequelize');
+module.exports = function(sequelize, DataTypes) {
+  return sequelize.define('AccRole', {
+    RoleId: {
+      autoIncrement: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      primaryKey: true
+    },
+    RoleName: {
+      type: DataTypes.STRING(100),
+      allowNull: false
+    }
+  }, {
+    sequelize,
+    tableName: 'AccRole',
+    schema: 'dbo',
+    timestamps: false,
+    indexes: [
+      {
+        name: "PK__AccRole__8AFACE1A4CD0E0D8",
+        unique: true,
+        fields: [
+          { name: "RoleId" },
+        ]
+      },
+    ]
+  });
+};

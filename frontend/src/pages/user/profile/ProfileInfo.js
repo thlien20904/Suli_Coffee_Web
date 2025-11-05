@@ -1,25 +1,66 @@
 // frontend/src/pages/user/profile/ProfileInfo.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import axios from "axios";
 
-export default function ProfileInfo({ userState, avatar, setAvatar }) {
+export default function ProfileInfo() {
+  const [userState, setUserState] = useState(null);
+  const [avatar, setAvatar] = useState("/images/no-image.png");
   const [formData, setFormData] = useState({
-    fullname: userState.FullName || "",
-    phone: userState.Phone || "",
-    address: userState.Address || "",
+    fullname: "",
+    phone: "",
+    address: "",
   });
   const [errors, setErrors] = useState({});
   const [avatarFile, setAvatarFile] = useState(null);
 
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setAvatar(URL.createObjectURL(file));
-      setAvatarFile(file);
-    }
-  };
+  const backendUrl = "http://localhost:5000";
 
+  // =====================
+  // Fetch profile khi mount
+  // =====================
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("Bạn cần đăng nhập lại!");
+
+        const res = await axios.get(`${backendUrl}/api/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.data.success) {
+          const data = res.data.data;
+          setUserState(data);
+          setFormData({
+            fullname: data.FullName || "",
+            phone: data.Phone || "",
+            address: data.Address || "",
+          });
+          setAvatar(
+            data.AvatarUrl
+              ? `${backendUrl}${data.AvatarUrl}`
+              : "/images/no-image.png"
+          );
+        } else {
+          Swal.fire(
+            "",
+            res.data.message || "Không lấy được thông tin!",
+            "error"
+          );
+        }
+      } catch (err) {
+        console.error("FETCH PROFILE ERROR:", err);
+        Swal.fire("", "Không thể kết nối server!", "error");
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  // =====================
+  // Validate input
+  // =====================
   const validateField = (name, value) => {
     switch (name) {
       case "fullname":
@@ -53,6 +94,20 @@ export default function ProfileInfo({ userState, avatar, setAvatar }) {
     setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
   };
 
+  // =====================
+  // Avatar change
+  // =====================
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatar(URL.createObjectURL(file));
+      setAvatarFile(file);
+    }
+  };
+
+  // =====================
+  // Submit form
+  // =====================
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
@@ -71,24 +126,30 @@ export default function ProfileInfo({ userState, avatar, setAvatar }) {
       fd.append("Address", formData.address);
       if (avatarFile) fd.append("AvatarFile", avatarFile);
 
-      const res = await axios.post(
-        "http://localhost:5000/api/profile/update",
-        fd,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            // ⚠ Không set Content-Type, axios tự set multipart/form-data
-          },
-        }
-      );
+      const res = await axios.post(`${backendUrl}/api/profile/update`, fd, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (res.data.success) {
         Swal.fire({
           icon: "success",
-          title: "Cập nhật thông tin thành công!",
+          title: "Cập nhật thành công!",
           showConfirmButton: true,
           timer: 1000,
-        }).then(() => window.location.reload());
+        });
+
+        if (res.data.data?.avatarUrl)
+          setAvatar(`${backendUrl}${res.data.data.avatarUrl}`);
+        setAvatarFile(null);
+
+        // cập nhật userState local luôn
+        setUserState((prev) => ({
+          ...prev,
+          FullName: formData.fullname,
+          Phone: formData.phone,
+          Address: formData.address,
+          AvatarUrl: res.data.data.avatarUrl || prev.AvatarUrl,
+        }));
       } else {
         Swal.fire("", res.data.message || "Cập nhật thất bại", "error");
       }
@@ -98,16 +159,26 @@ export default function ProfileInfo({ userState, avatar, setAvatar }) {
     }
   };
 
+  // =====================
+  // Cancel form
+  // =====================
   const handleCancel = () => {
+    if (!userState) return;
     setFormData({
       fullname: userState.FullName || "",
       phone: userState.Phone || "",
       address: userState.Address || "",
     });
-    setAvatar(userState.AvatarUrl || "/images/no-avatar.png");
+    setAvatar(
+      userState.AvatarUrl
+        ? `${backendUrl}${userState.AvatarUrl}`
+        : "/images/no-image.png"
+    );
     setAvatarFile(null);
     setErrors({});
   };
+
+  if (!userState) return <p>Đang tải thông tin người dùng...</p>;
 
   return (
     <form onSubmit={handleSubmit} className="p-4">

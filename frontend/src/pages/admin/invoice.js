@@ -42,7 +42,9 @@ const Invoice = () => {
 
     result = result.filter(
       (item) =>
-        item.UserName?.toLowerCase().includes(search.toLowerCase()) ||
+        (item.User?.FullName || "")
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
         String(item.OrderId).includes(search)
     );
 
@@ -164,11 +166,11 @@ const Invoice = () => {
             pageData.map((item) => (
               <tr key={item.OrderId}>
                 <td>{item.OrderId}</td>
-                <td>{item.UserName}</td>
+                <td>{item.User?.FullName || "N/A"}</td>
                 <td>{new Date(item.OrderDate).toLocaleString()}</td>
-                <td>{item.PaymentMethod}</td>
-                <td>{item.Status}</td>
-                <td>{item.TotalAmount.toLocaleString()} đ</td>
+                <td>{item.PaymentMethod?.TenPhuongThuc || "N/A"}</td>
+                <td>{item.Status?.StatusName || "N/A"}</td>
+                <td>{(item.TotalAmount || 0).toLocaleString()} đ</td>
                 <td>
                   <button
                     className="btn-green"
@@ -177,7 +179,7 @@ const Invoice = () => {
                     <i className="fas fa-eye"></i> Xem chi tiết
                   </button>
                 </td>
-              </tr>
+              </tr> // ✅ FIX: Một dòng duy nhất, không newline giữa <td>
             ))
           ) : (
             <tr>
@@ -236,13 +238,15 @@ const Invoice = () => {
                   {new Date(currentInvoice?.OrderDate).toLocaleString()}
                 </p>
                 <p>
-                  <b>Khách hàng:</b> {currentInvoice?.UserName}
+                  <b>Khách hàng:</b> {currentInvoice?.User?.FullName || "N/A"}
                 </p>
                 <p>
-                  <b>Phương thức:</b> {currentInvoice?.PaymentMethod}
+                  <b>Phương thức:</b>{" "}
+                  {currentInvoice?.PaymentMethod?.TenPhuongThuc || "N/A"}
                 </p>
                 <p>
-                  <b>Trạng thái:</b> {currentInvoice?.Status}
+                  <b>Trạng thái:</b>{" "}
+                  {currentInvoice?.Status?.StatusName || "N/A"}
                 </p>
               </div>
 
@@ -261,14 +265,18 @@ const Invoice = () => {
                     <tr key={d.OrderDetailId}>
                       <td>{i + 1}</td>
                       <td>
-                        {d.FoodName}
-                        {d.SizeName ? ` (${d.SizeName})` : ""}
-                        {d.ToppingName ? ` - ${d.ToppingName}` : ""}
+                        {d.Food?.FoodName || "N/A"}
+                        {d.Size?.SizeName ? ` (${d.Size.SizeName})` : ""}
+                        {d.Topping?.ToppingName
+                          ? ` - ${d.Topping.ToppingName}`
+                          : ""}
                       </td>
                       <td>{d.Quantity}</td>
-                      <td>{d.Price.toLocaleString()}</td>
-                      <td>{(d.Quantity * d.Price).toLocaleString()}</td>
-                    </tr>
+                      <td>{(d.Price || 0).toLocaleString()}</td>
+                      <td>
+                        {((d.Quantity || 0) * (d.Price || 0)).toLocaleString()}
+                      </td>
+                    </tr> // ✅ FIX: Một dòng cho <tr> details, không newline
                   ))}
                 </tbody>
               </table>
@@ -276,19 +284,19 @@ const Invoice = () => {
               <div className="invoice-summary">
                 <p>
                   <b>Tổng số lượng:</b>{" "}
-                  {details.reduce((sum, d) => sum + d.Quantity, 0)}
+                  {details.reduce((sum, d) => sum + (d.Quantity || 0), 0)}
                 </p>
                 <p>
                   <b>Thành tiền:</b>{" "}
-                  {currentInvoice?.TotalAmount?.toLocaleString()} đ
+                  {(currentInvoice?.TotalAmount || 0).toLocaleString()} đ
                 </p>
                 <p>
                   <b>Thanh toán:</b>{" "}
-                  {currentInvoice?.TotalAmount?.toLocaleString()} đ
+                  {(currentInvoice?.TotalAmount || 0).toLocaleString()} đ
                 </p>
                 <p>
                   <b>Tiền khách đưa:</b>{" "}
-                  {currentInvoice?.TotalAmount?.toLocaleString()} đ
+                  {(currentInvoice?.TotalAmount || 0).toLocaleString()} đ
                 </p>
                 <p>
                   <b>Tiền thừa:</b> 0 đ

@@ -9,7 +9,7 @@ const CategoryEdit = () => {
   const [name, setName] = useState("");
   const navigate = useNavigate();
 
-  // Lấy thông tin danh mục
+  // 📦 Lấy thông tin danh mục
   useEffect(() => {
     const fetchCategory = async () => {
       try {
@@ -28,14 +28,18 @@ const CategoryEdit = () => {
           navigate("/admin/category");
         }
       } catch (err) {
-        console.error("❌ Fetch category error:", err);
-        Swal.fire("", "Không thể kết nối server", "error");
+        console.error("❌ Fetch category error:", err.response?.data || err);
+        Swal.fire(
+          "",
+          err.response?.data?.message || "Không thể kết nối server",
+          "error"
+        );
       }
     };
     fetchCategory();
   }, [id, navigate]);
 
-  // Cập nhật danh mục
+  // ✏️ Cập nhật danh mục
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -48,7 +52,10 @@ const CategoryEdit = () => {
         `http://localhost:5000/api/admin/categories/edit/${id}`,
         { CategoryName: name },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
 
@@ -57,17 +64,22 @@ const CategoryEdit = () => {
           icon: "success",
           title: res.data.message || "Cập nhật thành công!",
           confirmButtonText: "OK",
-          timer: 1000, // ⏳ tự đóng sau 2s
+          timer: 1000,
           timerProgressBar: true,
         }).then(() => {
-          navigate("/admin/category"); // ✅ quay lại trang
+          navigate("/admin/category");
         });
       } else {
         Swal.fire("", res.data.message || "Không thể cập nhật", "error");
       }
     } catch (err) {
-      console.error("❌ Update category error:", err);
-      Swal.fire("", "Không thể kết nối server", "error");
+      console.error("❌ Update category error:", err.response?.data || err);
+
+      // 👉 Lấy message cụ thể từ backend (nếu có)
+      const errorMessage =
+        err.response?.data?.message || "Đã xảy ra lỗi khi cập nhật danh mục.";
+
+      Swal.fire("", errorMessage, "error");
     }
   };
 
@@ -83,6 +95,7 @@ const CategoryEdit = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Nhập tên danh mục"
+              style={{ color: "black" }}
             />
           </div>
           <div className="form-actions">

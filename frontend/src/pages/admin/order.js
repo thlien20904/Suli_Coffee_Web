@@ -1,4 +1,3 @@
-// src/pages/admin/Order.js
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -37,7 +36,7 @@ const Order = () => {
 
     result = result.filter(
       (item) =>
-        item.UserName.toLowerCase().includes(search.toLowerCase()) ||
+        (item.User?.FullName || "").toLowerCase().includes(search.toLowerCase()) ||
         String(item.OrderId).includes(search)
     );
 
@@ -68,7 +67,6 @@ const Order = () => {
     setCurrentPage(1);
   };
 
-  // update status
   // update status
   const updateStatus = async (id, statusId) => {
     try {
@@ -167,27 +165,7 @@ const Order = () => {
         </thead>
         <tbody>
           {pageData.map((item) => (
-            <tr key={item.OrderId}>
-              <td>{item.OrderId}</td>
-              <td>{item.UserName}</td>
-              <td>{new Date(item.OrderDate).toLocaleString()}</td>
-              <td>{item.Status}</td>
-              <td>{item.TotalAmount.toLocaleString()} đ</td>
-              <td>
-                <select
-                  value={item.StatusId} // dùng StatusId
-                  onChange={(e) =>
-                    updateStatus(item.OrderId, parseInt(e.target.value))
-                  }
-                >
-                  <option value={1}>Đặt hàng thành công</option>
-                  <option value={2}>Đang chuẩn bị đơn hàng</option>
-                  <option value={3}>Đang giao hàng</option>
-                  <option value={4}>Giao hàng thành công</option>
-                  <option value={5}>Đã hủy</option>
-                </select>
-              </td>
-            </tr>
+            <tr key={item.OrderId}><td>{item.OrderId}</td><td>{item.User?.FullName || "N/A"}</td><td>{new Date(item.OrderDate).toLocaleString()}</td><td>{item.Status?.StatusName || "N/A"}</td><td>{(item.TotalAmount || 0).toLocaleString()} đ</td><td><select value={item.StatusId} onChange={(e) => updateStatus(item.OrderId, parseInt(e.target.value))}><option value={1}>Đặt hàng thành công</option><option value={2}>Đang chuẩn bị đơn hàng</option><option value={3}>Đang giao hàng</option><option value={4}>Giao hàng thành công</option><option value={5}>Đã hủy</option></select></td></tr>  // ✅ FIX: Một dòng duy nhất, không newline giữa <td>
           ))}
         </tbody>
       </table>

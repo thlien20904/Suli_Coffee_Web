@@ -76,7 +76,7 @@ const VoucherList = () => {
         DiscountAmount: voucher.DiscountAmount || "",
         DiscountPercentage: voucher.DiscountPercentage || "",
         MinOrderAmount: voucher.MinOrderAmount || "",
-        ExpiryDate: voucher.ExpiryDate?.split("T")[0] || "",
+        ExpiryDate: voucher.ExpiryDate?.split(" ")[0] || "", // Chỉ lấy YYYY-MM-DD
         MaxUsage: voucher.MaxUsage || "",
         IsActive: voucher.IsActive,
       });
@@ -167,6 +167,7 @@ const VoucherList = () => {
         res = await axios.post(`${API_URL}/add`, form);
       }
 
+      // THÀNH CÔNG → success: true
       if (res.data.success) {
         Swal.fire({
           icon: "success",
@@ -179,11 +180,26 @@ const VoucherList = () => {
           setModalOpen(false);
           fetchVouchers();
         });
-      } else {
-        Swal.fire("", res.data.message || "Không thể lưu voucher", "error");
+        return;
+      }
+
+      // LỖI TỪ BACKEND → success: false (400, 404, v.v.)
+      const message = res.data.message || "Không thể lưu voucher";
+      Swal.fire("Lỗi", message, "error");
+
+      // Nếu backend trả lỗi theo field
+      if (res.data.errors && typeof res.data.errors === "object") {
+        setErrors(res.data.errors);
       }
     } catch (err) {
-      Swal.fire("Lỗi", "Không thể kết nối server!", "error");
+      // CHỈ LỖI MẠNG HOẶC SERVER 500
+      console.error("Lỗi kết nối:", err);
+      const isNetworkError = !err.response;
+      const message = isNetworkError
+        ? "Không thể kết nối tới máy chủ!"
+        : err.response?.data?.message || "Lỗi không xác định";
+
+      Swal.fire("Lỗi", message, "error");
     }
   };
 
@@ -236,16 +252,18 @@ const VoucherList = () => {
         id: voucher.VoucherId,
       });
 
-      // ✅ Trường hợp thành công
-      Swal.fire({
-        icon: "success",
-        title: "Đã xóa!",
-        text: res.data.message || "Voucher đã được ngưng kích hoạt.",
-        showConfirmButton: false,
-        timer: 1000,
-      }).then(fetchVouchers);
+      if (res.data.success) {
+        Swal.fire({
+          icon: "success",
+          title: "Đã xóa!",
+          text: res.data.message || "Voucher đã được ngưng kích hoạt.",
+          showConfirmButton: false,
+          timer: 1000,
+        }).then(fetchVouchers);
+      } else {
+        Swal.fire("", res.data.message || "Không thể xóa", "error");
+      }
     } catch (err) {
-      // ⚠️ Khi backend trả lỗi 400, Axios nhảy vào đây
       const msg =
         err.response?.data?.message || "Không thể kết nối tới máy chủ.";
       Swal.fire({
@@ -262,12 +280,12 @@ const VoucherList = () => {
       <div className="header-bar">
         <input
           type="text"
-          placeholder="🔍 Tìm theo mã hoặc mô tả..."
+          placeholder="Tìm theo mã hoặc mô tả..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <button className="btn-green" onClick={() => openModal()}>
-          <i className="fas fa-plus"></i> Thêm Voucher
+          Thêm Voucher
         </button>
       </div>
 
@@ -331,23 +349,21 @@ const VoucherList = () => {
                     onClick={() => openModal(v)}
                     title="Sửa"
                   >
-                    <i className="fas fa-edit"></i>
+                    Sửa
                   </button>
                   <button
                     className={`btn-toggle ${v.IsActive ? "active" : ""}`}
                     onClick={() => toggleStatus(v)}
                     title={v.IsActive ? "Ngừng hoạt động" : "Kích hoạt lại"}
                   >
-                    <i
-                      className={v.IsActive ? "fas fa-ban" : "fas fa-check"}
-                    ></i>
+                    {v.IsActive ? "Ngừng" : "Kích hoạt"}
                   </button>
                   <button
                     className="btn-red"
                     onClick={() => deleteVoucher(v)}
                     title="Xóa"
                   >
-                    <i className="fas fa-trash"></i>
+                    Xóa
                   </button>
                 </td>
               </tr>
@@ -375,15 +391,16 @@ const VoucherList = () => {
           ))}
         </div>
       )}
-      {/* Modal thêm/sửa */}
+
+      {/* Modal */}
       {modalOpen && (
         <div className="modal-overlay" onClick={() => setModalOpen(false)}>
           <div className="voucher-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{editingVoucher ? "✏️ Sửa Voucher" : "➕ Thêm Voucher"}</h3>
+            <h3>{editingVoucher ? "Sửa Voucher" : "Thêm Voucher"}</h3>
 
             <form onSubmit={saveVoucher} className="form-grid">
               <div>
-                <label>Mã voucher</label>
+                <label>Mã voucher *</label>
                 <input
                   name="Code"
                   value={form.Code}
@@ -391,11 +408,13 @@ const VoucherList = () => {
                   onBlur={handleBlur}
                   className={errors.Code ? "input-error" : ""}
                 />
-                {errors.Code && <small>{errors.Code}</small>}
+                {errors.Code && (
+                  <small className="error-text">{errors.Code}</small>
+                )}
               </div>
 
               <div>
-                <label>Mô tả</label>
+                <label>Mô tả *</label>
                 <input
                   name="Description"
                   value={form.Description}
@@ -403,7 +422,9 @@ const VoucherList = () => {
                   onBlur={handleBlur}
                   className={errors.Description ? "input-error" : ""}
                 />
-                {errors.Description && <small>{errors.Description}</small>}
+                {errors.Description && (
+                  <small className="error-text">{errors.Description}</small>
+                )}
               </div>
 
               <div>
@@ -416,6 +437,9 @@ const VoucherList = () => {
                   onBlur={handleBlur}
                   className={errors.DiscountAmount ? "input-error" : ""}
                 />
+                {errors.DiscountAmount && (
+                  <small className="error-text">{errors.DiscountAmount}</small>
+                )}
               </div>
 
               <div>
@@ -428,10 +452,15 @@ const VoucherList = () => {
                   onBlur={handleBlur}
                   className={errors.DiscountPercentage ? "input-error" : ""}
                 />
+                {errors.DiscountPercentage && (
+                  <small className="error-text">
+                    {errors.DiscountPercentage}
+                  </small>
+                )}
               </div>
 
               <div>
-                <label>Đơn tối thiểu</label>
+                <label>Đơn tối thiểu *</label>
                 <input
                   name="MinOrderAmount"
                   type="number"
@@ -440,10 +469,13 @@ const VoucherList = () => {
                   onBlur={handleBlur}
                   className={errors.MinOrderAmount ? "input-error" : ""}
                 />
+                {errors.MinOrderAmount && (
+                  <small className="error-text">{errors.MinOrderAmount}</small>
+                )}
               </div>
 
               <div>
-                <label>Ngày hết hạn</label>
+                <label>Ngày hết hạn *</label>
                 <input
                   name="ExpiryDate"
                   type="date"
@@ -452,11 +484,13 @@ const VoucherList = () => {
                   onBlur={handleBlur}
                   className={errors.ExpiryDate ? "input-error" : ""}
                 />
-                {errors.ExpiryDate && <small>{errors.ExpiryDate}</small>}
+                {errors.ExpiryDate && (
+                  <small className="error-text">{errors.ExpiryDate}</small>
+                )}
               </div>
 
               <div>
-                <label>Giới hạn lượt dùng</label>
+                <label>Giới hạn lượt dùng *</label>
                 <input
                   name="MaxUsage"
                   type="number"
@@ -465,6 +499,9 @@ const VoucherList = () => {
                   onBlur={handleBlur}
                   className={errors.MaxUsage ? "input-error" : ""}
                 />
+                {errors.MaxUsage && (
+                  <small className="error-text">{errors.MaxUsage}</small>
+                )}
               </div>
 
               <div>
@@ -481,7 +518,7 @@ const VoucherList = () => {
 
               <div className="modal-actions">
                 <button type="submit" className="btn-green">
-                  <i className="fas fa-save"></i> Lưu
+                  Lưu
                 </button>
                 <button
                   type="button"

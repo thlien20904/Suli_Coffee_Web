@@ -1,0 +1,61 @@
+const Sequelize = require('sequelize');
+module.exports = function(sequelize, DataTypes) {
+  return sequelize.define('UserVouchers', {
+    UserVoucherId: {
+      autoIncrement: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      primaryKey: true
+    },
+    UserId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'Users',
+        key: 'Id'
+      },
+      unique: "UQ__UserVouc__14262BDFD08A35E9"
+    },
+    VoucherId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'Vouchers',
+        key: 'VoucherId'
+      },
+      unique: "UQ__UserVouc__14262BDFD08A35E9"
+    },
+    IsUsed: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false
+    },
+    ReceivedDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: Sequelize.Sequelize.fn('getdate')
+    }
+  }, {
+    sequelize,
+    tableName: 'UserVouchers',
+    schema: 'dbo',
+    timestamps: false,
+    indexes: [
+      {
+        name: "PK__UserVouc__8017D499A2978334",
+        unique: true,
+        fields: [
+          { name: "UserVoucherId" },
+        ]
+      },
+      {
+        name: "UQ__UserVouc__14262BDFD08A35E9",
+        unique: true,
+        fields: [
+          { name: "UserId" },
+          { name: "VoucherId" },
+        ]
+      },
+    ]
+  });
+};

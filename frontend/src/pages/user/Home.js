@@ -32,7 +32,7 @@ export default function Home() {
       try {
         const res = await axios.get("http://localhost:5000/api/home");
         console.log("API response:", res.data);
-        setFoods(res.data.products || []);
+        setFoods(res.data.data || []); // <-- Sửa đây
       } catch (err) {
         console.error("Lỗi khi lấy dữ liệu trang chủ:", {
           message: err.message,
@@ -178,9 +178,12 @@ export default function Home() {
                               ).toLocaleString()}
                               đ
                             </Card.Text>
-                            <Card.Text className="sold">
-                              Còn lại: {food.Stock}
+
+                            {/* ✅ Hiển thị số lượng đã bán */}
+                            <Card.Text className="sold text-secondary">
+                              Đã bán: {food.SoldQuantity ?? 0}
                             </Card.Text>
+
                             <div className="mt-auto d-flex justify-content-center">
                               <Button
                                 as={Link}

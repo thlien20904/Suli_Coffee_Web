@@ -165,6 +165,7 @@ const EditIngredient = () => {
           timer: 1000,
         }).then(() => window.history.back());
       } else {
+        // nếu backend trả 200 nhưng success = false
         Swal.fire(
           "",
           res.data.message || "Không thể cập nhật nguyên liệu",
@@ -173,7 +174,10 @@ const EditIngredient = () => {
       }
     } catch (err) {
       console.error("❌ Lỗi cập nhật nguyên liệu:", err);
-      Swal.fire("", "Không thể kết nối server!", "error");
+
+      // Lấy message backend nếu có
+      const msg = err.response?.data?.message || "Không thể kết nối server!";
+      Swal.fire("", msg, "error");
     }
   };
 

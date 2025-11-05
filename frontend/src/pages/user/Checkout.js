@@ -31,7 +31,7 @@ export default function Checkout() {
 
   // Kiểm tra xem luồng thanh toán có phải từ Giỏ hàng không
   // Nếu bất kỳ item nào có GioHangID, ta xem đây là luồng Giỏ hàng.
-  const isFromCart = items.some(item => item.GioHangID);
+  const isFromCart = items.some((item) => item.GioHangID);
 
   // Helper fetch với Authorization
   const apiFetch = async (url, options = {}) => {
@@ -48,15 +48,15 @@ export default function Checkout() {
       navigate("/login");
       throw new Error("Token hết hạn hoặc không hợp lệ!");
     }
-    
+
     const contentType = res.headers.get("content-type");
     if (!contentType?.includes("application/json")) {
-        if (res.status === 200) return {}; 
-        throw new Error("Server trả về không phải JSON.");
+      if (res.status === 200) return {};
+      throw new Error("Server trả về không phải JSON.");
     }
 
     const data = await res.json();
-    
+
     if (!res.ok) {
       throw new Error(data.message || `Lỗi ${res.status}`);
     }
@@ -70,19 +70,20 @@ export default function Checkout() {
       navigate("/login");
       return;
     }
-    
+
     const fetchProfile = async () => {
       try {
         setLoading(true);
         const data = await apiFetch("/api/profile");
-        if (data?.success && data.user) {
+        if (data?.success && data.data) {
+          // Sửa từ data.user thành data.data
           setUser({
-            id: data.user.Id,
-            username: data.user.Username || "",
-            fullName: data.user.FullName || "",
-            email: data.user.Email || "",
-            phone: data.user.Phone || "",
-            address: data.user.Address || "",
+            id: data.data.Id,
+            username: data.data.Username || "",
+            fullName: data.data.FullName || "",
+            email: data.data.Email || "",
+            phone: data.data.Phone || "",
+            address: data.data.Address || "",
           });
           setError("");
         } else {
@@ -113,19 +114,19 @@ export default function Checkout() {
       (s, t) => s + (t.ToppingPrice ?? 0),
       0
     );
-    return (base + sizeExtra + toppingExtra);
-  }
+    return base + sizeExtra + toppingExtra;
+  };
 
   // Tổng tiền sản phẩm (chưa bao gồm phí ship)
   const subtotal = items.reduce((sum, it) => {
     // Nếu là luồng Giỏ hàng, dùng TotalPrice có sẵn trong item (đã được tính từ backend)
     // Nếu là luồng Mua ngay, phải tự tính lại đơn giá * số lượng
-    const itemTotal = it.TotalPrice ?? (calculateItemPrice(it) * (it.SoLuong ?? 1));
+    const itemTotal =
+      it.TotalPrice ?? calculateItemPrice(it) * (it.SoLuong ?? 1);
     return sum + itemTotal;
   }, 0);
 
   const total = subtotal + shipping;
-
 
   // ------------------------------------------------------------------
   // ✅ HÀM XỬ LÝ ĐẶT HÀNG ĐÃ SỬA ĐỔI LỖI TotalPrice
@@ -135,8 +136,10 @@ export default function Checkout() {
 
     // VALIDATE CƠ BẢN
     if (!user.fullName || !user.phone || !user.address) {
-        setError("Vui lòng điền đầy đủ Họ và tên, Số điện thoại và Địa chỉ giao hàng.");
-        return;
+      setError(
+        "Vui lòng điền đầy đủ Họ và tên, Số điện thoại và Địa chỉ giao hàng."
+      );
+      return;
     }
 
     try {
@@ -147,16 +150,16 @@ export default function Checkout() {
 
       // 1. TẠO PAYLOAD CHUNG cho backend
       const payload = {
-        newAddress: user.address, 
+        newAddress: user.address,
         paymentMethodId,
       };
 
       if (isFromCart) {
         // Luồng Giỏ hàng: Chỉ truyền mảng GioHangID
-        payload.selectedItems = items.map(item => item.GioHangID);
+        payload.selectedItems = items.map((item) => item.GioHangID);
       } else {
         // Luồng Mua ngay: Truyền chi tiết sản phẩm để backend tạo OrderItem
-        payload.orderItems = items.map(item => {
+        payload.orderItems = items.map((item) => {
           const unitPrice = calculateItemPrice(item); // Đơn giá (base + size + topping)
           const totalItemPrice = unitPrice * (item.SoLuong ?? 1); // Tổng tiền của item
 
@@ -165,10 +168,10 @@ export default function Checkout() {
             SizeID: item.Size?.SizeID || null,
             Quantity: item.SoLuong ?? 1,
             // ✅ SỬA LỖI: Truyền TotalPrice = Đơn giá x Số lượng
-            TotalPrice: totalItemPrice, 
+            TotalPrice: totalItemPrice,
             // Nếu có topping, cần thêm mảng ToppingID:
-            ToppingIDs: (item.Toppings || []).map(t => t.ToppingID) 
-          }
+            ToppingIDs: (item.Toppings || []).map((t) => t.ToppingID),
+          };
         });
       }
 
@@ -182,26 +185,27 @@ export default function Checkout() {
       if (data.success && data.Code === 1 && data.Url) {
         // Nếu là VNPAY, chuyển hướng ngay lập tức
         window.location.href = data.Url;
-        return; 
+        return;
       }
       // ======================================
-        
+
       // Xử lý cho các trường hợp COD (Code=2) hoặc VNPAY thành công sau callback
       if (data.success) {
         alert("Đặt hàng thành công! Mã đơn: " + data.orderId);
-        navigate("/successful", { 
-          state: { 
-            order: data.order || { 
-              id: data.orderId, 
-              totalPrice: total, 
-              createdAt: new Date().toISOString() 
-            } 
-          } 
+        navigate("/successful", {
+          state: {
+            order: data.order || {
+              id: data.orderId,
+              totalPrice: total,
+              createdAt: new Date().toISOString(),
+            },
+          },
         });
       } else {
-          throw new Error(data.message || "Đặt hàng thất bại: Lỗi không xác định.");
+        throw new Error(
+          data.message || "Đặt hàng thất bại: Lỗi không xác định."
+        );
       }
-
     } catch (err) {
       console.error("ORDER ERR:", err);
       setError(err.message);
@@ -210,17 +214,24 @@ export default function Checkout() {
     }
   };
 
-
   // ------------------------------------------------------------------
   // ✅ RENDER
   // ------------------------------------------------------------------
 
-  if (loading) return <div className="text-center py-5"><Spinner animation="border" /> Đang tải thông tin cá nhân...</div>;
-  if (error && !token) 
+  if (loading)
+    return (
+      <div className="text-center py-5">
+        <Spinner animation="border" /> Đang tải thông tin cá nhân...
+      </div>
+    );
+  if (error && !token)
     return (
       <Alert variant="danger" className="text-center py-5 container mt-5">
         {error}
-        <button className="btn btn-primary mt-2" onClick={() => navigate("/login")}>
+        <button
+          className="btn btn-primary mt-2"
+          onClick={() => navigate("/login")}
+        >
           Đăng nhập lại
         </button>
       </Alert>
@@ -228,11 +239,11 @@ export default function Checkout() {
   if (items.length === 0) {
     return (
       <Alert variant="info" className="text-center py-5 container mt-5">
-        Không có sản phẩm nào để thanh toán. Vui lòng quay lại giỏ hàng hoặc trang sản phẩm.
+        Không có sản phẩm nào để thanh toán. Vui lòng quay lại giỏ hàng hoặc
+        trang sản phẩm.
       </Alert>
     );
   }
-
 
   return (
     <div className="checkout-container container py-5">
@@ -261,7 +272,7 @@ export default function Checkout() {
                 required
               />
             </Form.Group>
-            
+
             <Form.Group className="mb-3">
               <Form.Label>Email</Form.Label>
               <Form.Control type="email" value={user.email} disabled />
@@ -303,7 +314,9 @@ export default function Checkout() {
                 variant="success"
                 className="place-order-btn"
                 onClick={handlePlaceOrder}
-                disabled={isProcessing || !user.address || !user.fullName || !user.phone}
+                disabled={
+                  isProcessing || !user.address || !user.fullName || !user.phone
+                }
               >
                 {isProcessing ? (
                   <>
@@ -328,7 +341,12 @@ export default function Checkout() {
         <Col md={7}>
           <div className="checkout-box p-3 shadow-sm">
             <h4 className="mb-3">Đơn hàng</h4>
-            <Table bordered hover responsive className="align-middle text-center">
+            <Table
+              bordered
+              hover
+              responsive
+              className="align-middle text-center"
+            >
               <thead className="table-dark">
                 <tr>
                   <th>Hình ảnh</th>
@@ -342,10 +360,12 @@ export default function Checkout() {
               <tbody>
                 {items.map((item, index) => {
                   // Sử dụng TotalPrice nếu có (luồng Giỏ hàng), nếu không thì tính lại (luồng Mua ngay)
-                  const itemTotal = item.TotalPrice ?? (calculateItemPrice(item) * (item.SoLuong ?? 1));
-                  
+                  const itemTotal =
+                    item.TotalPrice ??
+                    calculateItemPrice(item) * (item.SoLuong ?? 1);
+
                   // Key sử dụng GioHangID nếu có, nếu không thì dùng index
-                  const key = item.GioHangID || index; 
+                  const key = item.GioHangID || index;
 
                   return (
                     <tr key={key}>
@@ -366,7 +386,8 @@ export default function Checkout() {
                         {item.Toppings && item.Toppings.length > 0
                           ? item.Toppings.map((t) => (
                               <div key={t.ToppingID}>
-                                {t.ToppingName} (+{t.ToppingPrice.toLocaleString("vi-VN")} ₫)
+                                {t.ToppingName} (+
+                                {t.ToppingPrice.toLocaleString("vi-VN")} ₫)
                               </div>
                             ))
                           : "Không có"}
@@ -382,7 +403,9 @@ export default function Checkout() {
             <h5 className="text-end">
               Tạm tính: {subtotal.toLocaleString("vi-VN")} ₫ <br />
               Phí ship: {shipping.toLocaleString("vi-VN")} ₫ <br />
-              <strong className="text-danger">Tổng cộng: {total.toLocaleString("vi-VN")} ₫</strong>
+              <strong className="text-danger">
+                Tổng cộng: {total.toLocaleString("vi-VN")} ₫
+              </strong>
             </h5>
           </div>
         </Col>

@@ -6,8 +6,13 @@ const dotenv = require("dotenv");
 const multer = require("multer");
 const path = require("path");
 const jwt = require("jsonwebtoken");
-const { poolPromise } = require("./db");
 const { expressjwt } = require("express-jwt"); // v8.5.1
+const sequelize = require("./config/sequelize");
+const initModels = require("./models/init-models");
+const models = initModels(sequelize);
+const bcrypt = require("bcryptjs");
+const { Users } = models;
+
 dotenv.config();
 
 const app = express();
@@ -19,11 +24,13 @@ app.use(
 );
 app.use(express.json());
 app.use(passport.initialize());
+app.use(express.urlencoded({ extended: true }));
 
 // 📌 Phục vụ ảnh tĩnh (chỉ dùng một thư mục images/)
 app.use("/images", express.static(path.join(__dirname, "../images"))); // Thư mục images/ trong backend/
 app.use("/uploads", express.static(path.join(__dirname, "Uploads")));
 app.use("/images", express.static(path.join(__dirname, "public/images")));
+
 // 📌 Route cho trang thành công
 app.get("/successful", async (req, res) => {
   try {
@@ -40,14 +47,9 @@ app.get("/successful", async (req, res) => {
       process.env.JWT_SECRET || "dev_secret_fallback"
     );
 
-    // Kiểm tra user tồn tại
-    const pool = await poolPromise;
-    const user = await pool
-      .request()
-      .input("UserID", decoded.id)
-      .query("SELECT UserID, Username FROM Users WHERE UserID = @UserID");
-
-    if (user.recordset.length === 0) {
+    // Kiểm tra user tồn tại qua model Users
+    const user = await Users.findOne({ where: { Id: decoded.id } });
+    if (!user) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy người dùng!" });
@@ -62,22 +64,6 @@ app.get("/successful", async (req, res) => {
   }
 });
 
-// /* ---------------- MIDDLEWARE JWT ---------------- */
-// app.use(
-//   "/api/admin",
-//   expressjwt({ secret: process.env.JWT_SECRET, algorithms: ["HS256"] }),
-//   (err, req, res, next) => {
-//     if (err) {
-//       console.error("JWT Error:", err);
-//       return res.status(401).json({ errors: [{ msg: "Token không hợp lệ" }] });
-//     }
-//     console.log("JWT decoded:", req.auth);
-//     req.user = req.auth;
-//     next();
-//   }
-// );
-
-/* ---------------- GOOGLE STRATEGY ---------------- */
 passport.use(
   new GoogleStrategy(
     {
@@ -87,43 +73,31 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const pool = await poolPromise;
         const email = profile.emails[0].value;
         const username = profile.displayName;
         const avatar = profile.photos?.[0]?.value || null;
 
-        let user = await pool
-          .request()
-          .input("Email", email)
-          .query("SELECT * FROM Users WHERE Email = @Email");
+        let user = await Users.findOne({ where: { Email: email } });
 
-        if (user.recordset.length === 0) {
-          await pool
-            .request()
-            .input("Username", username)
-            .input("Email", email)
-            .input("Password", "google")
-            .input("AvatarURL", avatar)
-            .query(
-              "INSERT INTO Users (Username, Email, Password, Role, AvatarURL) VALUES (@Username, @Email, @Password, 'User', @AvatarURL)"
-            );
-
-          user = await pool
-            .request()
-            .input("Email", email)
-            .query("SELECT * FROM Users WHERE Email = @Email");
+        if (!user) {
+          // Tạo mới user với PasswordHash mặc định
+          user = await Users.create({
+            Username: username,
+            Email: email,
+            PasswordHash: await bcrypt.hash("google", 10),
+            Role: "User",
+            AvatarUrl: avatar,
+          });
         } else {
-          await pool
-            .request()
-            .input("Email", email)
-            .input("Username", username)
-            .input("AvatarURL", avatar)
-            .query(
-              "UPDATE Users SET Username=@Username, AvatarURL=@AvatarURL WHERE Email=@Email"
-            );
+          // Cập nhật thông tin user
+          await Users.update(
+            { Username: username, AvatarUrl: avatar },
+            { where: { Email: email } }
+          );
+          user = await Users.findOne({ where: { Email: email } });
         }
 
-        return done(null, user.recordset[0]);
+        return done(null, user.toJSON());
       } catch (err) {
         return done(err, null);
       }
@@ -159,7 +133,6 @@ const exportRouter = require("./routes/admin/export");
 const paymentRouter = require("./routes/admin/payment");
 const userRouter = require("./routes/admin/users");
 const staffRouter = require("./routes/admin/staff");
-const accountRouter = require("./routes/admin/account");
 const roleRouter = require("./routes/admin/role");
 const invoiceRouter = require("./routes/admin/invoice");
 const orderAdminRouter = require("./routes/admin/order");
@@ -186,7 +159,6 @@ app.use("/api/admin/export", exportRouter);
 app.use("/api/admin/payment", paymentRouter);
 app.use("/api/admin/users", userRouter);
 app.use("/api/admin/staff", staffRouter);
-app.use("/api/admin/accounts", accountRouter);
 app.use("/api/admin/roles", roleRouter);
 app.use("/api/admin/invoice", invoiceRouter);
 app.use("/api/admin/orders", orderAdminRouter);
@@ -220,11 +192,11 @@ app.get(
   (req, res) => {
     const token = jwt.sign(
       {
-        id: req.user.UserID,
+        id: req.user.Id, // Sử dụng Id thay vì UserID
         role: (req.user.Role || "user").toLowerCase(),
         username: req.user.Username,
         email: req.user.Email,
-        avatar: req.user.AvatarURL,
+        avatar: req.user.AvatarUrl || null, // Sử dụng AvatarUrl thay vì AvatarURL
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
@@ -233,7 +205,7 @@ app.get(
     res.redirect(
       `http://localhost:3000/login?token=${token}&role=${(
         req.user.Role || "user"
-      ).toLowerCase()}&avatar=${encodeURIComponent(req.user.AvatarURL || "")}`
+      ).toLowerCase()}&avatar=${encodeURIComponent(req.user.AvatarUrl || "")}`
     );
   }
 );
@@ -272,8 +244,8 @@ app.get("/api/current_user", async (req, res) => {
 const passwordRouter = require("./routes/user/password");
 app.use("/api/password", passwordRouter);
 
-/* ---------------- START SERVER ---------------- */
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>
-  console.log(`🚀 Backend running at http://localhost:${PORT}`)
-);
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+});

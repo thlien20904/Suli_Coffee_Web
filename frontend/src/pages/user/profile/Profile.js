@@ -47,11 +47,12 @@ function Profile() {
       try {
         setLoading(true);
         const data = await apiFetch("/api/profile");
-        if (data.success && data.user) {
-          setUserState(data.user);
+        if (data.success && data.data) {
+          // <- sửa từ data.user -> data.data
+          setUserState(data.data);
           setAvatar(
-            data.user.AvatarUrl
-              ? `${API_BASE}${data.user.AvatarUrl}`
+            data.data.AvatarUrl
+              ? `${API_BASE}${data.data.AvatarUrl}`
               : `${API_BASE}/images/no-image.png`
           );
         }
@@ -78,7 +79,7 @@ function Profile() {
         `/api/profile/orders?page=${page}&pageSize=5&tab=${tab}`
       );
       if (data.success) {
-        setOrders(data.orders);
+        setOrders(data.orders || []);
         setPagination({
           currentPage: data.currentPage,
           totalPages: data.totalPages,

@@ -144,7 +144,7 @@ const Food = () => {
             <tr key={item.FoodId}>
               <td>{item.FoodId}</td>
               <td>{item.FoodName}</td>
-              <td>{item.CategoryName || "Không có"}</td>
+              <td>{item.Category?.CategoryName || "Không có"}</td>
               <td>
                 <img
                   src={item.ImageURL ? item.ImageURL : "/images/no-image.png"}
@@ -154,7 +154,12 @@ const Food = () => {
                   style={{ borderRadius: "5px", objectFit: "cover" }}
                 />
               </td>
-              <td>{item.Ingredients || "Không có"}</td>
+              <td>
+                {item.Ingredients?.length
+                  ? item.Ingredients.join(", ")
+                  : "Không có"}
+              </td>
+
               <td>{item.Price.toLocaleString()} đ</td>
               <td>{item.Discount}</td>
               <td>{item.Status ? "Còn bán" : "Ngừng bán"}</td>

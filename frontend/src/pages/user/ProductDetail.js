@@ -41,11 +41,16 @@ export default function ProductDetail() {
       setLoading(true);
       try {
         const { data } = await axios.get(`${API}/api/products/${id}`);
-        setProduct(data.product);
-        setSizes(data.sizes || []);
-        setToppings(data.toppings || []);
-        setRelated(data.related || []);
-        setSelectedSize(data.sizes?.[0]?.SizeID || null);
+        if (data.success) {
+          const pdata = data.data; // data.data mới chứa product, sizes, toppings, related
+          setProduct(pdata.product);
+          setSizes(pdata.sizes || []);
+          setToppings(pdata.toppings || []);
+          setRelated(pdata.related || []);
+          setSelectedSize(pdata.sizes?.[0]?.SizeID || null); // chọn size đầu tiên
+        } else {
+          setError(data.message || "Không tải được chi tiết sản phẩm");
+        }
       } catch (e) {
         console.error("FETCH PRODUCT ERROR:", e);
         setError("Không tải được chi tiết sản phẩm");
@@ -90,7 +95,7 @@ export default function ProductDetail() {
       const res = await axios.post(`${API}/api/cart/add`, payload, {
         // Gửi token qua header Authorization
         headers: {
-          Authorization: `Bearer ${token}`, 
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -141,7 +146,8 @@ export default function ProductDetail() {
     }
 
     // Tạo object item khớp với định dạng của Checkout.js
-    const selectedSizeObj = sizes.find((s) => s.SizeID === selectedSize) || null;
+    const selectedSizeObj =
+      sizes.find((s) => s.SizeID === selectedSize) || null;
     const selectedToppingObjs = toppings.filter((t) =>
       selectedToppings.includes(t.ToppingID)
     );
@@ -153,14 +159,17 @@ export default function ProductDetail() {
       Price: product.Price,
       DiscountPrice: product.DiscountPrice,
       Size: selectedSizeObj
-        ? { SizeID: selectedSizeObj.SizeID, SizeName: selectedSizeObj.SizeName, ExtraPrice: selectedSizeObj.ExtraPrice }
+        ? {
+            SizeID: selectedSizeObj.SizeID,
+            SizeName: selectedSizeObj.SizeName,
+            ExtraPrice: selectedSizeObj.ExtraPrice,
+          }
         : null,
       Toppings: selectedToppingObjs.map((t) => ({
         ToppingID: t.ToppingID,
         ToppingName: t.ToppingName,
         ToppingPrice: t.ToppingPrice,
-      }))
-      ,
+      })),
       SoLuong: quantity,
     };
 
@@ -180,7 +189,7 @@ export default function ProductDetail() {
     return (
       <div className="container py-5">
         <Alert variant="danger">{error}</Alert>
-        </div>
+      </div>
     );
   }
 
@@ -297,9 +306,7 @@ export default function ProductDetail() {
                   onError={(e) => (e.currentTarget.src = PLACEHOLDER)}
                 />
                 <p className="related-name mt-2">{item.FoodName}</p>
-                <p className="related-price text-muted">
-                  {fmtVND(item.Price)}
-                </p>
+                <p className="related-price text-muted">{fmtVND(item.Price)}</p>
               </a>
             ))
           ) : (

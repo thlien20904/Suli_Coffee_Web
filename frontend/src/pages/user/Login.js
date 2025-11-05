@@ -26,7 +26,10 @@ function Login() {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [errors, setErrors] = useState({ identifier: "", password: "" });
-  const [touched, setTouched] = useState({ identifier: false, password: false });
+  const [touched, setTouched] = useState({
+    identifier: false,
+    password: false,
+  });
   const [serverError, setServerErr] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -35,30 +38,31 @@ function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  
-useEffect(() => {
-  const rememberedIdentifier = localStorage.getItem("auth:rememberIdentifier");
-  if (rememberedIdentifier) {
-    setIdentifier(rememberedIdentifier);
-    setRemember(true);
-  }
-
-  // Nếu đã có token thì chỉ kiểm tra — KHÔNG tự navigate
-  const token = localStorage.getItem("token");
-  if (token) {
-    try {
-      const decoded = jwtDecode(token);
-      if (!decoded?.exp || decoded.exp * 1000 < Date.now()) {
-        // Token hết hạn → xóa
-        localStorage.removeItem("token");
-        console.warn("⚠ Token hết hạn, xoá khỏi localStorage");
-      }
-    } catch (err) {
-      console.error("❌ Token decode error:", err);
-      localStorage.removeItem("token");
+  useEffect(() => {
+    const rememberedIdentifier = localStorage.getItem(
+      "auth:rememberIdentifier"
+    );
+    if (rememberedIdentifier) {
+      setIdentifier(rememberedIdentifier);
+      setRemember(true);
     }
-  }
-}, []);
+
+    // Nếu đã có token thì chỉ kiểm tra — KHÔNG tự navigate
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        if (!decoded?.exp || decoded.exp * 1000 < Date.now()) {
+          // Token hết hạn → xóa
+          localStorage.removeItem("token");
+          console.warn("⚠ Token hết hạn, xoá khỏi localStorage");
+        }
+      } catch (err) {
+        console.error("❌ Token decode error:", err);
+        localStorage.removeItem("token");
+      }
+    }
+  }, []);
 
   // ✅ Nếu đăng nhập qua Google hoặc Facebook
   useEffect(() => {
@@ -237,7 +241,10 @@ useEffect(() => {
               onBlur={() => setTouched((t) => ({ ...t, password: true }))}
               autoComplete="current-password"
             />
-            <span className="password-toggle" onClick={togglePasswordVisibility}>
+            <span
+              className="password-toggle"
+              onClick={togglePasswordVisibility}
+            >
               {showPassword ? <BsEyeSlash /> : <BsEye />}
             </span>
             {touched.password && errors.password && (
@@ -265,14 +272,14 @@ useEffect(() => {
           </div>
 
           <div className="or-divider">OR</div>
-
+          {/* 
           <Button
             className="btn-social btn-facebook"
             as="a"
             href="http://localhost:5000/api/auth/facebook"
           >
             <BsFacebook className="social-icon" /> Connect with Facebook
-          </Button>
+          </Button> */}
 
           <Button
             className="btn-social btn-google"

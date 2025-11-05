@@ -54,19 +54,19 @@ const EditFood = () => {
         setCategories(catRes.data.data || []);
         setIngredients(ingRes.data.data || []);
 
-        const foodData = foodRes.data.food;
+        const foodData = foodRes.data.data;
         setForm({
           FoodName: foodData.FoodName,
           CategoryId: foodData.CategoryId || "",
-          Ingredients: foodRes.data.selectedIngredientIds || [],
+          Ingredients: (foodData.Ingredients || []).map((i) => i.IngredientId),
           Price: foodData.Price || "",
           Discount: foodData.Discount || 0,
           Stock: foodData.Stock || "",
           Description: foodData.Description || "",
-          Status: foodData.Status === 1,
-          UpdatedDate: new Date(foodData.UpdatedDate)
-            .toISOString()
-            .split("T")[0],
+          Status: foodData.Status === true,
+          UpdatedDate: foodData.UpdatedDate
+            ? new Date(foodData.UpdatedDate).toISOString().split("T")[0]
+            : new Date().toISOString().split("T")[0],
         });
         setPreview(foodData.ImageURL || "/images/no-image.png");
       } catch (err) {

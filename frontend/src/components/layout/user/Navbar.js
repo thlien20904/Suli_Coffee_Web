@@ -32,13 +32,15 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
         if (!isAuthenticated) return;
         const res = await axios.get(
           "http://localhost:5000/api/profile/avatar",
-          { headers: { Authorization: `Bearer ${token}` } }
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
 
-        if (res.data?.success && res.data.avatarUrl) {
-          const fullUrl = res.data.avatarUrl.startsWith("http")
-            ? res.data.avatarUrl
-            : `http://localhost:5000${res.data.avatarUrl}`;
+        if (res.data?.success && res.data.data?.avatarUrl) {
+          const fullUrl = res.data.data.avatarUrl.startsWith("http")
+            ? res.data.data.avatarUrl
+            : `http://localhost:5000${res.data.data.avatarUrl}`;
           dispatch(updateUser({ avatar: fullUrl }));
         }
       } catch (err) {
@@ -209,7 +211,8 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
             <FaShoppingCart size={20} color="#f9d2b5ff" />
             {!!cartCount && <span className="custom-badge">{cartCount}</span>}
           </div>
-          {/* 🛒 ảnh */}
+
+          {/* 👤 Avatar */}
           <div
             className="avatar-container"
             onMouseEnter={() => setMenuVisible(true)}
@@ -227,7 +230,7 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
               {isAuthenticated ? (
                 <>
                   <p
-                    onClick={() => navigate("/Profile")}
+                    onClick={() => navigate("/profile")}
                     className="dropdown-item"
                   >
                     👤 Hồ sơ

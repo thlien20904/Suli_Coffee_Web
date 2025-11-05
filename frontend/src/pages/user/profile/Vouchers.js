@@ -29,12 +29,12 @@ export default function VoucherTab() {
         }),
       ]);
 
-      const myList = resMy.data.success ? resMy.data.vouchers || [] : [];
+      const myList = resMy.data.success ? resMy.data.data || [] : [];
       const allList = resAvailable.data.success
-        ? resAvailable.data.vouchers || []
+        ? resAvailable.data.data || []
         : [];
 
-      // 🔸 Đánh dấu voucher đã nhận
+      // đánh dấu voucher đã nhận
       const updatedAvailable = allList.map((v) => ({
         ...v,
         isReceived: myList.some((m) => m.Code === v.Code),

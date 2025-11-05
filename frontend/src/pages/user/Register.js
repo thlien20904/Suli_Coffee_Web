@@ -296,13 +296,13 @@ export default function Register() {
           <div className="or-line">OR</div>
 
           <div className="d-grid gap-2">
-            <Button
+            {/* <Button
               className="btn-social btn-facebook d-flex align-items-center justify-content-center gap-2"
               as="a"
               href={`${API_BASE}/api/auth/facebook`}
             >
               <BsFacebook /> Connect with Facebook
-            </Button>
+            </Button> */}
             <Button
               className="btn-social btn-google d-flex align-items-center justify-content-center gap-2"
               as="a"

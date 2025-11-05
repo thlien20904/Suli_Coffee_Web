@@ -10,7 +10,7 @@
     "bcryptjs": "^3.0.2",
     "concurrently": "^9.2.1",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
+    "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "express-jwt": "^8.5.1",
@@ -22,9 +22,12 @@
     "passport-google-oauth20": "^2.0.0",
     "pdfkit": "^0.17.2",
     "pdfkit-table": "^0.1.99",
+    "sequelize": "^6.37.7",
+    "tedious": "^18.6.1",
     "vnpay": "^2.4.4"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "nodemon": "^3.1.0",
+    "sequelize-auto": "^0.8.8"
   }
 }

@@ -56,7 +56,7 @@ const AdminDashboard = () => {
     monthlySales,
     bestSellers,
     lowStockIngredients,
-    topCountries,
+    topAddresses,
     recentOrders,
   } = data;
 
@@ -120,7 +120,13 @@ const AdminDashboard = () => {
       <div className="row mt-4">
         {Object.entries(statusCount).map(([status, count], i) => (
           <div className="col-md-3" key={i}>
-            <div className="card text-center p-3 bg-light">
+            <div
+              className="card text-center p-3 bg-light clickable-card"
+              style={{ cursor: "pointer" }}
+              onClick={() =>
+                navigate(`/admin/order?status=${encodeURIComponent(status)}`)
+              }
+            >
               <h5>{status}</h5>
               <p className="display-6">{count}</p>
             </div>
@@ -167,17 +173,18 @@ const AdminDashboard = () => {
         </div>
 
         <div className="col-md-6">
-          <h3 className="text-center">🌍 Top quốc gia</h3>
+          <h3 className="text-center">📍 Top địa chỉ đặt hàng</h3>{" "}
+          {/* ✅ Đổi tiêu đề */}
           <ul className="list-group">
-            {topCountries.length > 0 ? (
-              topCountries.map((c, i) => (
+            {topAddresses.length > 0 ? (
+              topAddresses.map((addr, i) => (
                 <li
                   key={i}
                   className="list-group-item d-flex justify-content-between align-items-center"
                 >
-                  {c.Country}
+                  {addr.Address}
                   <span className="badge bg-primary rounded-pill">
-                    {c.OrderCount}
+                    {addr.OrderCount}
                   </span>
                 </li>
               ))

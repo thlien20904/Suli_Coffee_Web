@@ -128,8 +128,13 @@ const AddIngredient = () => {
         );
       }
     } catch (err) {
-      console.error("❌ Lỗi thêm nguyên liệu:", err);
-      Swal.fire("", "Không thể kết nối server!", "error");
+      // Nếu server trả về lỗi hợp lệ
+      if (err.response && err.response.data && err.response.data.message) {
+        Swal.fire("", err.response.data.message, "error");
+      } else {
+        console.error("❌ Lỗi thêm nguyên liệu:", err);
+        Swal.fire("", "Không thể kết nối server!", "error");
+      }
     }
   };
 

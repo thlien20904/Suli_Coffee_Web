@@ -26,8 +26,9 @@ export default function Notifications() {
       );
 
       if (res.data?.success) {
-        setNotifications(res.data.notifications || []);
-        setTotal(res.data.total || 0);
+        // 🔹 Trích dữ liệu từ res.data.data
+        setNotifications(res.data.data.notifications || []);
+        setTotal(res.data.data.total || 0);
       } else {
         setNotifications([]);
         setTotal(0);

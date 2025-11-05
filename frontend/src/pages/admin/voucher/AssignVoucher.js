@@ -193,33 +193,31 @@ const AssignVoucher = () => {
               </tr>
             </thead>
             <tbody>
-              {assigned.map((item) => (
-                <tr key={item.AssignedId}>
-                  <td>{item.AssignedId}</td>
-                  <td>{item.FullName}</td>
-                  <td>{item.VoucherCode}</td>
-                  <td>{item.Description}</td>
+              {assigned.map((item, index) => (
+                <tr key={item.UserVoucherId || item.id || index}>
+                  <td>{item.UserVoucherId || item.id || index + 1}</td>
+                  <td>{item.User?.FullName || "N/A"}</td>
+                  <td>{item.Voucher?.Code || "N/A"}</td>
+                  <td>{item.Voucher?.Description || "N/A"}</td>
                   <td>
-                    {new Date(item.AssignedDate).toLocaleDateString("vi-VN")}
+                    {new Date(item.ReceivedDate).toLocaleDateString("vi-VN")}
                   </td>
                   <td>
-                    {item.ExpiredDate
-                      ? new Date(item.ExpiredDate).toLocaleDateString("vi-VN")
+                    {item.Voucher?.ExpiryDate
+                      ? new Date(item.Voucher.ExpiryDate).toLocaleDateString(
+                          "vi-VN"
+                        )
                       : "—"}
                   </td>
                   <td>
                     <span
                       className={
-                        item.IsUsed
-                          ? "status used"
-                          : new Date(item.ExpiredDate) < new Date()
+                        new Date(item.Voucher?.ExpiryDate) < new Date()
                           ? "status expired"
                           : "status active"
                       }
                     >
-                      {item.IsUsed
-                        ? "Đã dùng"
-                        : new Date(item.ExpiredDate) < new Date()
+                      {new Date(item.Voucher?.ExpiryDate) < new Date()
                         ? "Hết hạn"
                         : "Còn hiệu lực"}
                     </span>

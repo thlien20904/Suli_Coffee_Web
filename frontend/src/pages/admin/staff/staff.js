@@ -125,7 +125,7 @@ const Staff = () => {
                     ? new Date(item.DateOfBirth).toLocaleDateString("vi-VN")
                     : "-"}
                 </td>
-                <td>{item.RoleName || "-"}</td>
+                <td>{item.Role?.RoleName || "-"}</td>
                 <td className="action-buttons">
                   <button
                     className="btn-edit"

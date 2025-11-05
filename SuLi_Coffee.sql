@@ -1,93 +1,113 @@
-﻿-- Sử dụng database WebAppDB
+﻿USE master;
+GO
+ALTER DATABASE WebAppDB SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+GO
+DROP DATABASE IF EXISTS WebAppDB;
+GO
+CREATE DATABASE WebAppDB;
+GO
 USE WebAppDB;
 GO
 
 
--- 1. Tạo bảng Users
-	CREATE TABLE Users (
-		Id INT IDENTITY(1,1) PRIMARY KEY,
-		Username NVARCHAR(50) UNIQUE NOT NULL,
-		Email NVARCHAR(50) UNIQUE NOT NULL,
-		PasswordHash NVARCHAR(255) NOT NULL,
-		FullName NVARCHAR(100) NULL,
-		Phone NVARCHAR(15) NULL,
-		Address NVARCHAR(255) NULL,
-		Role NVARCHAR(20) NOT NULL DEFAULT 'User',
-		OTPCode NVARCHAR(10) NULL,
-		OTPExpiry DATETIME NULL,
-		ResetToken NVARCHAR(100) NULL,
-		ResetTokenExpiry DATETIME NULL,
-		AvatarUrl NVARCHAR(255) NULL, 
-		CreatedDate DATETIME DEFAULT GETDATE()
-	);
-	GO
+-- 1. Bảng Users
+CREATE TABLE Users (
+	Id INT IDENTITY(1,1) PRIMARY KEY,
+	Username NVARCHAR(50) UNIQUE NOT NULL,
+	Email NVARCHAR(50) UNIQUE NOT NULL,
+	PasswordHash NVARCHAR(255) NOT NULL,
+	FullName NVARCHAR(100) NULL,
+	Phone NVARCHAR(15) NULL,
+	Address NVARCHAR(255) NULL,
+	Role NVARCHAR(20) NOT NULL DEFAULT 'User',
+	OTPCode NVARCHAR(10) NULL,
+	OTPExpiry DATETIME NULL,
+	ResetToken NVARCHAR(100) NULL,
+	ResetTokenExpiry DATETIME NULL,
+	AvatarUrl NVARCHAR(255) NULL, 
+	CreatedDate DATETIME DEFAULT GETDATE()
+);
+GO
 
-	select *from Users
--- Table: AccRole
+-- 2. AccRole
 CREATE TABLE AccRole(
     RoleId INT IDENTITY PRIMARY KEY,
     RoleName NVARCHAR(100) NOT NULL
 );
 GO
 
-
--- Table: Account
+-- 3. Account
 CREATE TABLE Account (
     AccountId INT IDENTITY PRIMARY KEY,
     DisplayName NVARCHAR(100) NOT NULL,
     UserName NVARCHAR(50) NOT NULL,
     PassWord NVARCHAR(50) NOT NULL,
-    RoleName NVARCHAR(50) not null
+    RoleName NVARCHAR(50) NOT NULL
 );
 GO
 
--- Table: TableFood
+-- 4. TableFood
 CREATE TABLE TableFood(
     TableId INT IDENTITY PRIMARY KEY,
     TableName NVARCHAR(100),
-    TrangThai NVARCHAR(100) -- Trống, có khách, đã được đặt
+    TrangThai NVARCHAR(100)
 );
 GO
 
--- Table: Category
+-- 5. Category
 CREATE TABLE Category (
     CategoryId INT PRIMARY KEY IDENTITY,
     CategoryName NVARCHAR(100) NOT NULL
 );
 GO
 
-
--- Table: Ingredient
+-- 6. Ingredient
 CREATE TABLE Ingredient (
     IngredientId INT PRIMARY KEY IDENTITY,
     IngredientName NVARCHAR(100) NOT NULL,
     SoLuong INT NOT NULL DEFAULT 0,
-	PhanLoai Nvarchar(50) not null,
-	ImageURL VARCHAR(255) NOT NULL,
+	PhanLoai NVARCHAR(50) NOT NULL,
+	ImageURL NVARCHAR(255) NOT NULL,
     LastUpdated DATE NOT NULL DEFAULT GETDATE()
 );
 GO
 
--- Table: Food.........................................................................................................................
+-- 7. FoodIngredient (đặt trước Food theo yêu cầu)
+CREATE TABLE FoodIngredient (
+    FoodIngredientId INT PRIMARY KEY IDENTITY,
+    FoodId INT,
+    IngredientId INT,
+    Quantity INT NOT NULL,
+    FOREIGN KEY (IngredientId) REFERENCES Ingredient(IngredientId)
+);
+GO
+
+-- 8. Food
 CREATE TABLE Food ( 
     FoodId INT PRIMARY KEY IDENTITY,
     FoodName NVARCHAR(100) NOT NULL,
     CategoryId INT,
     IngredientId INT,
-    Price DECIMAL(18, 3) NOT NULL DEFAULT 0, -- Giá gốc
-    Discount DECIMAL(5, 2) DEFAULT 0, -- Phần trăm giảm giá (0-100)
-    DiscountPrice AS (Price - (Price * Discount / 100)), -- Giá sau khi giảm
-    Stock INT NOT NULL DEFAULT 0, -- Số lượng tồn kho
-    Description NVARCHAR(500) NULL, -- Mô tả món ăn
-    ImageURL NVARCHAR(255) NULL, -- Đường dẫn hình ảnh
-    CreatedDate DATETIME DEFAULT GETDATE(), -- Ngày thêm món ăn
-    UpdatedDate DATETIME NULL, -- Ngày cập nhật gần nhất
-    Status BIT DEFAULT 1, -- 1: Còn bán, 0: Ngừng bán
+    Price DECIMAL(18, 3) NOT NULL DEFAULT 0,
+    Discount DECIMAL(5, 2) DEFAULT 0,
+    DiscountPrice AS (Price - (Price * Discount / 100)),
+    Stock INT NOT NULL DEFAULT 0,
+    Description NVARCHAR(500) NULL,
+    ImageURL NVARCHAR(255) NULL,
+    CreatedDate DATETIME DEFAULT GETDATE(),
+    UpdatedDate DATETIME NULL,
+    Status BIT DEFAULT 1,
     FOREIGN KEY (CategoryId) REFERENCES Category(CategoryId),
     FOREIGN KEY (IngredientId) REFERENCES Ingredient(IngredientId)
 );
+GO
 
--- Bảng Size (Giữ nguyên)
+-- Cập nhật lại khóa ngoại FoodId cho FoodIngredient
+ALTER TABLE FoodIngredient
+ADD FOREIGN KEY (FoodId) REFERENCES Food(FoodId);
+GO
+
+-- 9. Size
 CREATE TABLE Size (
     SizeID INT IDENTITY(1,1) PRIMARY KEY,
     SizeName NVARCHAR(50) NOT NULL,
@@ -95,7 +115,7 @@ CREATE TABLE Size (
 );
 GO
 
--- Bảng Topping (Giữ nguyên)
+-- 10. Topping
 CREATE TABLE Topping (
     ToppingID INT IDENTITY(1,1) PRIMARY KEY,
     ToppingName NVARCHAR(100) NOT NULL,
@@ -103,56 +123,61 @@ CREATE TABLE Topping (
 );
 GO
 
--- Bảng GioHang (Cập nhật)
+-- 11. GioHang
 CREATE TABLE GioHang (
     GioHangID INT PRIMARY KEY IDENTITY, 
-    Id INT NOT NULL, -- ID của User
-    FoodId INT NOT NULL, -- ID của món ăn
-    SoLuong INT NOT NULL DEFAULT 1 CHECK (SoLuong > 0), -- Số lượng sản phẩm
-    SizeID INT NULL, -- Kích thước (Size)
-    TotalPrice DECIMAL(18,3) NOT NULL, -- Tổng giá tiền
-    
+    Id INT NOT NULL,
+    FoodId INT NOT NULL,
+    SoLuong INT NOT NULL DEFAULT 1 CHECK (SoLuong > 0),
+    SizeID INT NULL,
+    TotalPrice DECIMAL(18,3) NOT NULL,
     FOREIGN KEY (Id) REFERENCES Users(Id),
     FOREIGN KEY (FoodId) REFERENCES Food(FoodId),
-    FOREIGN KEY (SizeID) REFERENCES Size(SizeID),
-
+    FOREIGN KEY (SizeID) REFERENCES Size(SizeID)
 );
 GO
 
-
--- Bảng trung gian GioHang_Topping để lưu nhiều topping cho 1 sản phẩm trong giỏ hàng
+-- 12. GioHang_Topping
 CREATE TABLE GioHang_Topping (
     GioHangToppingID INT PRIMARY KEY IDENTITY,
-    GioHangID INT NOT NULL, -- ID giỏ hàng
-    ToppingID INT NOT NULL, -- ID topping
-
+    GioHangID INT NOT NULL,
+    ToppingID INT NOT NULL,
     FOREIGN KEY (GioHangID) REFERENCES GioHang(GioHangID) ON DELETE CASCADE,
     FOREIGN KEY (ToppingID) REFERENCES Topping(ToppingID) ON DELETE CASCADE
 );
 GO
 
+-- 13. PhuongThucThanhToan
 CREATE TABLE PhuongThucThanhToan (
     Id INT IDENTITY(1,1) PRIMARY KEY,
     TenPhuongThuc NVARCHAR(255) NOT NULL
 );
+GO
 
+-- 14. OrderStatus
 CREATE TABLE OrderStatus (
     StatusId INT PRIMARY KEY IDENTITY(1,1),
     StatusName NVARCHAR(50) NOT NULL UNIQUE
 );
+GO
+
+-- 15. Vouchers
 CREATE TABLE Vouchers (
     VoucherId INT IDENTITY(1,1) PRIMARY KEY,
     Code NVARCHAR(50) UNIQUE NOT NULL,
     DiscountAmount DECIMAL(18,3) NULL,
     DiscountPercentage DECIMAL(5,2) NULL,
     MinOrderAmount DECIMAL(18,3) NULL,
-    ExpiryDate DATETIME NOT NULL,
+    ExpiryDate VARCHAR(20) NOT NULL,  
     IsActive BIT NOT NULL DEFAULT 1,
     CreatedDate DATETIME DEFAULT GETDATE(),
     MaxUsage INT NULL, 
     UsedCount INT DEFAULT 0,
-    Description NVARCHAR(255) NULL -- mô tả ngắn để hiển thị trên app
+    Description NVARCHAR(255) NULL
 );
+GO
+
+-- 16. UserVouchers
 CREATE TABLE UserVouchers (
     UserVoucherId INT IDENTITY(1,1) PRIMARY KEY,
     UserId INT NOT NULL,
@@ -161,8 +186,11 @@ CREATE TABLE UserVouchers (
     ReceivedDate DATETIME DEFAULT GETDATE(),
     FOREIGN KEY (UserId) REFERENCES Users(Id),
     FOREIGN KEY (VoucherId) REFERENCES Vouchers(VoucherId),
-    UNIQUE(UserId, VoucherId) -- tránh nhận trùng
+    UNIQUE(UserId, VoucherId)
 );
+GO
+
+-- 17. Notifications
 CREATE TABLE Notifications (
     NotificationId INT IDENTITY(1,1) PRIMARY KEY,
     UserId INT NOT NULL,
@@ -172,17 +200,20 @@ CREATE TABLE Notifications (
     CreatedAt DATETIME DEFAULT GETDATE(),
     FOREIGN KEY (UserId) REFERENCES Users(Id)
 );
-select *from Notifications ;
+GO
 
+-- 18. DeliveryAddresses
 CREATE TABLE DeliveryAddresses (
     AddressId INT IDENTITY(1,1) PRIMARY KEY,
     UserId INT NOT NULL,
     Address NVARCHAR(255) NOT NULL,
-    IsDefault BIT NOT NULL DEFAULT 0, -- Địa chỉ mặc định
+    IsDefault BIT NOT NULL DEFAULT 0,
     CreatedDate DATETIME DEFAULT GETDATE(),
     FOREIGN KEY (UserId) REFERENCES Users(Id)
 );
-GO-- Bảng Orders
+GO
+
+-- 19. Orders
 CREATE TABLE Orders (
     OrderId INT PRIMARY KEY IDENTITY(1,1),
     UserId INT NOT NULL,
@@ -197,7 +228,9 @@ CREATE TABLE Orders (
     FOREIGN KEY (StatusId) REFERENCES OrderStatus(StatusId),
     FOREIGN KEY (VoucherId) REFERENCES Vouchers(VoucherId)
 );
--- Bảng OrderDetails
+GO
+
+-- 20. OrderDetails
 CREATE TABLE OrderDetails (
     OrderDetailId INT PRIMARY KEY IDENTITY(1,1),
     OrderId INT NOT NULL,
@@ -211,32 +244,30 @@ CREATE TABLE OrderDetails (
     FOREIGN KEY (SizeId) REFERENCES Size(SizeID),
     FOREIGN KEY (ToppingId) REFERENCES Topping(ToppingID)
 );
+GO
+
+-- 21. OrderDetails_Topping
 CREATE TABLE OrderDetails_Topping (
     OrderDetailsToppingID INT IDENTITY(1,1) PRIMARY KEY,
-    OrderDetailId INT NOT NULL,     -- Món trong chi tiết đơn hàng
-    ToppingId INT NOT NULL,         -- Topping đi kèm
-
+    OrderDetailId INT NOT NULL,
+    ToppingId INT NOT NULL,
     FOREIGN KEY (OrderDetailId) REFERENCES OrderDetails(OrderDetailId) ON DELETE CASCADE,
     FOREIGN KEY (ToppingId) REFERENCES Topping(ToppingID) ON DELETE CASCADE
 );
 GO
 
-SELECT * FROM OrderStatus;
-
-
--- Table: Invoice
+-- 22. Invoice
 CREATE TABLE Invoice (
     InvoiceId INT PRIMARY KEY IDENTITY,
     TableId INT,
     DateCheckIn DATE NOT NULL DEFAULT GETDATE(),
     DateCheckOut DATE,
-    TrangThai INT, -- 1 là thanh toán, 0 là chưa thanh toán
+    TrangThai INT,
     FOREIGN KEY (TableId) REFERENCES TableFood(TableId)
 );
 GO
 
-
--- Table: InvoiceDetail
+-- 23. InvoiceDetail
 CREATE TABLE InvoiceDetail(
     InvoiceDetailId INT PRIMARY KEY IDENTITY,
     InvoiceId INT,
@@ -248,15 +279,14 @@ CREATE TABLE InvoiceDetail(
 );
 GO
 
-
--- Table: Staff
+-- 24. Staff
 CREATE TABLE Staff (
     StaffId INT PRIMARY KEY IDENTITY,
     FullName NVARCHAR(100) NOT NULL,
     Phone NVARCHAR(15),
     DateOfBirth DATE NULL,
     Email NVARCHAR(50) NULL,
-    Gender NVARCHAR(50) null,
+    Gender NVARCHAR(50) NULL,
     AccountId INT,
     RoleId INT,
     FOREIGN KEY (AccountId) REFERENCES Account(AccountId),
@@ -269,10 +299,7 @@ SET Gender = CASE
     WHEN Gender = 'False' THEN 'Nữ'
 END
 
-
-
-
--- Table: Warehouse
+-- 25. Warehouse
 CREATE TABLE Warehouse (
     WarehouseId INT PRIMARY KEY IDENTITY,
     IngredientId INT,
@@ -282,27 +309,19 @@ CREATE TABLE Warehouse (
 );
 GO
 
--- nhieu nguyen lieu
-CREATE TABLE FoodIngredient (
-    FoodIngredientId INT PRIMARY KEY IDENTITY,
-    FoodId INT,
-    IngredientId INT,
-    Quantity INT NOT NULL, -- Số lượng nguyên liệu cho món ăn này
-    FOREIGN KEY (FoodId) REFERENCES Food(FoodId),
-    FOREIGN KEY (IngredientId) REFERENCES Ingredient(IngredientId)
-);
-GO
+-- 26. CuaHang
 CREATE TABLE CuaHang (
     CuaHangId INT IDENTITY(1,1) PRIMARY KEY, 
     CuaHangName NVARCHAR(255) NOT NULL,
-    address NVARCHAR(500) NOT NULL,
-    opening_hours VARCHAR(50),
-    image_url VARCHAR(255),
-    phone VARCHAR(20),
-    created_at DATETIME2 DEFAULT GETDATE(),
-    latitude DECIMAL(10, 8),
-    longitude DECIMAL(11, 8)
+    Address NVARCHAR(500) NOT NULL,
+    Opening_Hours NVARCHAR(50),
+    Image_URL NVARCHAR(255),
+    Phone NVARCHAR(20),
+    Created_At DATETIME2 DEFAULT GETDATE(),
+    Latitude DECIMAL(10, 8),
+    Longitude DECIMAL(11, 8)
 );
+GO
 
 -- Cập nhật tọa độ
 UPDATE CuaHang
@@ -312,6 +331,9 @@ WHERE CuaHangId = 1;
 UPDATE CuaHang
 SET latitude = 10.7769, longitude = 106.7009
 WHERE CuaHangId = 2;
+ALTER TABLE CuaHang ADD createdAt DATETIME2 DEFAULT GETDATE();
+ALTER TABLE CuaHang ADD updatedAt DATETIME2 DEFAULT GETDATE();
+
 
 INSERT INTO Users (Username, Email, PasswordHash, FullName, Phone, Address, Role, AvatarUrl)
 VALUES 
@@ -887,16 +909,3 @@ ORDER BY o.OrderDate DESC;
 
 SELECT * FROM OrderStatus;
 
-
-DECLARE @sql NVARCHAR(MAX) = '';
-SELECT @sql += 'ALTER TABLE ' + QUOTENAME(OBJECT_SCHEMA_NAME(parent_object_id)) + '.' +
-               QUOTENAME(OBJECT_NAME(parent_object_id)) + 
-               ' DROP CONSTRAINT ' + QUOTENAME(name) + ';' + CHAR(13)
-FROM sys.foreign_keys;
-EXEC sp_executesql @sql;
-
-DECLARE @sql NVARCHAR(MAX) = '';
-SELECT @sql += 'DROP TABLE ' + QUOTENAME(OBJECT_SCHEMA_NAME(object_id)) + '.' + 
-               QUOTENAME(name) + ';' + CHAR(13)
-FROM sys.tables;
-EXEC sp_executesql @sql;

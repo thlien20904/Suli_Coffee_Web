@@ -43,8 +43,13 @@ const AddCategory = () => {
         Swal.fire("", res.data.message || "Không thể thêm danh mục", "error");
       }
     } catch (err) {
-      console.error("❌ Lỗi khi thêm:", err.response || err);
-      Swal.fire("", "Không thể thêm danh mục", "error");
+      console.error("❌ Lỗi khi thêm:", err.response?.data || err);
+
+      // 👉 Hiển thị thông báo lỗi cụ thể từ backend nếu có
+      const errorMessage =
+        err.response?.data?.message || "Đã xảy ra lỗi khi thêm danh mục.";
+
+      Swal.fire("", errorMessage, "error");
     }
   };
 

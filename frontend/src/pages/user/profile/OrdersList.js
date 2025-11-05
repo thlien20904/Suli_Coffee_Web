@@ -19,6 +19,7 @@ export default function OrdersList() {
   // -------------------- LẤY ĐƠN HÀNG --------------------
   const fetchOrders = async (tab, page = 1) => {
     setLoadingTabs((prev) => ({ ...prev, [tab]: true }));
+    console.log("Gọi API với tab:", tab, "và page:", page);
 
     try {
       const token = localStorage.getItem("token");
@@ -28,12 +29,14 @@ export default function OrdersList() {
       });
 
       if (res.data.success) {
+        console.log("Dữ liệu từ API cho tab", tab, ":", res.data.data);
+        const d = res.data.data;
         setOrdersData((prev) => ({
           ...prev,
           [tab]: {
-            orders: res.data.orders,
-            currentPage: res.data.currentPage,
-            totalPages: res.data.totalPages,
+            orders: d.orders,
+            currentPage: d.currentPage,
+            totalPages: d.totalPages,
           },
         }));
       } else {
@@ -103,6 +106,13 @@ export default function OrdersList() {
         });
       }
     });
+  };
+
+  // -------------------- XỬ LÝ CHUYỂN TAB --------------------
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    // Luôn gọi lại API để lấy dữ liệu mới, tránh phụ thuộc vào state cũ
+    fetchOrders(tabId, 1);
   };
 
   // -------------------- EFFECT --------------------
@@ -221,10 +231,7 @@ export default function OrdersList() {
           <li className="nav-item" key={t.id}>
             <button
               className={`nav-link ${activeTab === t.id ? "active" : ""}`}
-              onClick={() => {
-                setActiveTab(t.id);
-                if (!ordersData[t.id]) fetchOrders(t.id, 1);
-              }}
+              onClick={() => handleTabChange(t.id)}
             >
               {t.name}
             </button>
