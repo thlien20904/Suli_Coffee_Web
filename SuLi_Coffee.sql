@@ -831,6 +831,7 @@ VALUES
     ('GIAM10KM', NULL, 10.00, 500000, '2025-04-30 23:59:59', 1, 200, N'Giảm 10% cho đơn từ 500.000đ'),
     ('GIAM30KM', NULL, 10.00, 250000, '2025-04-30 23:59:59', 1, 200, N'Giảm 10% cho đơn từ 250.000đ');
 
+	select *from Vouchers
 
 -- Thêm dữ liệu mẫu
 INSERT INTO DeliveryAddresses (UserId, Address, IsDefault)

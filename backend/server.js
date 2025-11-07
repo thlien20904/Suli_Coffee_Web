@@ -12,6 +12,7 @@ const initModels = require("./models/init-models");
 const models = initModels(sequelize);
 const bcrypt = require("bcryptjs");
 const { Users } = models;
+const { poolPromise } = require("./db");
 
 dotenv.config();
 
@@ -22,6 +23,16 @@ app.use(
     credentials: true,
   })
 );
+app.use(
+  "/images",
+  (req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.join(__dirname, "../images"))
+);
+
 app.use(express.json());
 app.use(passport.initialize());
 app.use(express.urlencoded({ extended: true }));
