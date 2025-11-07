@@ -17,11 +17,13 @@ export default function Home() {
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Danh sách video banner
+  const backendUrl = "http://localhost:5000"; // URL backend
+
+  // Danh sách video banner, dùng full URL từ backend
   const bannerVideos = [
-    { src: "/video/vd6.mp4", alt: "SuLi Coffee Video 1" },
-    { src: "/video/vd.mp4", alt: "SuLi Coffee Video 2" },
-    { src: "/video/vd2.mp4", alt: "SuLi Coffee Video 3" },
+    { src: `${backendUrl}/video/vd6.mp4`, alt: "SuLi Coffee Video 1" },
+    { src: `${backendUrl}/video/vd.mp4`, alt: "SuLi Coffee Video 2" },
+    { src: `${backendUrl}/video/vd2.mp4`, alt: "SuLi Coffee Video 3" },
   ];
 
   const videoRefs = useRef([]);
@@ -30,9 +32,9 @@ export default function Home() {
     const fetchHome = async () => {
       setLoading(true);
       try {
-        const res = await axios.get("http://localhost:5000/api/home");
+        const res = await axios.get(`${backendUrl}/api/home`);
         console.log("API response:", res.data);
-        setFoods(res.data.data || []); // <-- Sửa đây
+        setFoods(res.data.data || []);
       } catch (err) {
         console.error("Lỗi khi lấy dữ liệu trang chủ:", {
           message: err.message,
@@ -137,10 +139,9 @@ export default function Home() {
                           <div className="thumb-wrap">
                             <Card.Img
                               variant="top"
-                              src={`http://localhost:5000${food.DefaultImage}`}
+                              src={`${backendUrl}${food.DefaultImage}`}
                               onError={(e) => {
-                                e.target.src =
-                                  "http://localhost:5000/images/no-image.png";
+                                e.target.src = `${backendUrl}/images/no-image.png`;
                                 console.log(
                                   "Image load error for:",
                                   food.Name,
@@ -179,7 +180,6 @@ export default function Home() {
                               đ
                             </Card.Text>
 
-                            {/* ✅ Hiển thị số lượng đã bán */}
                             <Card.Text className="sold text-secondary">
                               Đã bán: {food.SoldQuantity ?? 0}
                             </Card.Text>
