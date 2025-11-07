@@ -28,27 +28,41 @@ Hệ thống cho phép **khách hàng** đặt đồ uống, theo dõi đơn hà
 
 ## 3. Cấu trúc thư mục
 
-SuLi_Coffee_Web/
-├── backend/
-│ ├── config/ # Cấu hình kết nối cơ sở dữ liệu
-│ ├── controllers/ # Xử lý logic nghiệp vụ
-│ │ ├── admin/ # Controller cho admin
-│ │ └── user/ # Controller cho người dùng
-│ ├── models/ # Định nghĩa models Sequelize
-│ ├── routes/ # Định nghĩa API routes
-│ │ ├── admin/
-│ │ └── user/
-│ └── server.js # File khởi động backend
-│
-├── frontend/
-│ ├── src/
-│ │ ├── components/ # React components
-│ │ ├── pages/ # Các trang chính
-│ │ └── redux/ # Quản lý state
-│ └── public/ # Static assets (favicon, index.html)
-│
-└── images/ # Hình ảnh minh họa, upload
-└── 22810310267_SuLiCofffe_Db.sql
+📁 Backend
+
+- backend/config/ – Cấu hình kết nối cơ sở dữ liệu
+
+- backend/controllers/ – Xử lý logic nghiệp vụ
+
+  admin/ – Controller cho admin
+
+  user/ – Controller cho người dùng
+
+- backend/models/ – Định nghĩa models Sequelize
+
+- backend/routes/ – Định nghĩa API routes
+
+  admin/ – API cho admin
+
+  user/ – API cho người dùng
+
+- backend/server.js – File khởi động backend
+
+📁 Frontend
+
+- frontend/src/components/ – Các React component tái sử dụng
+
+- frontend/src/pages/ – Các trang chính của ứng dụng
+
+- frontend/src/redux/ – Quản lý state toàn cục (Redux)
+
+- frontend/public/ – Chứa favicon, index.html và các tài nguyên tĩnh
+
+- frontend/public/images/ – Lưu hình ảnh minh họa, ảnh upload
+
+📄 Database
+
+- 22810310267_SuLiCofffe_Db.sql – File database xuất từ SQL Server
 
 ## 4. Yêu cầu hệ thống
 
@@ -148,8 +162,16 @@ npm start
 
 ## ✨ 9. Tác giả
 
-| Họ và tên               | MSSV        |
-|-------------------------|-------------|
-| 💠 **Điêu Thúy Liên**   | 22810310267 |
-| 💠 **Phạm Đăng Khuê**   | 22810310270 |
-| 💠 **Nguyễn Đức Minh**  | 22810310235 |
+| Họ và tên              | MSSV        |
+| ---------------------- | ----------- |
+| 💠 **Điêu Thúy Liên**  | 22810310267 |
+| 💠 **Phạm Đăng Khuê**  | 22810310270 |
+| 💠 **Nguyễn Đức Minh** | 22810310235 |
+
+## 📎 Link nộp bài
+
+- 🔗 Source Code + Database (GitHub Public):
+  [https://github.com/dieuthulien/QuanLyQuanCafe](https://github.com/dieuthulien/QuanLyQuanCafe)
+
+- 🎥 Video Demo (YouTube – Không công khai):
+  [https://youtu.be/](https://youtu.be/ZksVXJf6EvM)
