@@ -1,35 +1,35 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('OrderStatus', {
-    StatusId: {
+  return sequelize.define('PaymentStatus', {
+    PaymentStatusId: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
       primaryKey: true
     },
-    StatusName: {
+    PaymentStatusName: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: "UQ__OrderSta__05E7698A2EBCE035"
+      unique: "UQ__PaymentS__BBAC58DBE75C5EC7"
     }
   }, {
     sequelize,
-    tableName: 'OrderStatus',
+    tableName: 'PaymentStatus',
     schema: 'dbo',
     timestamps: false,
     indexes: [
       {
-        name: "PK__OrderSta__C8EE2063C403F67A",
+        name: "PK__PaymentS__34F8AC3FAD8694AA",
         unique: true,
         fields: [
-          { name: "StatusId" },
+          { name: "PaymentStatusId" },
         ]
       },
       {
-        name: "UQ__OrderSta__05E7698A2EBCE035",
+        name: "UQ__PaymentS__BBAC58DBE75C5EC7",
         unique: true,
         fields: [
-          { name: "StatusName" },
+          { name: "PaymentStatusName" },
         ]
       },
     ]

@@ -10,12 +10,12 @@ module.exports = function(sequelize, DataTypes) {
     Username: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: "UQ__Users__536C85E4D080E983"
+      unique: "UQ__Users__536C85E4AF3D9624"
     },
     Email: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: "UQ__Users__A9D1053491F6F0B1"
+      unique: "UQ__Users__A9D1053475E321F3"
     },
     PasswordHash: {
       type: DataTypes.STRING(255),
@@ -70,21 +70,21 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: false,
     indexes: [
       {
-        name: "PK__Users__3214EC075362438B",
+        name: "PK__Users__3214EC0793F1B442",
         unique: true,
         fields: [
           { name: "Id" },
         ]
       },
       {
-        name: "UQ__Users__536C85E4D080E983",
+        name: "UQ__Users__536C85E4AF3D9624",
         unique: true,
         fields: [
           { name: "Username" },
         ]
       },
       {
-        name: "UQ__Users__A9D1053491F6F0B1",
+        name: "UQ__Users__A9D1053475E321F3",
         unique: true,
         fields: [
           { name: "Email" },

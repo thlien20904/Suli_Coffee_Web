@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import "../../../styles/pages/orderslist.css";
 
 export default function OrdersList() {
   const tabs = [
+    { id: "pending", name: "Đơn lưu tạm", statusId: null },
     { id: "cho-xac-nhan", name: "Chờ xác nhận", statusId: 1 },
     { id: "dang-chuan-bi", name: "Đang chuẩn bị", statusId: 2 },
     { id: "dang-giao-hang", name: "Đang giao hàng", statusId: 3 },
@@ -16,20 +18,27 @@ export default function OrdersList() {
   const [ordersData, setOrdersData] = useState({});
   const [loadingTabs, setLoadingTabs] = useState({});
 
+  const navigate = useNavigate();
+
   // -------------------- LẤY ĐƠN HÀNG --------------------
   const fetchOrders = async (tab, page = 1) => {
     setLoadingTabs((prev) => ({ ...prev, [tab]: true }));
-    console.log("Gọi API với tab:", tab, "và page:", page);
 
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/api/profile/orders", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { tab, page, pageSize: 5 },
-      });
+      let res;
+      if (tab === "pending") {
+        res = await axios.get("http://localhost:5000/api/orders/pending", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        res = await axios.get("http://localhost:5000/api/profile/orders", {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { tab, page, pageSize: 10 },
+        });
+      }
 
       if (res.data.success) {
-        console.log("Dữ liệu từ API cho tab", tab, ":", res.data.data);
         const d = res.data.data;
         setOrdersData((prev) => ({
           ...prev,
@@ -47,10 +56,7 @@ export default function OrdersList() {
       }
     } catch (err) {
       console.error("Fetch Orders Error:", err);
-      setOrdersData((prev) => ({
-        ...prev,
-        [tab]: { orders: [], currentPage: 1, totalPages: 1 },
-      }));
+      setOrdersData((prev) => ({ ...prev, [tab]: { orders: [] } }));
     } finally {
       setLoadingTabs((prev) => ({ ...prev, [tab]: false }));
     }
@@ -85,8 +91,35 @@ export default function OrdersList() {
             showConfirmButton: true,
             timer: 1000,
           }).then(() => {
-            fetchOrders(activeTab, ordersData[activeTab]?.currentPage || 1);
-            fetchOrders("da-huy", ordersData["da-huy"]?.currentPage || 1);
+            setOrdersData((prev) => {
+              const newData = { ...prev };
+
+              // 1️⃣ Loại bỏ khỏi pending nếu có
+              if (newData["pending"]) {
+                newData["pending"].orders = newData["pending"].orders.filter(
+                  (o) => o.OrderId !== orderId && o.StatusId !== 5
+                );
+              }
+
+              // 2️⃣ Thêm vào da-huy
+              if (!newData["da-huy"]) {
+                newData["da-huy"] = {
+                  orders: [],
+                  currentPage: 1,
+                  totalPages: 1,
+                };
+              }
+
+              const cancelledOrder = res.data.order;
+              if (cancelledOrder) {
+                newData["da-huy"].orders.unshift(cancelledOrder);
+              } else {
+                // Nếu backend không trả đơn, fetch lại tab da-huy
+                fetchOrders("da-huy", ordersData["da-huy"]?.currentPage || 1);
+              }
+
+              return newData;
+            });
           });
         } else {
           Swal.fire({
@@ -111,7 +144,6 @@ export default function OrdersList() {
   // -------------------- XỬ LÝ CHUYỂN TAB --------------------
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
-    // Luôn gọi lại API để lấy dữ liệu mới, tránh phụ thuộc vào state cũ
     fetchOrders(tabId, 1);
   };
 
@@ -126,9 +158,33 @@ export default function OrdersList() {
     const isLoading = loadingTabs[tab];
 
     if (isLoading) return <p className="text-center">Đang tải đơn hàng...</p>;
-    if (!data || !data.orders || data.orders.length === 0)
+    if (!data || !data.orders) {
       return (
         <p className="text-center">Bạn chưa có đơn hàng ở trạng thái này.</p>
+      );
+    }
+
+    const filteredOrders = (data.orders || []).filter((o) => {
+      if (tab === "pending") {
+        // Chỉ hiển thị đơn lưu tạm chưa bị hủy
+        return o.StatusId !== 5;
+      }
+      if (tab === "cho-xac-nhan") {
+        return o.PaymentStatusId === 1 || o.PaymentStatusId === 2;
+      }
+      if (tab === "da-huy") {
+        return o.PaymentStatusId === 3 || o.Status === "Đã hủy";
+      }
+      return true;
+    });
+
+    if (filteredOrders.length === 0)
+      return (
+        <p className="text-center">
+          {tab === "pending"
+            ? "Bạn chưa có đơn lưu tạm (chưa hoàn tất hoặc thanh toán thất bại)."
+            : "Bạn chưa có đơn hàng ở trạng thái này."}
+        </p>
       );
 
     return (
@@ -140,13 +196,14 @@ export default function OrdersList() {
               <th>Ngày đặt</th>
               <th>Tổng tiền</th>
               <th>Thanh toán</th>
-              <th>Trạng thái</th>
+              <th>Trạng thái đơn hàng</th>
+              <th>Trạng thái thanh toán</th>
               <th>Chi tiết</th>
               <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {data.orders.map((o) => (
+            {filteredOrders.map((o) => (
               <tr key={o.OrderId}>
                 <td>#{o.OrderId}</td>
                 <td>
@@ -158,20 +215,65 @@ export default function OrdersList() {
                 <td>{o.PaymentMethod || "N/A"}</td>
                 <td>{o.Status}</td>
                 <td>
+                  <span
+                    className={
+                      o.PaymentStatus === "Đã thanh toán"
+                        ? "text-success fw-bold"
+                        : o.PaymentStatus === "Thanh toán thất bại"
+                        ? "text-danger"
+                        : "text-muted"
+                    }
+                  >
+                    {o.PaymentStatus ||
+                      (o.PaymentMethodId === 2
+                        ? "Chưa thanh toán"
+                        : "Chờ thanh toán")}
+                  </span>
+                </td>
+                <td>
                   {o.OrderDetails.map((d, idx) => (
                     <div key={idx} className="order-detail-line">
                       <span className="fw-bold">{d.FoodName}</span>
                       {d.SizeName && ` (${d.SizeName})`}
-                      {d.ToppingName && ` - ${d.ToppingName}`}
                       <span>
                         {" | "}SL: {d.Quantity} -{" "}
                         {d.Price.toLocaleString("vi-VN")} ₫
                       </span>
+                      {d.Toppings && d.Toppings.length > 0 && (
+                        <div
+                          className="text-muted"
+                          style={{ fontSize: "0.9em" }}
+                        >
+                          {d.Toppings.map((t) => t.ToppingName).join(" + ")}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </td>
+                {/* ✅ Bọc button trong <td> */}
                 <td>
-                  {(o.StatusId === 1 || o.StatusId === 2) && (
+                  {activeTab === "pending" && (
+                    <>
+                      <button
+                        className="btn btn-success btn-sm me-1"
+                        onClick={() =>
+                          navigate("/checkout", {
+                            state: { orderId: o.OrderId },
+                          })
+                        }
+                      >
+                        Tiếp tục thanh toán
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => cancelOrder(o.OrderId, "pending")}
+                      >
+                        Hủy
+                      </button>
+                    </>
+                  )}
+                  {(activeTab === "cho-xac-nhan" ||
+                    activeTab === "dang-chuan-bi") && (
                     <button
                       className="btn btn-warning btn-sm text-white"
                       onClick={() => cancelOrder(o.OrderId)}
@@ -185,8 +287,7 @@ export default function OrdersList() {
           </tbody>
         </table>
 
-        {/* Pagination */}
-        {data.totalPages > 1 && (
+        {data.totalPages > 1 && tab !== "pending" && (
           <nav className="pagination justify-content-center">
             <button
               className="page-link"
@@ -195,7 +296,6 @@ export default function OrdersList() {
             >
               &laquo;
             </button>
-
             {[...Array(data.totalPages)].map((_, i) => (
               <button
                 key={i}
@@ -207,7 +307,6 @@ export default function OrdersList() {
                 {i + 1}
               </button>
             ))}
-
             <button
               className="page-link"
               disabled={data.currentPage === data.totalPages}
@@ -224,8 +323,6 @@ export default function OrdersList() {
   return (
     <div className="p-4">
       <h4 className="mb-3 fw-bold">Đơn hàng của bạn</h4>
-
-      {/* Tabs */}
       <ul className="nav nav-tabs mb-3">
         {tabs.map((t) => (
           <li className="nav-item" key={t.id}>
@@ -238,8 +335,6 @@ export default function OrdersList() {
           </li>
         ))}
       </ul>
-
-      {/* Table */}
       <div>{renderTable(activeTab)}</div>
     </div>
   );

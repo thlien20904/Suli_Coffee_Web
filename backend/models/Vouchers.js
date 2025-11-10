@@ -10,7 +10,7 @@ module.exports = function(sequelize, DataTypes) {
     Code: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: "UQ__Vouchers__A25C5AA795B91174"
+      unique: "UQ__Vouchers__A25C5AA79A22BE02"
     },
     DiscountAmount: {
       type: DataTypes.DECIMAL(18,3),
@@ -58,14 +58,14 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: false,
     indexes: [
       {
-        name: "PK__Vouchers__3AEE7921B1D39206",
+        name: "PK__Vouchers__3AEE7921241968E3",
         unique: true,
         fields: [
           { name: "VoucherId" },
         ]
       },
       {
-        name: "UQ__Vouchers__A25C5AA795B91174",
+        name: "UQ__Vouchers__A25C5AA79A22BE02",
         unique: true,
         fields: [
           { name: "Code" },

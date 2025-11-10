@@ -40,6 +40,14 @@ module.exports = function(sequelize, DataTypes) {
         key: 'StatusId'
       }
     },
+    PaymentStatusId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'PaymentStatus',
+        key: 'PaymentStatusId'
+      }
+    },
     DeliveryAddress: {
       type: DataTypes.STRING(255),
       allowNull: true
@@ -59,7 +67,7 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: false,
     indexes: [
       {
-        name: "PK__Orders__C3905BCF9E5683E2",
+        name: "PK__Orders__C3905BCF630B9BC0",
         unique: true,
         fields: [
           { name: "OrderId" },

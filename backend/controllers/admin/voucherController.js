@@ -45,7 +45,7 @@ exports.getAssignedVouchers = async (req, res) => {
 };
 
 // =========================
-// 📌 CẤP VOUCHER CHO USER
+// 📌 CẤP VOUCHER CHO USER (chỉ tạo Notification)
 // =========================
 exports.assignVoucherToUser = async (req, res) => {
   try {
@@ -55,6 +55,7 @@ exports.assignVoucherToUser = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Thiếu UserId hoặc VoucherId" });
 
+    // Kiểm tra voucher đã có trong UserVouchers chưa (để không gửi nhiều lần)
     const exists = await UserVouchers.findOne({ where: { UserId, VoucherId } });
     if (exists)
       return res.json({
@@ -62,24 +63,18 @@ exports.assignVoucherToUser = async (req, res) => {
         message: "Người dùng đã nhận voucher này",
       });
 
-    const uv = await UserVouchers.create({ UserId, VoucherId });
-
-    // ✅ FIX: Sử dụng build() + save({ fields: [...] }) để omit timestamps hoàn toàn
+    // Tạo Notification nhắc user nhận voucher
     const notification = Notifications.build({
       UserId,
-      Title: "🎁 Nhận Voucher mới",
-      Message: "Bạn vừa nhận được một voucher mới!",
+      Title: "🎁 Voucher mới dành cho bạn!",
+      Message: "Admin đã gửi voucher mới. Nhấn nhận để sử dụng.",
       IsRead: false,
     });
     await notification.save({
       fields: ["UserId", "Title", "Message", "IsRead"],
     });
 
-    res.json({
-      success: true,
-      message: "Cấp voucher cho user thành công!",
-      data: uv,
-    });
+    res.json({ success: true, message: "Đã gửi thông báo voucher cho user!" });
   } catch (err) {
     console.error("❌ Lỗi cấp voucher:", err);
     res.status(500).json({ success: false, message: "Lỗi server" });
@@ -87,7 +82,7 @@ exports.assignVoucherToUser = async (req, res) => {
 };
 
 // =========================
-// 📌 CẤP VOUCHER CHO TẤT CẢ USER
+// 📌 CẤP VOUCHER CHO TẤT CẢ USER (chỉ tạo Notification)
 // =========================
 exports.assignVoucherToAllUsers = async (req, res) => {
   try {
@@ -103,16 +98,17 @@ exports.assignVoucherToAllUsers = async (req, res) => {
 
     let count = 0;
     for (const user of users) {
+      // Kiểm tra user đã có Notification hoặc UserVouchers chưa
       const exists = await UserVouchers.findOne({
         where: { UserId: user.Id, VoucherId },
       });
+
       if (!exists) {
-        await UserVouchers.create({ UserId: user.Id, VoucherId });
-        // ✅ FIX: Sử dụng build() + save({ fields: [...] }) để omit timestamps hoàn toàn
+        // Tạo Notification nhắc user nhận voucher
         const notification = Notifications.build({
           UserId: user.Id,
           Title: "🎁 Voucher mới dành cho bạn!",
-          Message: "Admin vừa cấp cho bạn một voucher mới.",
+          Message: "Admin vừa gửi voucher mới. Nhấn nhận để sử dụng.",
           IsRead: false,
         });
         await notification.save({
@@ -124,7 +120,7 @@ exports.assignVoucherToAllUsers = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Đã cấp voucher cho ${count} người dùng!`,
+      message: `Đã gửi thông báo voucher cho ${count} người dùng!`,
     });
   } catch (err) {
     console.error("❌ Lỗi cấp voucher cho tất cả user:", err);

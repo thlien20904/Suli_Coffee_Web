@@ -5,9 +5,10 @@
   left: 0;
   width: 100%;
   z-index: 1000;
-  background-color: transparent; /* 🔥 Trong suốt hoàn toàn */
+  background-color: #ffffff; /* Navbar nền trắng để không che nội dung */
   padding: 10px 0;
   box-shadow: none; /* Bỏ hiệu ứng mờ */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 body {
@@ -23,8 +24,7 @@ body {
   white-space: nowrap;
   font-family: "Great Vibes", cursive;
   font-size: 32px;
-  color: #fff; /* logo trắng để nổi bật trên nền ảnh */
-  text-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+  color: #333; /* màu tối trên nền trắng */
   transition: color 0.3s ease-in-out;
 }
 
@@ -43,7 +43,7 @@ body {
 }
 
 .nav-link {
-  color: #fff !important;
+  color: #333 !important;
   font-weight: bold;
   text-decoration: none !important;
   padding: 10px 15px;
@@ -68,7 +68,7 @@ body {
   position: absolute;
   top: -5px;
   right: -5px;
-  background-color: #000; /* 🖤 Badge đen */
+  background-color: #c19a6b; /* màu badge đồng tông */
   color: #fff;
   font-size: 12px;
   font-weight: bold;
@@ -105,9 +105,8 @@ body {
   position: absolute;
   right: 0;
   top: 110%;
-  background-color: rgba(255, 255, 255, 0.1); /* 🌫️ Nền trong suốt */
-  border: 1px solid rgba(0, 0, 0, 0.2); /* Viền đen mảnh */
-  backdrop-filter: blur(3px); /* Tăng độ rõ khi có nền ảnh */
+  background-color: #ffffff; /* nền trắng cho dropdown */
+  border: 1px solid rgba(0, 0, 0, 0.06);
   padding: 8px 0;
   border-radius: 8px;
   min-width: 160px;
@@ -125,7 +124,7 @@ body {
 .avatar-dropdown p {
   display: block;
   padding: 10px 14px;
-  color: #000;
+  color: #333;
   text-decoration: none;
   transition: all 0.2s ease;
   cursor: pointer;
@@ -134,7 +133,7 @@ body {
 
 .avatar-dropdown a:hover,
 .avatar-dropdown p:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: #f5f5f5;
   color: #8ebe86;
 }
 

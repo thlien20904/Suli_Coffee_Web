@@ -11,7 +11,9 @@ import "../../styles/pages/StoresUser.css";
 const API_URL = "http://localhost:5000/api/stores";
 const SEARCH_API_URL = "http://localhost:5000/api/stores/search";
 const NEAREST_ALL_API_URL = "http://localhost:5000/api/stores/nearest-all";
-const GOOGLE_MAPS_API_KEY = "AIzaSyD2UoDgrfBrN2jdwe89N7jABt16h4selZo";
+// Use env var so billing-enabled API key isn't hard-coded in source.
+// Set REACT_APP_GOOGLE_MAPS_API_KEY in your environment (.env) when running the frontend.
+const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || "";
 
 export default function StoresUser() {
   const [stores, setStores] = useState([]);
@@ -22,7 +24,7 @@ export default function StoresUser() {
   const [error, setError] = useState(null);
 
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY || undefined,
   });
 
   // Hàm fetch dữ liệu từ backend
@@ -86,7 +88,21 @@ export default function StoresUser() {
   if (loadError)
     return (
       <div className="stores-container error-text">
-        Lỗi Google Maps: {loadError.message}
+        <p>
+          Lỗi Google Maps: {loadError.message}
+        </p>
+        <p>
+          Nguyên nhân thường gặp: API key chưa bật billing hoặc key không hợp lệ. Để sửa bạn có thể:
+        </p>
+        <ol>
+          <li>
+            Kiểm tra biến môi trường <code>REACT_APP_GOOGLE_MAPS_API_KEY</code> và thay API key hợp lệ.
+          </li>
+          <li>Bật Billing cho Google Cloud project chứa API key: https://console.cloud.google.com/</li>
+          <li>
+            Nếu không muốn hiển thị bản đồ, xóa biến môi trường hoặc liên hệ admin để thêm key hợp lệ.
+          </li>
+        </ol>
       </div>
     );
   if (error) return <div className="stores-container error-text">{error}</div>;

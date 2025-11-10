@@ -37,11 +37,23 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
           }
         );
 
-        if (res.data?.success && res.data.data?.avatarUrl) {
-          const fullUrl = res.data.data.avatarUrl.startsWith("http")
-            ? res.data.data.avatarUrl
-            : `http://localhost:5000${res.data.data.avatarUrl}`;
-          dispatch(updateUser({ avatar: fullUrl }));
+        if (res.data?.success && res.data.data) {
+          // backend may return either a string (AvatarURL) or an object { avatarUrl: ... }
+          let avatarPath = null;
+          if (typeof res.data.data === "string") {
+            avatarPath = res.data.data;
+          } else if (res.data.data.avatarUrl) {
+            avatarPath = res.data.data.avatarUrl;
+          } else if (res.data.data.AvatarURL) {
+            avatarPath = res.data.data.AvatarURL;
+          }
+
+          if (avatarPath) {
+            const fullUrl = avatarPath.startsWith("http")
+              ? avatarPath
+              : `http://localhost:5000${avatarPath}`;
+            dispatch(updateUser({ avatar: fullUrl }));
+          }
         }
       } catch (err) {
         console.error("FETCH AVATAR ERROR:", err);
@@ -135,13 +147,13 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
     <BSNavbar
       expand="lg"
       className="header"
-      data-bs-theme="dark"
+      data-bs-theme="light"
       style={{
         position: "fixed",
         top: 0,
         width: "100%",
         zIndex: 1000,
-        backgroundColor: "transparent",
+        backgroundColor: "#ffffff",
       }}
     >
       <Container className="d-flex align-items-center justify-content-between flex-grow-1">

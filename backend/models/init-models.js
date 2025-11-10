@@ -16,6 +16,7 @@ var _OrderDetails = require("./OrderDetails");
 var _OrderDetails_Topping = require("./OrderDetails_Topping");
 var _OrderStatus = require("./OrderStatus");
 var _Orders = require("./Orders");
+var _PaymentStatus = require("./PaymentStatus");
 var _PhuongThucThanhToan = require("./PhuongThucThanhToan");
 var _Size = require("./Size");
 var _Staff = require("./Staff");
@@ -44,6 +45,7 @@ function initModels(sequelize) {
   var OrderDetails_Topping = _OrderDetails_Topping(sequelize, DataTypes);
   var OrderStatus = _OrderStatus(sequelize, DataTypes);
   var Orders = _Orders(sequelize, DataTypes);
+  var PaymentStatus = _PaymentStatus(sequelize, DataTypes);
   var PhuongThucThanhToan = _PhuongThucThanhToan(sequelize, DataTypes);
   var Size = _Size(sequelize, DataTypes);
   var Staff = _Staff(sequelize, DataTypes);
@@ -84,6 +86,8 @@ function initModels(sequelize) {
   OrderStatus.hasMany(Orders, { as: "Orders", foreignKey: "StatusId"});
   OrderDetails.belongsTo(Orders, { as: "Order", foreignKey: "OrderId"});
   Orders.hasMany(OrderDetails, { as: "OrderDetails", foreignKey: "OrderId"});
+  Orders.belongsTo(PaymentStatus, { as: "PaymentStatus", foreignKey: "PaymentStatusId"});
+  PaymentStatus.hasMany(Orders, { as: "Orders", foreignKey: "PaymentStatusId"});
   Orders.belongsTo(PhuongThucThanhToan, { as: "PaymentMethod", foreignKey: "PaymentMethodId"});
   PhuongThucThanhToan.hasMany(Orders, { as: "Orders", foreignKey: "PaymentMethodId"});
   GioHang.belongsTo(Size, { as: "Size", foreignKey: "SizeID"});
@@ -131,6 +135,7 @@ function initModels(sequelize) {
     OrderDetails_Topping,
     OrderStatus,
     Orders,
+    PaymentStatus,
     PhuongThucThanhToan,
     Size,
     Staff,

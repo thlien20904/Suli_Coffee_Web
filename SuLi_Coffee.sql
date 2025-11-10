@@ -160,7 +160,12 @@ CREATE TABLE OrderStatus (
     StatusName NVARCHAR(50) NOT NULL UNIQUE
 );
 GO
-
+--14.5. PaymentStatus 
+CREATE TABLE PaymentStatus (
+    PaymentStatusId INT PRIMARY KEY IDENTITY(1,1),
+    PaymentStatusName NVARCHAR(50) NOT NULL UNIQUE
+);
+GO
 -- 15. Vouchers
 CREATE TABLE Vouchers (
     VoucherId INT IDENTITY(1,1) PRIMARY KEY,
@@ -213,19 +218,22 @@ CREATE TABLE DeliveryAddresses (
 );
 GO
 
--- 19. Orders
+-- 19. Orders 
 CREATE TABLE Orders (
     OrderId INT PRIMARY KEY IDENTITY(1,1),
     UserId INT NOT NULL,
     OrderDate DATETIME NOT NULL DEFAULT GETDATE(),
     TotalAmount DECIMAL(18, 3) NOT NULL,
     PaymentMethodId INT NOT NULL,
-    StatusId INT NOT NULL,
+    StatusId INT NOT NULL,          -- Đây là Trạng thái Đơn hàng (VD: Đang giao)
+    PaymentStatusId INT NULL,       -- CỘT MỚI: Trạng thái Thanh toán (VD: Đã thanh toán)
     DeliveryAddress NVARCHAR(255) NULL,
     VoucherId INT NULL,
+    
     FOREIGN KEY (UserId) REFERENCES Users(Id),
     FOREIGN KEY (PaymentMethodId) REFERENCES PhuongThucThanhToan(Id),
     FOREIGN KEY (StatusId) REFERENCES OrderStatus(StatusId),
+    FOREIGN KEY (PaymentStatusId) REFERENCES PaymentStatus(PaymentStatusId), -- KHÓA NGOẠI MỚI
     FOREIGN KEY (VoucherId) REFERENCES Vouchers(VoucherId)
 );
 GO
@@ -840,7 +848,13 @@ VALUES
     (1, N'456 Nguyễn Trãi, Thanh Xuân, Hà Nội', 0),
     (1, N'789 Lê Lợi, Quận 1, TP.HCM', 1);
 GO
-
+INSERT INTO PaymentStatus (PaymentStatusName)
+VALUES
+    (N'Chờ thanh toán'),
+    (N'Đã thanh toán'),
+    (N'Thanh toán thất bại'),
+    (N'Đã hoàn tiền');
+GO
 
 
 -- Bảng GioHang (Thêm dữ liệu mẫu cho giỏ hàng của người dùng)
@@ -862,12 +876,16 @@ VALUES
 GO
 
 -- Bảng Orders (Thêm dữ liệu mẫu cho đơn hàng)
-INSERT INTO Orders (UserId, OrderDate, TotalAmount, PaymentMethodId, StatusId)
+INSERT INTO Orders (UserId, OrderDate, TotalAmount, PaymentMethodId, StatusId, PaymentStatusId)
 VALUES 
-(1, GETDATE(), 146000, 1, 1),  -- User 1, Tổng tiền 146000 (từ GioHang ví dụ), Phương thức VN Pay, Trạng thái Đặt hàng thành công
-(2, GETDATE(), 144000, 2, 2),  -- User 2, Tổng tiền 144000, Phương thức COD, Trạng thái Đang chuẩn bị đơn hàng
-(3, GETDATE(), 25000, 1, 3),   -- User 3, Tổng tiền 25000, Phương thức VN Pay, Trạng thái Đang giao hàng
-(4, GETDATE(), 50000, 2, 4);   -- User 4 (giả sử), Tổng tiền 50000, Phương thức COD, Trạng thái Giao hàng thành công
+-- User 1, VN Pay, Đặt hàng thành công -> Đã thanh toán (ID: 2)
+(1, GETDATE(), 146000, 1, 1, 2),  
+-- User 2, COD, Đang chuẩn bị -> Chờ thanh toán (ID: 1)
+(2, GETDATE(), 144000, 2, 2, 1),  
+-- User 3, VN Pay, Đang giao -> Đã thanh toán (ID: 2)
+(3, GETDATE(), 25000, 1, 3, 2),   
+-- User 4, COD, Giao hàng thành công -> Đã thanh toán (ID: 2) (Giả sử COD đã thu tiền)
+(4, GETDATE(), 50000, 2, 4, 2);   
 GO
 
 -- Bảng OrderDetails (Thêm dữ liệu mẫu cho chi tiết đơn hàng)

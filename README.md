@@ -4,6 +4,14 @@
 
 **SuLi Coffee** là ứng dụng web quản lý và đặt đồ uống trực tuyến.
 Hệ thống cho phép **khách hàng** đặt đồ uống, theo dõi đơn hàng, quản lý thông tin cá nhân và **admin** có thể quản lý toàn bộ hoạt động của cửa hàng như sản phẩm, nhân viên, đơn hàng và báo cáo.
+## Tác giả
+
+| Họ và tên              | MSSV        |
+| ---------------------- | ----------- |
+| 💠 **Điêu Thúy Liên**  | 22810310267 |
+| 💠 **Phạm Đăng Khuê**  | 22810310270 |
+| 💠 **Nguyễn Đức Minh** | 22810310235 |
+
 
 ## 2. Công nghệ sử dụng
 
@@ -160,18 +168,11 @@ npm start
 ![Quản lý đơn hàng admin ](./images/order_admin.jpg)
 ![Quản lý Voucher admin](./images/voucher_admin.jpg)
 
-## ✨ 9. Tác giả
-
-| Họ và tên              | MSSV        |
-| ---------------------- | ----------- |
-| 💠 **Điêu Thúy Liên**  | 22810310267 |
-| 💠 **Phạm Đăng Khuê**  | 22810310270 |
-| 💠 **Nguyễn Đức Minh** | 22810310235 |
 
 ## 📎 Link nộp bài
 
 - 🔗 Source Code + Database (GitHub Public):
-  [https://github.com/dieuthulien/QuanLyQuanCafe](https://github.com/dieuthulien/QuanLyQuanCafe)
+  [https://github.com/dieuthulien/QuanLyQuanCafe](https://github.com/dieuthuylien/QuanLyQuanCafe)
 
 - 🎥 Video Demo (YouTube – Không công khai):
   [https://youtu.be/](https://youtu.be/ZksVXJf6EvM)

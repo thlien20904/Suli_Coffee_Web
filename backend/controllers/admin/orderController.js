@@ -3,11 +3,11 @@ const initModels = require("../../models/init-models");
 const models = initModels(sequelize);
 const { Sequelize, Op } = require("sequelize");
 
-const { Orders, Users, OrderStatus } = models;
+const { Orders, Users, OrderStatus, PaymentStatus } = models;
 
 /* =====================================================
-   1️⃣ LẤY DANH SÁCH ĐƠN HÀNG
-   GET /api/admin/order
+   1️⃣ LẤY DANH SÁCH ĐƠN HÀNG (Admin)
+   GET /api/admin/orders
 ===================================================== */
 exports.getOrders = async (req, res) => {
   try {
@@ -25,6 +25,12 @@ exports.getOrders = async (req, res) => {
           attributes: ["StatusId", "StatusName"],
           required: true,
         },
+        {
+          model: PaymentStatus,
+          as: "PaymentStatus", // ✅ thêm trạng thái thanh toán
+          attributes: ["PaymentStatusId", "PaymentStatusName"],
+          required: false,
+        },
       ],
       order: [["OrderDate", "DESC"]],
     });
@@ -38,7 +44,7 @@ exports.getOrders = async (req, res) => {
 
 /* =====================================================
    2️⃣ CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG
-   POST /api/admin/order/:id/status
+   POST /api/admin/orders/:id/status
 ===================================================== */
 exports.updateOrderStatus = async (req, res) => {
   try {
@@ -46,31 +52,52 @@ exports.updateOrderStatus = async (req, res) => {
     const { statusId } = req.body;
 
     if (!id || !statusId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Thiếu dữ liệu!" });
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu dữ liệu!",
+      });
     }
 
     const orderId = parseInt(id);
     const newStatusId = parseInt(statusId);
 
-    // Kiểm tra đơn hàng tồn tại
-    const order = await Orders.findByPk(orderId);
+    // Tìm đơn hàng kèm PaymentStatus
+    const order = await Orders.findByPk(orderId, {
+      include: [{ model: PaymentStatus, as: "PaymentStatus" }],
+    });
+
     if (!order) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy đơn hàng!" });
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng!",
+      });
     }
 
-    // Kiểm tra trạng thái tồn tại
+    // Nếu đơn hàng đã hủy hoặc thanh toán thất bại → không cho update
+    if (order.StatusId === 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Đơn hàng đã hủy, không thể cập nhật trạng thái!",
+      });
+    }
+
+    if (order.PaymentStatusId === 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Đơn hàng thanh toán thất bại, không thể cập nhật trạng thái!",
+      });
+    }
+
+    // Kiểm tra trạng thái mới hợp lệ
     const status = await OrderStatus.findByPk(newStatusId);
     if (!status) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Trạng thái không hợp lệ!" });
+      return res.status(400).json({
+        success: false,
+        message: "Trạng thái không hợp lệ!",
+      });
     }
 
-    // Update trạng thái
+    // Cập nhật trạng thái
     await order.update({ StatusId: newStatusId });
 
     res.json({

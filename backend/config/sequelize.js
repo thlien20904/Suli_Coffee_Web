@@ -10,21 +10,37 @@ console.log("ENV:", {
   DB_ENCRYPT: process.env.DB_ENCRYPT,
 });
 
+// Build connection options with safer defaults and support for named instances
+const dbHost = process.env.DB_HOST || process.env.DB_SERVER || "localhost";
+const dbPort = process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 1433;
+const dbInstance = process.env.DB_INSTANCE || null; // e.g. "SQLEXPRESS"
+
+const dialectOptions = {
+  options: {
+    encrypt: process.env.DB_ENCRYPT === "true",
+    trustServerCertificate: true,
+    // Avoid Sequelize/tedious Operation timeout for complex queries
+    requestTimeout: parseInt(process.env.DB_REQUEST_TIMEOUT) || 600000,
+    connectTimeout: parseInt(process.env.DB_CONNECT_TIMEOUT) || 300000,
+  },
+};
+
+// If user provided a named instance (typical on Windows), instruct tedious to use it.
+if (dbInstance) {
+  // When instanceName is set, tedious negotiates dynamic port. Keep instanceName in options.
+  dialectOptions.options.instanceName = dbInstance;
+}
+
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
+  process.env.DB_NAME || "",
+  process.env.DB_USER || "",
+  process.env.DB_PASSWORD || "",
   {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 1433,
+    host: dbHost,
+    port: dbPort,
     dialect: "mssql",
-    timezone: "+07:00", // Thêm để xử lý timezone local (Việt Nam)
-    dialectOptions: {
-      options: {
-        encrypt: process.env.DB_ENCRYPT === "true",
-        trustServerCertificate: true,
-      },
-    },
+    timezone: "+07:00",
+    dialectOptions,
     logging: false,
   }
 );
@@ -42,7 +58,9 @@ DATE.prototype._stringify = function _stringify(date, options) {
     await sequelize.authenticate();
     console.log("✅ Kết nối SQL Server (Sequelize) thành công!");
   } catch (err) {
-    console.error("❌ Lỗi kết nối SQL Server:", err);
+    console.error("❌ Lỗi kết nối SQL Server:", err && err.message ? err.message : err);
+    console.error("→ DB host:", dbHost, "port:", dbPort, dbInstance ? `(instance: ${dbInstance})` : "");
+    console.error("→ Kiểm tra: SQL Server service có đang chạy? Firewall/port? Nếu là named instance (SQLEXPRESS), set DB_INSTANCE=SOMENAME in .env");
   }
 })();
 

@@ -119,11 +119,12 @@ export default function ProductDetail() {
       }
     } catch (err) {
       console.error("ADD TO CART ERROR:", err.response?.data || err);
+      const msg = err.response?.data?.message || err.response?.data || err.message || "Có lỗi xảy ra, vui lòng thử lại.";
       if (err.response?.status === 401) {
-        alert("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+        alert(msg + " (Bạn sẽ được chuyển tới trang đăng nhập)");
         navigate("/login");
       } else {
-        alert("Có lỗi xảy ra, vui lòng thử lại.");
+        alert(msg);
       }
     }
   };

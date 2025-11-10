@@ -3,18 +3,20 @@ const router = express.Router();
 const cartController = require("../../controllers/user/cartUserController");
 
 // Import middleware từ controller
-const { authenticateToken } = cartController;
+const { authenticateTokenOptional } = cartController;
+console.log('Loaded cartUser router');
 
 // Thêm vào giỏ
-router.post("/add", authenticateToken, cartController.addToCart);
+router.post("/add", authenticateTokenOptional, cartController.addToCart);
 
 // Lấy giỏ
-router.get("/", authenticateToken, cartController.getCart);
+router.get("/", authenticateTokenOptional, cartController.getCart);
 
 // Cập nhật số lượng
-router.post("/update", authenticateToken, cartController.updateCart);
+router.post("/update", authenticateTokenOptional, cartController.updateCart);
+router.post("/update-options", authenticateTokenOptional, cartController.updateOptions);
 
 // Xóa item
-router.post("/delete", authenticateToken, cartController.deleteCart);
+router.post("/delete", authenticateTokenOptional, cartController.deleteCart);
 
 module.exports = router;

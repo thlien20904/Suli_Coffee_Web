@@ -5,6 +5,7 @@ const {
   Users,
   Orders,
   OrderDetails,
+  OrderDetails_Topping,
   PhuongThucThanhToan,
   OrderStatus,
   Food,
@@ -14,6 +15,8 @@ const {
   UserVouchers,
   Notifications,
 } = models;
+// ✅ THÊM: Import PaymentStatus
+const { PaymentStatus } = models;
 const { Op } = require("sequelize");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
@@ -24,7 +27,7 @@ const crypto = require("crypto");
 // JWT Secret từ .env
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_fallback";
 
-// Cấu hình upload file
+// Cấu hình upload file (Giữ nguyên)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, "../../public/images");
@@ -41,7 +44,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Middleware xác thực JWT
+// Middleware xác thực JWT (Giữ nguyên)
 const authenticate = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   console.log("🟢 AUTH HEADER:", authHeader); // ✅ log header nhận được
@@ -77,7 +80,7 @@ const authenticate = (req, res, next) => {
 };
 
 // =========================
-// 📌 LẤY THÔNG TIN TÀI KHOẢN
+// 📌 LẤY THÔNG TIN TÀI KHOẢN (Giữ nguyên)
 // =========================
 const getProfile = async (req, res) => {
   try {
@@ -116,9 +119,8 @@ const getProfile = async (req, res) => {
 };
 
 // =========================
-// 📌 CẬP NHẬT THÔNG TIN USER
+// 📌 CẬP NHẬT THÔNG TIN USER (Giữ nguyên)
 // =========================
-// updateProfile
 const updateProfile = async (req, res) => {
   try {
     const { id, FullName, Phone, Address } = req.body;
@@ -188,33 +190,83 @@ const updateProfile = async (req, res) => {
 };
 
 // =========================
-// 📌 LẤY DANH SÁCH ĐƠN HÀNG THEO TAB + PHÂN TRANG
+// 📌 LẤY DANH SÁCH ĐƠN HÀNG THEO TAB + PHÂN TRANG (ĐÃ SỬA LẠI LOGIC)
+// =========================
 // =========================
 const getOrders = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 5;
+    const pageSize = parseInt(req.query.pageSize) || 10; // ✅ default 10 đơn/trang
     const tab = req.query.tab || "cho-xac-nhan";
     const userId = req.user.id;
 
-    // Map tab sang StatusId
-    const tabStatusMap = {
-      "cho-xac-nhan": 1,
-      "dang-chuan-bi": 2,
-      "dang-giao-hang": 3,
-      "da-giao": 4,
-      "da-huy": 5,
+    let whereClause = { UserId: userId };
+
+    // Lấy PaymentStatusId của "Đã thanh toán" và "Chờ thanh toán"
+    const [paidStatus, pendingStatus] = await Promise.all([
+      PaymentStatus.findOne({ where: { PaymentStatusName: "Đã thanh toán" } }),
+      PaymentStatus.findOne({ where: { PaymentStatusName: "Chờ thanh toán" } }),
+    ]);
+
+    const paidStatusId = paidStatus ? paidStatus.PaymentStatusId : null;
+    const pendingStatusId = pendingStatus
+      ? pendingStatus.PaymentStatusId
+      : null;
+
+    // Điều kiện COD hoặc đã thanh toán
+    const codOrPaidCondition = {
+      [Op.or]: [
+        { PaymentMethodId: 2 }, // COD
+        { PaymentStatusId: paidStatusId }, // đã thanh toán
+      ],
     };
-    const statusId = tabStatusMap[tab] || 1;
 
-    // Lấy tổng số đơn hàng
-    const totalOrders = await Orders.count({
-      where: { UserId: userId, StatusId: statusId },
-    });
+    let statusName;
+    switch (tab) {
+      case "cho-xac-nhan":
+        statusName = "Đặt hàng thành công";
+        break;
+      case "dang-chuan-bi":
+        statusName = "Đang chuẩn bị đơn hàng";
+        whereClause[Op.and] = [codOrPaidCondition];
+        break;
+      case "dang-giao-hang":
+        statusName = "Đang giao hàng";
+        whereClause[Op.and] = [codOrPaidCondition];
+        break;
+      case "da-giao":
+        statusName = "Giao hàng thành công";
+        whereClause[Op.and] = [codOrPaidCondition];
+        break;
+      case "da-huy":
+        statusName = "Đã hủy";
+        break;
+      default:
+        statusName = "Đặt hàng thành công";
+    }
 
-    // Lấy đơn hàng theo trang
+    // Lấy StatusId
+    if (statusName) {
+      const status = await OrderStatus.findOne({
+        where: { StatusName: statusName },
+      });
+      if (status) {
+        if (whereClause[Op.and]) {
+          whereClause[Op.and].push({ StatusId: status.StatusId });
+        } else {
+          whereClause.StatusId = status.StatusId;
+        }
+      } else {
+        whereClause.StatusId = -1;
+      }
+    }
+
+    // Tổng số đơn
+    const totalOrders = await Orders.count({ where: whereClause });
+
+    // Lấy danh sách đơn hàng phân trang
     const orders = await Orders.findAll({
-      where: { UserId: userId, StatusId: statusId },
+      where: whereClause,
       order: [["OrderDate", "DESC"]],
       offset: (page - 1) * pageSize,
       limit: pageSize,
@@ -224,22 +276,28 @@ const getOrders = async (req, res) => {
         "TotalAmount",
         "StatusId",
         "PaymentMethodId",
+        "PaymentStatusId",
       ],
       include: [
         {
           model: PhuongThucThanhToan,
-          as: "PaymentMethod", // ✅ đúng alias
+          as: "PaymentMethod",
           attributes: ["TenPhuongThuc"],
         },
         {
           model: OrderStatus,
-          as: "Status", // ✅ đúng alias
+          as: "Status",
           attributes: ["StatusName"],
+        },
+        {
+          model: PaymentStatus,
+          as: "PaymentStatus",
+          attributes: ["PaymentStatusName", "PaymentStatusId"],
         },
       ],
     });
 
-    // Lấy chi tiết đơn hàng
+    // Lấy chi tiết đơn
     const orderIds = orders.map((o) => o.OrderId);
     let detailsMap = {};
     if (orderIds.length > 0) {
@@ -248,7 +306,13 @@ const getOrders = async (req, res) => {
         include: [
           { model: Food, as: "Food", attributes: ["FoodName"] },
           { model: Size, as: "Size", attributes: ["SizeName"] },
-          { model: Topping, as: "Topping", attributes: ["ToppingName"] },
+          {
+            model: OrderDetails_Topping,
+            as: "OrderDetails_Toppings",
+            include: [
+              { model: Topping, as: "Topping", attributes: ["ToppingName"] },
+            ],
+          },
         ],
       });
 
@@ -257,14 +321,15 @@ const getOrders = async (req, res) => {
         detailsMap[d.OrderId].push({
           FoodName: d.Food?.FoodName || "Không xác định",
           SizeName: d.Size?.SizeName || null,
-          ToppingName: d.Topping?.ToppingName || null,
+          Toppings: (d.OrderDetails_Toppings || [])
+            .map((ot) => ot.Topping?.ToppingName)
+            .filter(Boolean),
           Quantity: d.Quantity,
           Price: parseFloat(d.Price),
         });
       });
     }
 
-    // Kết hợp Order + OrderDetails
     const ordersWithDetails = orders.map((o) => ({
       OrderId: o.OrderId,
       OrderDate: o.OrderDate,
@@ -272,7 +337,25 @@ const getOrders = async (req, res) => {
       StatusId: o.StatusId,
       Status: o.Status?.StatusName || "Không xác định",
       PaymentMethod: o.PaymentMethod?.TenPhuongThuc || "Không xác định",
-      OrderDetails: detailsMap[o.OrderId] || [],
+      PaymentStatus: o.PaymentStatus?.PaymentStatusName || null,
+      PaymentStatusId: o.PaymentStatus?.PaymentStatusId || null,
+      PaymentMethodId: o.PaymentMethodId,
+      isPaid: (() => {
+        const pmName = (o.PaymentMethod?.TenPhuongThuc || "").toLowerCase();
+        const psName = (o.PaymentStatus?.PaymentStatusName || "").toLowerCase();
+        if (pmName.includes("vnpay") || o.PaymentMethodId === 1) {
+          return psName.includes("thanh") || psName.includes("paid");
+        }
+        if (o.PaymentMethodId === 2 || pmName.includes("cod")) return false;
+        return psName.length > 0;
+      })(),
+      OrderDetails: (detailsMap[o.OrderId] || []).map((d) => ({
+        ...d,
+        Toppings:
+          (d.Toppings || []).length > 0
+            ? d.Toppings.map((t_name) => ({ ToppingName: t_name }))
+            : [],
+      })),
     }));
 
     res.json({
@@ -307,6 +390,15 @@ const cancelOrder = async (req, res) => {
     const userId = req.user.id;
     const order = await Orders.findOne({
       where: { OrderId: orderId, UserId: userId },
+      include: [
+        { model: OrderStatus, as: "Status", attributes: ["StatusName"] },
+        {
+          model: PaymentStatus,
+          as: "PaymentStatus",
+          attributes: ["PaymentStatusName"],
+        },
+        { model: OrderDetails, as: "OrderDetails" }, // nếu cần frontend hiển thị chi tiết
+      ],
     });
 
     if (!order) {
@@ -316,16 +408,56 @@ const cancelOrder = async (req, res) => {
       });
     }
 
-    if (![1, 2].includes(order.StatusId)) {
+    const statusName = order.Status?.StatusName;
+    const paymentStatusName = order.PaymentStatus?.PaymentStatusName;
+
+    // Các trạng thái được phép hủy
+    const isPending =
+      statusName === "Lưu tạm" || statusName === "Chưa thanh toán";
+    const isConfirmed = statusName === "Đặt hàng thành công";
+    const isPaid = paymentStatusName === "Đã thanh toán";
+    const isPreparing = statusName === "Đang chuẩn bị đơn hàng";
+
+    if (isPending || isConfirmed || isPaid || isPreparing) {
+      const cancelledStatus = await OrderStatus.findOne({
+        where: { StatusName: "Đã hủy" },
+      });
+
+      if (!cancelledStatus) {
+        return res.json({
+          success: false,
+          message: "Không tìm thấy trạng thái 'Đã hủy'!",
+        });
+      }
+
+      // Cập nhật trạng thái thành 'Đã hủy'
+      await order.update({ StatusId: cancelledStatus.StatusId });
+
+      // Trả về luôn order vừa hủy để frontend cập nhật tab 'Đã hủy'
+      const cancelledOrder = await Orders.findOne({
+        where: { OrderId: orderId },
+        include: [
+          { model: OrderStatus, as: "Status", attributes: ["StatusName"] },
+          {
+            model: PaymentStatus,
+            as: "PaymentStatus",
+            attributes: ["PaymentStatusName"],
+          },
+          { model: OrderDetails, as: "OrderDetails" },
+        ],
+      });
+
       return res.json({
-        success: false,
-        message: "Không thể hủy đơn hàng ở trạng thái hiện tại!",
+        success: true,
+        message: "Hủy đơn hàng thành công!",
+        order: cancelledOrder,
       });
     }
 
-    await order.update({ StatusId: 5 }); // StatusId = 5 = Đã hủy
-
-    res.json({ success: true, message: "Hủy đơn hàng thành công!" });
+    return res.json({
+      success: false,
+      message: "Không thể hủy đơn hàng ở trạng thái hiện tại!",
+    });
   } catch (err) {
     console.error("CANCEL ORDER ERROR:", err);
     res.status(500).json({
@@ -335,8 +467,10 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+module.exports = { cancelOrder };
+
 // =========================
-// 📌 LẤY AVATAR HIỆN TẠI
+// 📌 LẤY AVATAR HIỆN TẠI (Giữ nguyên)
 // =========================
 const getAvatar = async (req, res) => {
   try {
@@ -358,7 +492,7 @@ const getAvatar = async (req, res) => {
 };
 
 // =========================
-// 📌 LẤY DANH SÁCH VOUCHER ĐANG HOẠT ĐỘNG
+// 📌 LẤY DANH SÁCH VOUCHER ĐANG HOẠT ĐỘNG (Giữ nguyên)
 // =========================
 const getVouchers = async (req, res) => {
   try {
@@ -391,7 +525,7 @@ const getVouchers = async (req, res) => {
 };
 
 // =========================
-// 📌 NGƯỜI DÙNG NHẬN VOUCHER
+// 📌 NGƯỜI DÙNG NHẬN VOUCHER (Giữ nguyên)
 // =========================
 const receiveVoucher = async (req, res) => {
   try {
@@ -441,7 +575,7 @@ const receiveVoucher = async (req, res) => {
 };
 
 // =========================
-// 📌 LẤY DANH SÁCH VOUCHER ĐÃ NHẬN
+// 📌 LẤY DANH SÁCH VOUCHER ĐÃ NHẬN (Giữ nguyên)
 // =========================
 const getUserVouchers = async (req, res) => {
   try {
@@ -493,7 +627,10 @@ const getUserVouchers = async (req, res) => {
     });
   }
 };
-// 📌 Áp dụng voucher vào đơn hàng
+
+// =========================
+// 📌 Áp dụng voucher vào đơn hàng (Giữ nguyên)
+// =========================
 const applyVoucher = async (req, res) => {
   try {
     const { voucherCode, subtotal } = req.body; // sửa từ code -> voucherCode
@@ -567,7 +704,7 @@ const applyVoucher = async (req, res) => {
 };
 
 // =========================
-// 📌 LẤY DANH SÁCH THÔNG BÁO
+// 📌 LẤY DANH SÁCH THÔNG BÁO (Giữ nguyên)
 // =========================
 const getNotifications = async (req, res) => {
   try {
@@ -606,7 +743,7 @@ const getNotifications = async (req, res) => {
 };
 
 // =========================
-// 📌 ĐÁNH DẤU THÔNG BÁO LÀ ĐÃ ĐỌC
+// 📌 ĐÁNH DẤU THÔNG BÁO LÀ ĐÃ ĐỌC (Giữ nguyên)
 // =========================
 const readNotification = async (req, res) => {
   try {
@@ -635,7 +772,7 @@ const readNotification = async (req, res) => {
 };
 
 // =========================
-// 📌 ĐÁNH DẤU TẤT CẢ THÔNG BÁO LÀ ĐÃ ĐỌC
+// 📌 ĐÁNH DẤU TẤT CẢ THÔNG BÁO LÀ ĐÃ ĐỌC (Giữ nguyên)
 // =========================
 const readAllNotifications = async (req, res) => {
   try {
@@ -657,7 +794,7 @@ const readAllNotifications = async (req, res) => {
 };
 
 // =========================
-// 📌 XÓA MỘT THÔNG BÁO
+// 📌 XÓA MỘT THÔNG BÁO (Giữ nguyên)
 // =========================
 const deleteNotification = async (req, res) => {
   try {
@@ -677,7 +814,7 @@ const deleteNotification = async (req, res) => {
   }
 };
 
-// Export tất cả middleware và controller
+// Export tất cả middleware và controller (Giữ nguyên)
 module.exports = {
   authenticate,
   upload,

@@ -103,18 +103,28 @@ const VoucherList = () => {
     Description: (v) =>
       !v.trim() ? "Mô tả voucher không được để trống" : null,
     ExpiryDate: (v) => (!v ? "Phải chọn ngày hết hạn" : null),
-    DiscountAmount: (v, f) =>
-      !v && !f.DiscountPercentage
-        ? "Phải nhập giảm giá tiền hoặc phần trăm"
-        : null,
-    DiscountPercentage: (v, f) =>
-      !v && !f.DiscountAmount ? "Phải nhập giảm giá tiền hoặc phần trăm" : null,
+
+    DiscountAmount: (v, f) => {
+      if (!v && !f.DiscountPercentage)
+        return "Phải nhập giảm giá tiền hoặc phần trăm";
+      if (v && v < 0) return "Giảm giá tiền không được âm";
+      return null;
+    },
+
+    DiscountPercentage: (v, f) => {
+      if (!v && !f.DiscountAmount)
+        return "Phải nhập giảm giá tiền hoặc phần trăm";
+      if (v && (v < 0 || v > 100)) return "Phần trăm giảm phải từ 0 đến 100";
+      return null;
+    },
+
     MinOrderAmount: (v) =>
       v < 0
         ? "Đơn tối thiểu không được âm"
         : v === ""
         ? "Nhập đơn tối thiểu"
         : null,
+
     MaxUsage: (v) =>
       v <= 0
         ? "Giới hạn lượt dùng phải > 0"
@@ -479,6 +489,7 @@ const VoucherList = () => {
                 <input
                   name="ExpiryDate"
                   type="date"
+                  min={new Date().toISOString().split("T")[0]} // 👈 chỉ cho chọn từ hôm nay trở đi
                   value={form.ExpiryDate}
                   onChange={handleChange}
                   onBlur={handleBlur}

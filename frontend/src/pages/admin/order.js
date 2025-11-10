@@ -30,13 +30,14 @@ const Order = () => {
     fetchData();
   }, []);
 
-  // apply filter when click "Lọc"
   const applyFilter = () => {
     let result = [...orders];
 
     result = result.filter(
       (item) =>
-        (item.User?.FullName || "").toLowerCase().includes(search.toLowerCase()) ||
+        (item.User?.FullName || "")
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
         String(item.OrderId).includes(search)
     );
 
@@ -67,12 +68,11 @@ const Order = () => {
     setCurrentPage(1);
   };
 
-  // update status
   const updateStatus = async (id, statusId) => {
     try {
       const res = await axios.post(
         `http://localhost:5000/api/admin/orders/${id}/status`,
-        { statusId }, // gửi id trạng thái
+        { statusId },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
@@ -83,21 +83,18 @@ const Order = () => {
           icon: "success",
           title: "Thành công",
           text: res.data.message || "Cập nhật trạng thái thành công!",
-          showConfirmButton: true, // 👉 Luôn hiện nút OK
+          showConfirmButton: true,
           timer: 1000,
-
           timerProgressBar: true,
         }).then(() => {
-          fetchData(); // refresh danh sách
+          fetchData();
         });
       } else {
         Swal.fire({
           icon: "error",
-          title: "",
           text: res.data.message || "Không thể cập nhật trạng thái",
           showConfirmButton: true,
           timer: 1000,
-
           timerProgressBar: true,
         });
       }
@@ -106,7 +103,6 @@ const Order = () => {
     }
   };
 
-  // pagination
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const pageData = filtered.slice(
     (currentPage - 1) * itemsPerPage,
@@ -158,14 +154,43 @@ const Order = () => {
             <th>Mã đơn</th>
             <th>Khách hàng</th>
             <th>Ngày đặt</th>
-            <th>Trạng thái</th>
+            <th>Trạng thái đơn</th>
+            <th>Trạng thái thanh toán</th>
             <th>Tổng tiền</th>
             <th>Hành động</th>
           </tr>
         </thead>
         <tbody>
           {pageData.map((item) => (
-            <tr key={item.OrderId}><td>{item.OrderId}</td><td>{item.User?.FullName || "N/A"}</td><td>{new Date(item.OrderDate).toLocaleString()}</td><td>{item.Status?.StatusName || "N/A"}</td><td>{(item.TotalAmount || 0).toLocaleString()} đ</td><td><select value={item.StatusId} onChange={(e) => updateStatus(item.OrderId, parseInt(e.target.value))}><option value={1}>Đặt hàng thành công</option><option value={2}>Đang chuẩn bị đơn hàng</option><option value={3}>Đang giao hàng</option><option value={4}>Giao hàng thành công</option><option value={5}>Đã hủy</option></select></td></tr>  // ✅ FIX: Một dòng duy nhất, không newline giữa <td>
+            <tr key={item.OrderId}>
+              <td>{item.OrderId}</td>
+              <td>{item.User?.FullName || "N/A"}</td>
+              <td>{new Date(item.OrderDate).toLocaleString()}</td>
+              <td>{item.Status?.StatusName || "N/A"}</td>
+              <td>{item.PaymentStatus?.PaymentStatusName || "N/A"}</td>
+              <td>{(item.TotalAmount || 0).toLocaleString()} đ</td>
+              <td>
+                {item.StatusId === 2 ? (
+                  <span className="status-cancelled">Đã hủy</span>
+                ) : item.PaymentStatusId === 3 ? (
+                  <span className="status-failed">Thanh toán thất bại</span>
+                ) : (
+                  <select
+                    value={item.StatusId}
+                    onChange={(e) =>
+                      updateStatus(item.OrderId, parseInt(e.target.value))
+                    }
+                  >
+                    <option value={1}>Chờ thanh toán</option>
+                    <option value={2}>Đã hủy</option>
+                    <option value={3}>Đặt hàng thành công</option>
+                    <option value={4}>Đang chuẩn bị đơn hàng</option>
+                    <option value={5}>Đang giao hàng</option>
+                    <option value={6}>Giao hàng thành công</option>
+                  </select>
+                )}
+              </td>
+            </tr>
           ))}
         </tbody>
       </table>

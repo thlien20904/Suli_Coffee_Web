@@ -39,7 +39,7 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: false,
     indexes: [
       {
-        name: "PK__InvoiceD__1F157811E532D60E",
+        name: "PK__InvoiceD__1F1578114C626C08",
         unique: true,
         fields: [
           { name: "InvoiceDetailId" },

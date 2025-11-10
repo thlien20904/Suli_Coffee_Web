@@ -127,3 +127,8 @@
 .ingredient-img:hover {
   transform: scale(1.1); /* hover phóng to nhẹ */
 }
+/* Thêm khoảng cách giữa các card trong row */
+.row > .col-md-3,
+.row > .col-md-4 {
+  margin-bottom: 20px; /* khoảng cách hàng */
+}

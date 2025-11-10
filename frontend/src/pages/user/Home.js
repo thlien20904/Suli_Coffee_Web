@@ -17,13 +17,11 @@ export default function Home() {
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const backendUrl = "http://localhost:5000"; // URL backend
-
-  // Danh sách video banner, dùng full URL từ backend
+  // Danh sách video banner
   const bannerVideos = [
-    { src: `${backendUrl}/video/vd6.mp4`, alt: "SuLi Coffee Video 1" },
-    { src: `${backendUrl}/video/vd.mp4`, alt: "SuLi Coffee Video 2" },
-    { src: `${backendUrl}/video/vd2.mp4`, alt: "SuLi Coffee Video 3" },
+    { src: "/video/vd6.mp4", alt: "SuLi Coffee Video 1" },
+    { src: "/video/vd.mp4", alt: "SuLi Coffee Video 2" },
+    { src: "/video/vd2.mp4", alt: "SuLi Coffee Video 3" },
   ];
 
   const videoRefs = useRef([]);
@@ -32,15 +30,21 @@ export default function Home() {
     const fetchHome = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${backendUrl}/api/home`);
+        const res = await axios.get("http://localhost:5000/api/home");
         console.log("API response:", res.data);
-        setFoods(res.data.data || []);
+        // Support multiple response shapes: { success:true, data: [...] } or direct array
+        const payload = res.data && (res.data.data ?? res.data) ? (res.data.data ?? res.data) : [];
+        setFoods(Array.isArray(payload) ? payload : []);
       } catch (err) {
+        // Log helpful details (message + server response body if available)
         console.error("Lỗi khi lấy dữ liệu trang chủ:", {
-          message: err.message,
-          response: err.response?.data,
-          status: err.response?.status,
+          message: err?.message,
+          responseBody: err?.response?.data,
+          status: err?.response?.status,
+          stack: err?.stack,
         });
+        // show empty list on error to avoid UI crash
+        setFoods([]);
       } finally {
         setLoading(false);
       }
@@ -139,9 +143,10 @@ export default function Home() {
                           <div className="thumb-wrap">
                             <Card.Img
                               variant="top"
-                              src={`${backendUrl}${food.DefaultImage}`}
+                              src={`http://localhost:5000${food.DefaultImage}`}
                               onError={(e) => {
-                                e.target.src = `${backendUrl}/images/no-image.png`;
+                                e.target.src =
+                                  "http://localhost:5000/images/no-image.png";
                                 console.log(
                                   "Image load error for:",
                                   food.Name,
@@ -180,9 +185,7 @@ export default function Home() {
                               đ
                             </Card.Text>
 
-                            <Card.Text className="sold text-secondary">
-                              Đã bán: {food.SoldQuantity ?? 0}
-                            </Card.Text>
+                            {/* Số lượng đã bán bị ẩn theo yêu cầu */}
 
                             <div className="mt-auto d-flex justify-content-center">
                               <Button

@@ -38,11 +38,9 @@ const userSlice = createSlice({
     },
     updateUser: (state, action) => {
       console.log("Reducer updateUser, payload:", action.payload);
-      state.userId = action.payload.userId;
-      state.username = action.payload.username;
-      state.email = action.payload.email;
-      state.role = action.payload.role;
-      state.avatar = action.payload.avatar;
+      // Merge payload into current state to avoid wiping other fields when only
+      // a subset (e.g., avatar) is provided.
+      Object.assign(state, action.payload);
     },
     setCartCount: (state, action) => {
       state.cartCount = action.payload;
