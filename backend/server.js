@@ -19,11 +19,11 @@ const { poolPromise } = require("./db");
 dotenv.config();
 
 // Global error handlers to log unexpected errors and rejections for easier debugging
-process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION:', err && err.stack ? err.stack : err);
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err && err.stack ? err.stack : err);
 });
-process.on('unhandledRejection', (reason, p) => {
-  console.error('UNHANDLED REJECTION at:', p, 'reason:', reason);
+process.on("unhandledRejection", (reason, p) => {
+  console.error("UNHANDLED REJECTION at:", p, "reason:", reason);
 });
 
 const app = express();
@@ -40,10 +40,15 @@ app.use(express.urlencoded({ extended: true }));
 // Request logger - prints method, path and a short body preview for every incoming request
 app.use((req, res, next) => {
   try {
-    const preview = req.body && Object.keys(req.body).length ? JSON.stringify(req.body).slice(0, 200) : '';
-    console.log(`--> ${req.method} ${req.path} ${preview ? '- body:' + preview : ''}`);
+    const preview =
+      req.body && Object.keys(req.body).length
+        ? JSON.stringify(req.body).slice(0, 200)
+        : "";
+    console.log(
+      `--> ${req.method} ${req.path} ${preview ? "- body:" + preview : ""}`
+    );
   } catch (e) {
-    console.log('--> request logging error', e && e.message);
+    console.log("--> request logging error", e && e.message);
   }
   next();
 });
@@ -145,6 +150,7 @@ const ordersUserRouter = require("./routes/user/ordersUser");
 const StoresUserRouter = require("./routes/user/StoresUser");
 const addressesUserRouter = require("./routes/user/addressesUser");
 const homeRouter = require("./routes/user/homeUser");
+const addressRouter = require("./routes/user/address");
 
 const FoodRouter = require("./routes/admin/Food");
 const homeAdminRouter = require("./routes/admin/homeAdmin");
@@ -170,6 +176,7 @@ app.use("/api/orders", ordersUserRouter);
 app.use("/api/Stores", StoresUserRouter);
 app.use("/api/addresses", addressesUserRouter);
 app.use("/api/home", homeRouter);
+app.use("/api/address", require("./routes/user/address"));
 
 // Admin routes
 app.use("/api/admin/home", homeAdminRouter);
@@ -186,7 +193,6 @@ app.use("/api/admin/invoice", invoiceRouter);
 app.use("/api/admin/orders", orderAdminRouter);
 app.use("/api/admin/report", reportRouter);
 app.use("/api/admin/voucher", voucherRouter);
-
 /* ---------------- CONNECT DB ---------------- */
 const connectDB = async () => {
   try {

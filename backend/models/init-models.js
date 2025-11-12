@@ -5,6 +5,7 @@ var _Category = require("./Category");
 var _CuaHang = require("./CuaHang");
 var _DeliveryAddresses = require("./DeliveryAddresses");
 var _Food = require("./Food");
+var _FoodDimensions = require("./FoodDimensions");
 var _FoodIngredient = require("./FoodIngredient");
 var _GioHang = require("./GioHang");
 var _GioHang_Topping = require("./GioHang_Topping");
@@ -18,6 +19,7 @@ var _OrderStatus = require("./OrderStatus");
 var _Orders = require("./Orders");
 var _PaymentStatus = require("./PaymentStatus");
 var _PhuongThucThanhToan = require("./PhuongThucThanhToan");
+var _ShippingOrders = require("./ShippingOrders");
 var _Size = require("./Size");
 var _Staff = require("./Staff");
 var _TableFood = require("./TableFood");
@@ -34,6 +36,7 @@ function initModels(sequelize) {
   var CuaHang = _CuaHang(sequelize, DataTypes);
   var DeliveryAddresses = _DeliveryAddresses(sequelize, DataTypes);
   var Food = _Food(sequelize, DataTypes);
+  var FoodDimensions = _FoodDimensions(sequelize, DataTypes);
   var FoodIngredient = _FoodIngredient(sequelize, DataTypes);
   var GioHang = _GioHang(sequelize, DataTypes);
   var GioHang_Topping = _GioHang_Topping(sequelize, DataTypes);
@@ -47,6 +50,7 @@ function initModels(sequelize) {
   var Orders = _Orders(sequelize, DataTypes);
   var PaymentStatus = _PaymentStatus(sequelize, DataTypes);
   var PhuongThucThanhToan = _PhuongThucThanhToan(sequelize, DataTypes);
+  var ShippingOrders = _ShippingOrders(sequelize, DataTypes);
   var Size = _Size(sequelize, DataTypes);
   var Staff = _Staff(sequelize, DataTypes);
   var TableFood = _TableFood(sequelize, DataTypes);
@@ -62,6 +66,10 @@ function initModels(sequelize) {
   Account.hasMany(Staff, { as: "Staffs", foreignKey: "AccountId"});
   Food.belongsTo(Category, { as: "Category", foreignKey: "CategoryId"});
   Category.hasMany(Food, { as: "Foods", foreignKey: "CategoryId"});
+  Orders.belongsTo(CuaHang, { as: "CuaHang", foreignKey: "CuaHangId"});
+  CuaHang.hasMany(Orders, { as: "Orders", foreignKey: "CuaHangId"});
+  FoodDimensions.belongsTo(Food, { as: "Food", foreignKey: "FoodId"});
+  Food.hasMany(FoodDimensions, { as: "FoodDimensions", foreignKey: "FoodId"});
   FoodIngredient.belongsTo(Food, { as: "Food", foreignKey: "FoodId"});
   Food.hasMany(FoodIngredient, { as: "FoodIngredients", foreignKey: "FoodId"});
   GioHang.belongsTo(Food, { as: "Food", foreignKey: "FoodId"});
@@ -86,6 +94,8 @@ function initModels(sequelize) {
   OrderStatus.hasMany(Orders, { as: "Orders", foreignKey: "StatusId"});
   OrderDetails.belongsTo(Orders, { as: "Order", foreignKey: "OrderId"});
   Orders.hasMany(OrderDetails, { as: "OrderDetails", foreignKey: "OrderId"});
+  ShippingOrders.belongsTo(Orders, { as: "Order", foreignKey: "OrderId"});
+  Orders.hasMany(ShippingOrders, { as: "ShippingOrders", foreignKey: "OrderId"});
   Orders.belongsTo(PaymentStatus, { as: "PaymentStatus", foreignKey: "PaymentStatusId"});
   PaymentStatus.hasMany(Orders, { as: "Orders", foreignKey: "PaymentStatusId"});
   Orders.belongsTo(PhuongThucThanhToan, { as: "PaymentMethod", foreignKey: "PaymentMethodId"});
@@ -124,6 +134,7 @@ function initModels(sequelize) {
     CuaHang,
     DeliveryAddresses,
     Food,
+    FoodDimensions,
     FoodIngredient,
     GioHang,
     GioHang_Topping,
@@ -137,6 +148,7 @@ function initModels(sequelize) {
     Orders,
     PaymentStatus,
     PhuongThucThanhToan,
+    ShippingOrders,
     Size,
     Staff,
     TableFood,

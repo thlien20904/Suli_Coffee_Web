@@ -10,7 +10,7 @@ module.exports = function(sequelize, DataTypes) {
     PaymentStatusName: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: "UQ__PaymentS__BBAC58DBE75C5EC7"
+      unique: "UQ__PaymentS__BBAC58DB02679C76"
     }
   }, {
     sequelize,
@@ -19,14 +19,14 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: false,
     indexes: [
       {
-        name: "PK__PaymentS__34F8AC3FAD8694AA",
+        name: "PK__PaymentS__34F8AC3FECBF1824",
         unique: true,
         fields: [
           { name: "PaymentStatusId" },
         ]
       },
       {
-        name: "UQ__PaymentS__BBAC58DBE75C5EC7",
+        name: "UQ__PaymentS__BBAC58DB02679C76",
         unique: true,
         fields: [
           { name: "PaymentStatusName" },

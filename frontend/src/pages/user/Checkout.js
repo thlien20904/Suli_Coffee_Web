@@ -1,7 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Row, Col, Alert, Spinner } from "react-bootstrap";
-import addresses from "../../data/addresses.json";
 import CheckoutForm from "./checkout/CheckoutForm";
 import OrderSummary from "./checkout/OrderSummary";
 
@@ -13,7 +12,6 @@ export default function Checkout() {
   const token = localStorage.getItem("token");
 
   const initialItems = location.state?.items || [];
-  const resumeOrderId = location.state?.orderId || null;
   const [itemsState, setItemsState] = useState(initialItems);
 
   const [user, setUser] = useState({
@@ -24,17 +22,8 @@ export default function Checkout() {
     phone: "",
     address: "",
   });
-  const [baseStreet, setBaseStreet] = useState("");
-  const [displayedStreet, setDisplayedStreet] = useState("");
-  const addressData = addresses || [];
-  const [selectedProvince, setSelectedProvince] = useState("");
-  const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [selectedWard, setSelectedWard] = useState("");
-  const composedAddress = `${baseStreet}${
-    selectedWard ? ", " + selectedWard : ""
-  }${selectedDistrict ? ", " + selectedDistrict : ""}${
-    selectedProvince ? ", " + selectedProvince : ""
-  }`;
+
+  const [userAddresses, setUserAddresses] = useState([]);
   const [payment, setPayment] = useState("COD");
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -42,18 +31,18 @@ export default function Checkout() {
   const [voucherCode, setVoucherCode] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
   const [userVouchers, setUserVouchers] = useState([]);
-  const shipping = 20000;
+  const [stores, setStores] = useState([]);
+  const [selectedCuaHangId, setSelectedCuaHangId] = useState("");
+  const [shipping, setShipping] = useState(10000);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  const [userCoordinates, setUserCoordinates] = useState(null); // ✅ Lưu tọa độ user
 
   const isFromCart = itemsState.some((item) => item.GioHangID);
   const isSubmitted = useRef(false);
-  const saveableStateRef = useRef();
-  const initialSnapshotRef = useRef(null);
-  const isDirtyRef = useRef(false);
-
-  // --- Thêm state cho thông báo thành công ---
   const [successMessage, setSuccessMessage] = useState("");
   const [progress, setProgress] = useState(100);
 
+  // API wrapper
   const apiFetch = useCallback(
     async (url, options = {}) => {
       const headers = {
@@ -62,7 +51,13 @@ export default function Checkout() {
       };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`${API}${url}`, { ...options, headers });
+      const fetchOptions = {
+        ...options,
+        headers,
+        credentials: "include",
+      };
+
+      const res = await fetch(`${API}${url}`, fetchOptions);
       if (res.status === 401) {
         localStorage.removeItem("token");
         navigate("/login");
@@ -71,7 +66,9 @@ export default function Checkout() {
 
       const contentType = res.headers.get("content-type");
       if (!contentType?.includes("application/json")) {
-        if (res.status === 200) return {};
+        if (res.status === 200) return { success: true, data: {} };
+        const text = await res.text();
+        console.error("Non-JSON response:", text);
         throw new Error("Server trả về không phải JSON.");
       }
 
@@ -82,29 +79,63 @@ export default function Checkout() {
     [token, navigate]
   );
 
-  // === useEffect load order, profile, vouchers ===
+  // ✅ Lấy vị trí người dùng khi vào trang (giống StoresUser)
   useEffect(() => {
-    if (!resumeOrderId || !token) return;
-    const loadOrder = async () => {
+    if (navigator.geolocation && !userCoordinates) {
+      console.log("🔍 Requesting user location...");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+          setUserCoordinates(coords);
+          console.log("✅ Got user location from browser:", coords);
+        },
+        (err) => {
+          console.warn("⚠️ Cannot get user location:", err.message);
+          console.log("Will use address-based coordinates instead");
+        }
+      );
+    }
+  }, []); // Chỉ chạy 1 lần khi mount
+
+  // ✅ Load stores - filter theo khoảng cách nếu có tọa độ user
+  useEffect(() => {
+    const fetchStores = async () => {
       try {
-        const res = await apiFetch(`/api/orders/${resumeOrderId}`);
-        if (res.success && res.data) {
-          setItemsState(res.data.items || []);
+        console.log("🔍 Fetching stores... userCoordinates:", userCoordinates);
+        let url = "/api/orders/stores"; // ✅ FIX: Đúng route
+        // Nếu có tọa độ user, thêm params để filter cửa hàng trong bán kính 15km
+        if (userCoordinates?.lat && userCoordinates?.lng) {
+          url = `/api/orders/stores?userLat=${userCoordinates.lat}&userLng=${userCoordinates.lng}&maxDistance=15`;
+          console.log("✅ Fetching stores within 15km of user location:", url);
+        } else {
+          console.log("⚠️ No user coordinates, fetching all stores");
+        }
+
+        console.log("📡 Calling API:", url);
+        const data = await apiFetch(url);
+        console.log("📦 API response:", data);
+
+        if (data.success) {
+          setStores(data.data || []);
+          console.log(`✅ Loaded ${data.data?.length || 0} stores`, data.data);
         }
       } catch (err) {
-        console.error("LOAD ORDER ERROR:", err);
+        console.error("LỖI LẤY CỬA HÀNG:", err);
       }
     };
-    loadOrder();
-  }, [resumeOrderId, apiFetch]);
+    fetchStores();
+  }, [apiFetch, userCoordinates]);
 
+  // Load user profile
   useEffect(() => {
     if (!token) {
       setError("Vui lòng đăng nhập để tiếp tục!");
       navigate("/login");
       return;
     }
-
     const fetchProfile = async () => {
       try {
         setLoading(true);
@@ -118,12 +149,7 @@ export default function Checkout() {
             phone: data.data.Phone || "",
             address: data.data.Address || "",
           });
-          setBaseStreet(data.data.Address || "");
-          setDisplayedStreet(data.data.Address || "");
-          setError("");
-        } else {
-          throw new Error("Không tìm thấy thông tin người dùng.");
-        }
+        } else throw new Error("Không tìm thấy thông tin người dùng.");
       } catch (err) {
         console.error("FETCH PROFILE ERR:", err);
         setError(err.message);
@@ -131,10 +157,27 @@ export default function Checkout() {
         setLoading(false);
       }
     };
-
     fetchProfile();
-  }, [token, navigate, apiFetch]);
+  }, [token, apiFetch, navigate]);
 
+  // Load userAddresses
+  useEffect(() => {
+    if (!user.id || !token) return;
+    const fetchUserAddresses = async () => {
+      try {
+        const res = await apiFetch(`/api/orders/addresses?userId=${user.id}`);
+        if (res.success) {
+          setUserAddresses(res.data || []);
+          console.log("✅ Loaded userAddresses:", res.data?.length || 0);
+        }
+      } catch (err) {
+        console.error("Lỗi lấy địa chỉ người dùng:", err);
+      }
+    };
+    fetchUserAddresses();
+  }, [user.id, apiFetch]);
+
+  // Load user vouchers
   useEffect(() => {
     const fetchUserVouchers = async () => {
       try {
@@ -150,6 +193,56 @@ export default function Checkout() {
     fetchUserVouchers();
   }, [apiFetch]);
 
+  // ✅ FIX: Load order details khi navigate với orderId (Tiếp tục thanh toán)
+  useEffect(() => {
+    const orderId = location.state?.orderId;
+    // Chỉ fetch khi có orderId và chưa có items
+    if (!orderId || initialItems.length > 0) return;
+
+    const fetchOrderForCheckout = async () => {
+      try {
+        setLoading(true);
+        console.log("📦 Fetching order for checkout:", orderId);
+        const res = await apiFetch(`/api/orders/${orderId}`);
+        if (res.success && res.data) {
+          // Map OrderDetails từ API về format itemsState
+          // ⚠️ LƯU Ý: detail.Price đã là unitPrice (bao gồm Food + Size + Topping)
+          // Nên set Size.ExtraPrice = 0 và Toppings.ToppingPrice = 0 để tránh tính double
+          const mapped = (res.data.OrderDetails || []).map((detail) => ({
+            FoodId: detail.FoodId,
+            FoodName: detail.FoodName,
+            ImageURL: detail.ImageURL,
+            Price: detail.Price || 0, // ✅ Đây là unitPrice đã tính sẵn
+            DiscountPrice: detail.Price || 0, // ✅ Dùng Price làm DiscountPrice
+            Size: detail.Size
+              ? {
+                  SizeId: detail.Size.SizeID,
+                  SizeName: detail.Size.SizeName,
+                  ExtraPrice: 0, // ✅ Set = 0 vì Price đã bao gồm
+                }
+              : null,
+            Toppings: (detail.Toppings || []).map((t) => ({
+              ToppingID: t.ToppingID, // ✅ Dùng ToppingID (chữ ID hoa) để đồng nhất
+              ToppingName: t.ToppingName,
+              ToppingPrice: 0, // ✅ Set = 0 vì Price đã bao gồm
+            })),
+            SoLuong: detail.Quantity || 1,
+          }));
+          setItemsState(mapped);
+          console.log("✅ Loaded order items for checkout:", mapped.length);
+        }
+      } catch (err) {
+        console.error("❌ Load order for checkout error:", err);
+        setError(err.message || "Không thể tải đơn hàng");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrderForCheckout();
+  }, [apiFetch, location.state, initialItems.length]);
+
+  // Calculate price (sync cho UI)
   const calculateItemPrice = useCallback((item) => {
     const base = item.DiscountPrice ?? item.Price ?? 0;
     const sizeExtra = item.Size?.ExtraPrice ?? 0;
@@ -165,29 +258,27 @@ export default function Checkout() {
     return sum + itemTotal;
   }, 0);
 
-  const totalAfterDiscount = subtotal + shipping - discountAmount;
+  const totalAfterDiscount =
+    (subtotal || 0) + (shipping || 0) - (discountAmount || 0);
 
+  // Apply voucher
   const handleApplyVoucher = async () => {
-    if (!voucherCode.trim()) {
-      setError("Vui lòng nhập mã khuyến mại.");
-      return;
-    }
+    if (!voucherCode.trim()) return setError("Vui lòng nhập mã khuyến mại.");
     try {
       setIsProcessing(true);
       setError("");
-
       const res = await apiFetch("/api/profile/apply", {
         method: "POST",
         body: JSON.stringify({ voucherCode, subtotal }),
       });
-
       if (res.success) {
         setDiscountAmount(res.discountAmount || 0);
-        alert(
+        setSuccessMessage(
           `Áp dụng voucher thành công! Giảm ${(
             res.discountAmount || 0
-          ).toLocaleString("vi-VN")} ₫`
+          ).toLocaleString("vi-VN")}₫`
         );
+        setTimeout(() => setSuccessMessage(""), 3000);
       } else {
         setDiscountAmount(0);
         throw new Error(res.message || "Voucher không hợp lệ hoặc hết hạn.");
@@ -201,13 +292,31 @@ export default function Checkout() {
     }
   };
 
-  const handlePlaceOrder = async () => {
+  // Handle place order
+  const handlePlaceOrder = async (orderData) => {
     if (isProcessing) return;
+    console.log("=== handlePlaceOrder ===");
+    console.log("Order data:", orderData);
+    console.log("User state:", user);
 
-    if (!user.fullName || !user.phone || !baseStreet) {
+    const {
+      newAddress,
+      paymentMethodId,
+      voucherCode: appliedVoucher,
+      cuaHangId,
+      orderItems,
+    } = orderData;
+
+    if (!user.fullName || !user.phone || !newAddress || !cuaHangId) {
       setError(
-        "Vui lòng điền đầy đủ Họ và tên, Số điện thoại và Địa chỉ giao hàng."
+        "Vui lòng điền đầy đủ Họ và tên, SĐT, Địa chỉ và chọn cửa hàng."
       );
+      console.error("Thiếu dữ liệu:", {
+        fullName: user.fullName,
+        phone: user.phone,
+        newAddress,
+        cuaHangId,
+      });
       return;
     }
 
@@ -215,76 +324,138 @@ export default function Checkout() {
       setIsProcessing(true);
       setError("");
 
-      const paymentMethodId = payment === "VNPAY" ? 1 : 2;
+      // Lưu new address nếu cần và lấy deliveryAddressId
+      let deliveryAddressId = null;
+      if (
+        newAddress &&
+        !userAddresses.some(
+          (addr) =>
+            addr.Address === newAddress.address && addr.Phone === user.phone
+        )
+      ) {
+        const addressToSave = {
+          ...newAddress,
+          receiverName: user.fullName,
+          phone: user.phone,
+          isDefault: newAddress.isDefault || false,
+        };
+        console.log("Saving new address:", addressToSave);
+        try {
+          const saveRes = await apiFetch("/api/orders/addresses/save", {
+            method: "POST",
+            body: JSON.stringify(addressToSave),
+          });
+          if (saveRes.success) {
+            console.log("💾 Address saved:", saveRes.addressId);
+            deliveryAddressId = saveRes.addressId;
+            const addrRes = await apiFetch(
+              `/api/orders/addresses?userId=${user.id}`
+            );
+            setUserAddresses(addrRes.data || []);
+          }
+        } catch (saveErr) {
+          console.error("Lưu address thất bại (không block):", saveErr);
+        }
+      }
 
-      const payload = {
-        newAddress: composedAddress,
-        paymentMethodId,
-        voucherCode: voucherCode.trim() || null,
-      };
+      // ✅ Build orderItems - logic đơn giản hơn
+      let finalOrderItems = [];
+      let finalSubtotal = 0;
 
       if (isFromCart) {
-        payload.selectedItems = itemsState.map((item) => item.GioHangID);
+        // ✅ FIX: Từ cart: Dùng itemsState (có GioHangID), không phải orderItems
+        finalOrderItems = itemsState
+          .filter((item) => item.GioHangID) // Đảm bảo có GioHangID
+          .map((item) => item.GioHangID);
+        finalSubtotal = subtotal;
+        console.log("📦 Cart items to order:", finalOrderItems);
       } else {
-        payload.orderItems = itemsState.map((item) => {
-          const unitPrice = calculateItemPrice(item);
+        // ✅ Không từ cart: Dùng itemsState (có đầy đủ Price/Size/Toppings)
+        finalOrderItems = itemsState.map((item) => {
+          const quantity = item.SoLuong || 1;
+          const itemPrice = calculateItemPrice(item);
+          const itemTotalPrice = itemPrice * quantity;
+
+          console.log(
+            `🔍 Item "${item.FoodName}": unitPrice=${itemPrice}, qty=${quantity}, total=${itemTotalPrice}`
+          );
+
+          if (itemTotalPrice <= 0) {
+            throw new Error(
+              `Sản phẩm "${item.FoodName}" có giá 0₫. Vui lòng kiểm tra lại!`
+            );
+          }
+
+          finalSubtotal += itemTotalPrice;
+
           return {
-            FoodId: item.FoodId || item.foodId,
-            SizeID: item.Size?.SizeID || null,
-            Quantity: item.SoLuong ?? 1,
-            TotalPrice: unitPrice * (item.SoLuong ?? 1),
-            ToppingIDs: (item.Toppings || []).map((t) => t.ToppingID),
+            FoodId: item.FoodId,
+            Quantity: quantity,
+            SizeId: item.Size?.SizeId || null,
+            // ✅ FIX: Dùng ToppingID (chữ ID hoa) thay vì ToppingId (chữ d thường)
+            // và filter ra null/undefined
+            ToppingIds: (item.Toppings || [])
+              .map((t) => t.ToppingID || t.ToppingId) // Support cả 2 format
+              .filter((id) => id != null), // Bỏ null và undefined
+            TotalPrice: itemTotalPrice,
           };
         });
       }
+
+      const finalTotal = finalSubtotal + shipping - discountAmount;
+
+      // ✅ FIX: Check if this is a pending order (from "Tiếp tục thanh toán")
+      const pendingOrderId = location.state?.orderId;
+
+      // Payload
+      const payload = {
+        newAddress,
+        deliveryAddressId,
+        paymentMethodId,
+        voucherCode: appliedVoucher?.trim() || null,
+        cuaHangId,
+        totalPrice: finalTotal, // Chính xác sau fetch
+        shippingFee: shipping,
+      };
+
+      if (pendingOrderId) {
+        // ✅ Nếu là pending order, truyền pendingOrderId thay vì items
+        payload.pendingOrderId = pendingOrderId;
+        console.log("✅ Using pending order:", pendingOrderId);
+      } else if (isFromCart) {
+        payload.selectedItems = finalOrderItems;
+      } else {
+        payload.orderItems = finalOrderItems;
+      }
+
+      console.log("Place order payload:", payload);
 
       const data = await apiFetch("/api/orders/place-order", {
         method: "POST",
         body: JSON.stringify(payload),
       });
 
-if (data.success && data.Code === 1 && data.Url) {
-  // Thanh toán VNPAY: chuyển hướng sang trang VNPAY
-  isSubmitted.current = true;
-  window.location.href = data.Url;
-  return;
-}
+      if (data.success && data.Code === 1 && data.Url) {
+        console.log("Redirecting to payment URL:", data.Url);
+        window.location.href = data.Url;
+        return;
+      }
 
-if (data.success) {
-  // COD hoặc VNPAY đã thanh toán xong (redirect về thành công)
-  isSubmitted.current = true;
-  localStorage.removeItem("pendingAttempt");
-
-  setSuccessMessage(`Đặt hàng thành công! Mã đơn: ${data.orderId}`);
-  setProgress(100);
-
-  // Thanh tiến trình chạy 2s
-  const interval = 20;
-  const totalSteps = 1000 / interval;
-  let step = 0;
-  const timer = setInterval(() => {
-    step++;
-    setProgress(100 - (step / totalSteps) * 100);
-    if (step >= totalSteps) clearInterval(timer);
-  }, interval);
-
-  // Ẩn thông báo sau 2s và điều hướng
-  setTimeout(() => {
-    setSuccessMessage("");
-    navigate("/successful", {
-      state: {
-        order: data.order || {
-          id: data.orderId,
-          totalPrice: totalAfterDiscount,
-          createdAt: new Date().toISOString(),
-        },
-      },
-    });
-  }, 2000);
-} else {
-  throw new Error(data.message || "Đặt hàng thất bại.");
-}
-
+      if (data.success) {
+        isSubmitted.current = true;
+        setSuccessMessage(`Đặt hàng thành công! Mã đơn: ${data.orderId}`);
+        setProgress(100);
+        setTimeout(() => {
+          setSuccessMessage("");
+          navigate("/successful", {
+            state: {
+              orderId: data.orderId,
+              totalPrice: finalTotal,
+              createdAt: new Date().toISOString(),
+            },
+          });
+        }, 2000);
+      } else throw new Error(data.message || "Đặt hàng thất bại.");
     } catch (err) {
       console.error("ORDER ERR:", err);
       setError(err.message);
@@ -293,25 +464,14 @@ if (data.success) {
     }
   };
 
-  useEffect(() => {
-    saveableStateRef.current = {
-      items: itemsState,
-      address: composedAddress,
-      paymentMethod: payment,
-      token: token,
-    };
-  }, [itemsState, composedAddress, payment, token]);
-
-  // --- Các useEffect khác vẫn giữ nguyên như bạn đã viết ---
-  // handleBeforeUnload, saveToDb, v.v.
-
-  // === RENDER ===
+  // Render (giữ nguyên)
   if (loading)
     return (
       <div className="text-center py-5">
         <Spinner animation="border" /> Đang tải thông tin cá nhân...
       </div>
     );
+
   if (error && !token)
     return (
       <Alert variant="danger" className="text-center py-5 container mt-5">
@@ -324,20 +484,19 @@ if (data.success) {
         </button>
       </Alert>
     );
+
   if (itemsState.length === 0)
     return (
       <Alert variant="info" className="text-center py-5 container mt-5">
-        Không có sản phẩm nào để thanh toán. Vui lòng quay lại giỏ hàng hoặc
-        trang sản phẩm.
+        Không có sản phẩm nào để thanh toán.
       </Alert>
     );
 
   return (
     <div
       className="checkout-container container py-5"
-      style={{ paddingTop: 100 }}
+      style={{ paddingTop: 80 }}
     >
-      {/* --- Thông báo thành công --- */}
       {successMessage && (
         <div className="success-banner">
           <span>{successMessage}</span>
@@ -348,37 +507,40 @@ if (data.success) {
         </div>
       )}
 
-      <h2 className="checkout-title mb-4 text-center">Thanh toán</h2>
+      <h2
+        className="checkout-title mb-4 text-center"
+        style={{ marginTop: "50px" }}
+      >
+        Thanh toán
+      </h2>
 
       <Row>
         <Col md={5}>
           <CheckoutForm
             user={user}
             setUser={setUser}
-            baseStreet={baseStreet}
-            setBaseStreet={setBaseStreet}
-            displayedStreet={displayedStreet}
-            selectedProvince={selectedProvince}
-            setSelectedProvince={setSelectedProvince}
-            selectedDistrict={selectedDistrict}
-            setSelectedDistrict={setSelectedDistrict}
-            selectedWard={selectedWard}
-            setSelectedWard={setSelectedWard}
-            addressData={addressData}
             voucherCode={voucherCode}
             setVoucherCode={setVoucherCode}
             userVouchers={userVouchers}
+            userAddresses={userAddresses}
+            setUserAddresses={setUserAddresses}
             payment={payment}
             setPayment={setPayment}
             error={error}
+            setError={setError}
             isProcessing={isProcessing}
             handleApplyVoucher={handleApplyVoucher}
             handlePlaceOrder={handlePlaceOrder}
-            isFromCart={isFromCart}
-            itemsState={itemsState}
-            setItemsState={setItemsState}
-            apiFetch={apiFetch}
-            calculateItemPrice={calculateItemPrice}
+            selectedCuaHangId={selectedCuaHangId}
+            setSelectedCuaHangId={setSelectedCuaHangId}
+            selectedItems={itemsState}
+            discountAmount={discountAmount}
+            totalAfterDiscount={totalAfterDiscount}
+            stores={stores}
+            setShipping={setShipping}
+            loadingShipping={loadingShipping}
+            setLoadingShipping={setLoadingShipping}
+            setUserCoordinates={setUserCoordinates}
           />
         </Col>
 
@@ -396,35 +558,30 @@ if (data.success) {
         </Col>
       </Row>
 
-      {/* CSS */}
       <style>{`
-  /* --- Thông báo thành công --- */
-.success-banner {
-  position: fixed;
-  top: 60px; /* không đè header */
-  left: 0;
-  width: 100%;
-  background: linear-gradient(90deg, #dae4daff, #81c784); /* gradient nhẹ đẹp mắt */
-  color: #fff;
-  text-align: center;
-  padding: 10px 0;
-  font-weight: 600;
-  font-size: 15px;
-  z-index: 9999;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  border-radius: 0 0 8px 8px; /* bo góc dưới */
-}
-
-/* Thanh tiến trình tinh tế */
-.success-progress {
-  height: 4px;
-  background: linear-gradient(90deg, #ebf3ebff, #c8e6c9);
-  width: 100%;
-  transition: width 2s linear;
-  border-radius: 0 0 8px 8px;
-}
-
-`}</style>
+        .success-banner {
+          position: fixed;
+          top: 60px;
+          left: 0;
+          width: 100%;
+          background: linear-gradient(90deg, #dae4daff, #81c784);
+          color: #fff;
+          text-align: center;
+          padding: 10px 0;
+          font-weight: 600;
+          font-size: 15px;
+          z-index: 9999;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+          border-radius: 0 0 8px 8px;
+        }
+        .success-progress {
+          height: 4px;
+          background: linear-gradient(90deg, #ebf3ebff, #c8e6c9);
+          width: 100%;
+          transition: width 2s linear;
+          border-radius: 0 0 8px 8px;
+        }
+      `}</style>
     </div>
   );
 }

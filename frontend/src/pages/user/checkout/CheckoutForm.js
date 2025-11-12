@@ -4,212 +4,221 @@ import {
   Alert,
   InputGroup,
   Dropdown,
-  OverlayTrigger,
-  Tooltip,
   Spinner,
 } from "react-bootstrap";
 import { FaTicketAlt } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import AddressSection from "./AddressSection";
 
 export default function CheckoutForm({
   user,
   setUser,
-  baseStreet,
-  setBaseStreet,
-  displayedStreet,
-  selectedProvince,
-  setSelectedProvince,
-  selectedDistrict,
-  setSelectedDistrict,
-  selectedWard,
-  setSelectedWard,
-  addressData,
   voucherCode,
   setVoucherCode,
-  userVouchers,
+  userVouchers = [],
+  userAddresses = [],
+  setUserAddresses,
   payment,
   setPayment,
   error,
+  setError,
   isProcessing,
   handleApplyVoucher,
   handlePlaceOrder,
+  selectedCuaHangId,
+  setSelectedCuaHangId,
+  selectedItems,
+  userLocation,
+  setUserLocation,
+  setShipping, // Nhận từ Checkout.js
+  loadingShipping,
+  setLoadingShipping,
+  setUserCoordinates, // ✅ Nhận từ Checkout.js
+  stores = [], // ✅ Nhận stores từ Checkout.js thay vì fetch riêng
 }) {
+  const [fullAddress, setFullAddress] = useState(null);
+  const [shippingFee, setShippingFee] = useState(10000); // Mặc định 10,000 VNĐ
+
+  // Cập nhật phí ship cho Checkout.js
+  const handleShippingFee = (fee) => {
+    setShippingFee(fee);
+    setShipping(fee); // Cập nhật state shipping trong Checkout.js
+  };
+
+  // ✅ REMOVED: useEffect fetch stores - giờ nhận stores từ props thay vì fetch riêng
+
+  const onPlaceOrder = () => {
+    // Validate input
+    if (!user.fullName || !user.phone || !fullAddress || !selectedCuaHangId) {
+      setError(
+        "Vui lòng điền đầy đủ Họ và tên, SĐT, Địa chỉ và chọn cửa hàng!"
+      );
+      console.error("Thiếu dữ liệu:", {
+        fullName: user.fullName,
+        phone: user.phone,
+        fullAddress,
+        cuaHangId: selectedCuaHangId,
+      });
+      return;
+    }
+
+    if (!user.phone.match(/^[0][0-9]{9}$/)) {
+      setError("Số điện thoại phải có 10 số, bắt đầu bằng 0.");
+      return;
+    }
+
+    if (
+      !fullAddress.address ||
+      !fullAddress.provinceId ||
+      !fullAddress.districtId ||
+      !fullAddress.wardCode
+    ) {
+      setError("Địa chỉ không đầy đủ, vui lòng chọn tỉnh, quận, phường!");
+      console.error("fullAddress không hợp lệ:", fullAddress);
+      return;
+    }
+
+    // Chuẩn bị payload gửi backend
+    const payload = {
+      newAddress: {
+        address: fullAddress.address,
+        province: fullAddress.province || "",
+        provinceId: fullAddress.provinceId,
+        district: fullAddress.district || "",
+        districtId: fullAddress.districtId,
+        ward: fullAddress.ward || "",
+        wardCode: fullAddress.wardCode,
+        receiverName: user.fullName,
+        phone: user.phone,
+      },
+      paymentMethodId: payment === "COD" ? 2 : 1,
+      voucherCode: voucherCode?.trim() || null,
+      cuaHangId: selectedCuaHangId,
+      orderItems: selectedItems.map((item) => ({
+        FoodId: item.FoodId,
+        Quantity: item.SoLuong || 1,
+        SizeId: item.Size?.SizeId || null,
+        ToppingIds: item.Toppings?.map((t) => t.ToppingId) || [],
+        TotalPrice:
+          ((item.DiscountPrice || item.Price || 0) +
+            (item.Size?.ExtraPrice || 0) +
+            (item.Toppings?.reduce(
+              (sum, t) => sum + (t.ToppingPrice || 0),
+              0
+            ) || 0)) *
+          (item.SoLuong || 1),
+      })),
+    };
+
+    console.log("Place order payload:", payload);
+    handlePlaceOrder(payload);
+  };
+
   return (
     <div className="checkout-box p-3 shadow-sm mb-4">
       <h4 className="mb-3">Thông tin người dùng & Thanh toán</h4>
-
       {error && <Alert variant="danger">{error}</Alert>}
 
+      {/* User info */}
       <Form.Group className="mb-3">
-        <Form.Label>Username</Form.Label>
-        <Form.Control type="text" value={user.username} disabled />
-      </Form.Group>
-
-      <Form.Group className="mb-3">
-        <Form.Label>Họ và tên</Form.Label>
+        <Form.Label>
+          Họ và tên <span className="text-danger">*</span>
+        </Form.Label>
         <Form.Control
           type="text"
           value={user.fullName}
           onChange={(e) => setUser({ ...user, fullName: e.target.value })}
+          required
+          placeholder="Nhập họ và tên"
         />
       </Form.Group>
-
       <Form.Group className="mb-3">
-        <Form.Label>Email</Form.Label>
-        <Form.Control type="email" value={user.email} disabled />
-      </Form.Group>
-
-      <Form.Group className="mb-3">
-        <Form.Label>Số điện thoại</Form.Label>
+        <Form.Label>
+          Số điện thoại <span className="text-danger">*</span>
+        </Form.Label>
         <Form.Control
-          type="text"
+          type="tel"
           value={user.phone}
           onChange={(e) => setUser({ ...user, phone: e.target.value })}
+          required
+          placeholder="Nhập số điện thoại (VD: 0123456789)"
         />
       </Form.Group>
 
+      {/* Store */}
       <Form.Group className="mb-3">
-        <Form.Label>Địa chỉ giao hàng</Form.Label>
-        <Form.Control
-          type="text"
-          value={displayedStreet}
-          onChange={(e) => {
-            const val = e.target.value;
-            setBaseStreet(val);
-            setDisplayedStreet(
-              `${val}${selectedWard ? ", " + selectedWard : ""}${
-                selectedDistrict ? ", " + selectedDistrict : ""
-              }${selectedProvince ? ", " + selectedProvince : ""}`
-            );
-          }}
-          placeholder="Số nhà, tên đường..."
-        />
-
-        <div className="d-flex gap-2 mt-2">
-          <Form.Select
-            value={selectedProvince}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedProvince(val);
-              setSelectedDistrict("");
-              setSelectedWard("");
-              setDisplayedStreet(
-                `${baseStreet}${val ? (baseStreet ? ", " : "") + val : ""}`
-              );
-            }}
-          >
-            <option value="">Chọn tỉnh/thành</option>
-            {addressData.map((p) => (
-              <option key={p.province} value={p.province}>
-                {p.province}
-              </option>
-            ))}
-          </Form.Select>
-
-          <Form.Select
-            value={selectedDistrict}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedDistrict(val);
-              setSelectedWard("");
-              setDisplayedStreet(
-                `${baseStreet}${val ? (baseStreet ? ", " : "") + val : ""}${
-                  selectedProvince ? ", " + selectedProvince : ""
-                }`
-              );
-            }}
-          >
-            <option value="">Chọn quận/huyện</option>
-            {(
-              addressData.find((a) => a.province === selectedProvince)
-                ?.districts || []
-            ).map((d) => (
-              <option key={d.name} value={d.name}>
-                {d.name}
-              </option>
-            ))}
-          </Form.Select>
-
-          <Form.Select
-            value={selectedWard}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedWard(val);
-              setDisplayedStreet(
-                `${baseStreet}${val ? (baseStreet ? ", " : "") + val : ""}${
-                  selectedDistrict ? ", " + selectedDistrict : ""
-                }${selectedProvince ? ", " + selectedProvince : ""}`
-              );
-            }}
-          >
-            <option value="">Chọn phường/xã</option>
-            {(
-              (
-                addressData.find((a) => a.province === selectedProvince)
-                  ?.districts || []
-              ).find((d) => d.name === selectedDistrict)?.wards || []
-            ).map((w) => (
-              <option key={w} value={w}>
-                {w}
-              </option>
-            ))}
-          </Form.Select>
-        </div>
+        <Form.Label>
+          Chọn cửa hàng <span className="text-danger">*</span>
+        </Form.Label>
+        <Form.Select
+          value={selectedCuaHangId || ""}
+          onChange={(e) => setSelectedCuaHangId(e.target.value)}
+          required
+        >
+          <option value="">
+            {stores.length === 0 ? "Đang tải cửa hàng..." : "Chọn cửa hàng"}
+          </option>
+          {stores.map((s) => (
+            <option key={s.CuaHangId} value={s.CuaHangId}>
+              {s.CuaHangName || s.TenCuaHang} - {s.Address}{" "}
+              {s.distance ? `(${s.distance} km)` : ""}
+            </option>
+          ))}
+        </Form.Select>
       </Form.Group>
 
-      <Form.Group
-        className="mb-3"
-        style={{ position: "relative", zIndex: 2000 }}
-      >
+      {/* Address */}
+      <AddressSection
+        user={user}
+        setUser={setUser}
+        userAddresses={userAddresses}
+        setUserAddresses={setUserAddresses}
+        setError={setError}
+        selectedCuaHangId={selectedCuaHangId}
+        selectedItems={selectedItems}
+        setFullAddress={setFullAddress}
+        setShippingFee={handleShippingFee}
+        setLoadingShipping={setLoadingShipping}
+        setUserCoordinates={setUserCoordinates}
+      />
+
+      {/* Voucher */}
+      <Form.Group className="mb-3">
         <Form.Label>Mã khuyến mại</Form.Label>
         <InputGroup>
-          <OverlayTrigger
-            placement="top"
-            overlay={<Tooltip>Nhập mã voucher hoặc chọn từ danh sách</Tooltip>}
-          >
-            <InputGroup.Text style={{ fontSize: "18px" }}>
-              <FaTicketAlt />
-            </InputGroup.Text>
-          </OverlayTrigger>
-
+          <InputGroup.Text>
+            <FaTicketAlt />
+          </InputGroup.Text>
           <Form.Control
             type="text"
             value={voucherCode}
             onChange={(e) => setVoucherCode(e.target.value)}
-            placeholder="Nhập mã voucher"
+            placeholder="Nhập mã khuyến mại"
           />
-
           <Dropdown>
             <Dropdown.Toggle split variant="outline-primary" />
-            <Dropdown.Menu
-              style={{
-                maxHeight: "250px",
-                overflow: "hidden",
-                whiteSpace: "normal",
-                wordBreak: "break-word",
-              }}
-            >
-              {userVouchers.length > 0 ? (
+            <Dropdown.Menu>
+              {userVouchers.length ? (
                 userVouchers.map((v) => (
                   <Dropdown.Item
                     key={v.UserVoucherId}
                     onClick={() => setVoucherCode(v.Code)}
-                    style={{ whiteSpace: "normal", padding: "10px 15px" }}
                   >
                     {v.Code}{" "}
                     {v.DiscountAmount
-                      ? `- ${v.DiscountAmount.toLocaleString("vi-VN")}₫`
-                      : ""}
+                      ? `- ${v.DiscountAmount.toLocaleString()}₫`
+                      : ""}{" "}
                     {v.DiscountPercentage ? `- ${v.DiscountPercentage}%` : ""}
                   </Dropdown.Item>
                 ))
               ) : (
-                <Dropdown.Item disabled style={{ padding: "10px 15px" }}>
+                <Dropdown.Item disabled>
                   Không có voucher khả dụng
                 </Dropdown.Item>
               )}
             </Dropdown.Menu>
           </Dropdown>
-
           <Button
             variant="success"
             onClick={handleApplyVoucher}
@@ -220,42 +229,51 @@ export default function CheckoutForm({
         </InputGroup>
       </Form.Group>
 
+      {/* Payment */}
       <Form.Group className="mb-3">
-        <Form.Label>Phương thức thanh toán</Form.Label>
+        <Form.Label>
+          Phương thức thanh toán <span className="text-danger">*</span>
+        </Form.Label>
         <Form.Select
           value={payment}
           onChange={(e) => setPayment(e.target.value)}
+          required
         >
           <option value="COD">Thanh toán khi nhận hàng (COD)</option>
           <option value="VNPAY">VNPAY</option>
         </Form.Select>
       </Form.Group>
 
+      {/* Place Order */}
       <div className="mt-4 text-end">
         <Button
           variant="success"
-          className="place-order-btn"
-          onClick={handlePlaceOrder}
+          onClick={onPlaceOrder}
           disabled={
-            isProcessing || !baseStreet || !user.fullName || !user.phone
+            isProcessing ||
+            loadingShipping ||
+            !fullAddress ||
+            !user.fullName ||
+            !user.phone ||
+            !selectedCuaHangId
           }
         >
           {isProcessing ? (
-            <>
-              <Spinner
-                as="span"
-                animation="border"
-                size="sm"
-                role="status"
-                aria-hidden="true"
-              />{" "}
-              Đang xử lý...
-            </>
+            <Spinner as="span" animation="border" size="sm" />
+          ) : loadingShipping ? (
+            "Đang tính phí ship..."
           ) : (
-            "Xác nhận đặt hàng"
+            `Xác nhận đặt hàng (Ship: ${shippingFee.toLocaleString()}₫)`
           )}
         </Button>
       </div>
+
+      <style>{`
+        .checkout-box {
+          background: #fff;
+          border-radius: 8px;
+        }
+      `}</style>
     </div>
   );
 }

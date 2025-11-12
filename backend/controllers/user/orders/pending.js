@@ -111,17 +111,34 @@ exports.getPendingOrders = async (req, res) => {
       Status: order.Status?.StatusName || "Chưa hoàn tất",
       PaymentStatus: order.PaymentStatus?.PaymentStatusName || null,
       StatusId: order.StatusId,
-      OrderDetails: order.OrderDetails.map((d) => ({
-        FoodName: d.Food.FoodName,
-        SizeName: d.Size?.SizeName || null,
-        Quantity: d.Quantity,
-        Price: parseFloat(d.Price),
-        Toppings: d.OrderDetails_Toppings.map((ot) => ({
-          ToppingID: ot.Topping.ToppingID,
-          ToppingName: ot.Topping.ToppingName,
-          ToppingPrice: parseFloat(ot.Topping.ToppingPrice),
-        })),
-      })),
+      OrderDetails: order.OrderDetails.map((d) => {
+        const toppingSum = (d.OrderDetails_Toppings || []).reduce(
+          (s, ot) => s + (parseFloat(ot.Topping?.ToppingPrice) || 0),
+          0
+        );
+        const foodBase =
+          d.Food && (d.Food.DiscountPrice || d.Food.Price)
+            ? parseFloat(d.Food.DiscountPrice || d.Food.Price)
+            : 0;
+        const sizeExtra = d.Size ? parseFloat(d.Size.ExtraPrice || 0) : 0;
+        const computedUnit = foodBase + sizeExtra + toppingSum;
+        const unitPrice =
+          d.Price !== undefined && d.Price !== null && Number(d.Price) > 0
+            ? parseFloat(d.Price)
+            : computedUnit;
+
+        return {
+          FoodName: d.Food.FoodName,
+          SizeName: d.Size?.SizeName || null,
+          Quantity: d.Quantity,
+          Price: unitPrice,
+          Toppings: d.OrderDetails_Toppings.map((ot) => ({
+            ToppingID: ot.Topping.ToppingID,
+            ToppingName: ot.Topping.ToppingName,
+            ToppingPrice: parseFloat(ot.Topping.ToppingPrice),
+          })),
+        };
+      }),
     }));
 
     res.json({
@@ -270,6 +287,18 @@ exports.getOrderById = async (req, res) => {
             },
           ],
         },
+        // Include payment/status information so frontend can display total & status
+        {
+          model: PhuongThucThanhToan,
+          as: "PaymentMethod",
+          attributes: ["TenPhuongThuc"],
+        },
+        { model: OrderStatus, as: "Status", attributes: ["StatusName"] },
+        {
+          model: PaymentStatus,
+          as: "PaymentStatus",
+          attributes: ["PaymentStatusName", "PaymentStatusId"],
+        },
       ],
     });
     if (!order)
@@ -280,8 +309,8 @@ exports.getOrderById = async (req, res) => {
       FoodId: d.Food.FoodId,
       FoodName: d.Food.FoodName,
       ImageURL: d.Food.ImageURL,
-      Price: d.Price,
-      DiscountPrice: d.Food.DiscountPrice || null,
+      Price: parseFloat(d.Price),
+      DiscountPrice: d.Food.DiscountPrice ? parseFloat(d.Food.DiscountPrice) : null,
       Size: d.Size
         ? {
             SizeID: d.Size.SizeID,
@@ -292,11 +321,25 @@ exports.getOrderById = async (req, res) => {
       Toppings: d.OrderDetails_Toppings.map((ot) => ({
         ToppingID: ot.Topping.ToppingID,
         ToppingName: ot.Topping.ToppingName,
-        ToppingPrice: ot.Topping.ToppingPrice,
+        ToppingPrice: parseFloat(ot.Topping.ToppingPrice),
       })),
-      SoLuong: d.Quantity,
+      Quantity: d.Quantity,
+      TotalPrice: parseFloat(d.Price) * (d.Quantity || 1),
     }));
-    res.json({ success: true, data: { orderId: order.OrderId, items } });
+
+    // Build a full order object consistent with other APIs (OrderId, OrderDate, TotalAmount, Status, PaymentStatus, DeliveryAddress, OrderDetails, ...)
+    const formattedOrder = {
+      OrderId: order.OrderId,
+      OrderDate: order.OrderDate,
+      TotalAmount: parseFloat(order.TotalAmount) || items.reduce((s, it) => s + (it.TotalPrice || 0), 0),
+      Status: order.Status?.StatusName || null,
+      PaymentStatus: order.PaymentStatus?.PaymentStatusName || null,
+      PaymentMethod: order.PaymentMethod?.TenPhuongThuc || null,
+      DeliveryAddress: order.DeliveryAddress || null,
+      OrderDetails: items,
+    };
+
+    res.json({ success: true, data: formattedOrder });
   } catch (err) {
     console.error("GET ORDER BY ID ERROR:", err);
     res

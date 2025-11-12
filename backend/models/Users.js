@@ -10,12 +10,12 @@ module.exports = function(sequelize, DataTypes) {
     Username: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: "UQ__Users__536C85E4AF3D9624"
+      unique: "UQ__Users__536C85E4412E6226"
     },
     Email: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: "UQ__Users__A9D1053475E321F3"
+      unique: "UQ__Users__A9D10534A73D252A"
     },
     PasswordHash: {
       type: DataTypes.STRING(255),
@@ -31,6 +31,18 @@ module.exports = function(sequelize, DataTypes) {
     },
     Address: {
       type: DataTypes.STRING(255),
+      allowNull: true
+    },
+    Province: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    District: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    Ward: {
+      type: DataTypes.STRING(100),
       allowNull: true
     },
     Role: {
@@ -70,21 +82,21 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: false,
     indexes: [
       {
-        name: "PK__Users__3214EC0793F1B442",
+        name: "PK__Users__3214EC07FCD6D6BA",
         unique: true,
         fields: [
           { name: "Id" },
         ]
       },
       {
-        name: "UQ__Users__536C85E4AF3D9624",
+        name: "UQ__Users__536C85E4412E6226",
         unique: true,
         fields: [
           { name: "Username" },
         ]
       },
       {
-        name: "UQ__Users__A9D1053475E321F3",
+        name: "UQ__Users__A9D10534A73D252A",
         unique: true,
         fields: [
           { name: "Email" },

@@ -1,0 +1,439 @@
+const { sequelize, models, Op } = require("./config");
+const jwt = require("jsonwebtoken");
+const { calculateShippingFee } = require("./prepareOrder");
+const { VNPay, ProductCode, VnpLocale, dateFormat } = require("vnpay");
+
+const {
+  GioHang,
+  Users,
+  Food,
+  Size,
+  GioHang_Topping,
+  Topping,
+  Orders,
+  OrderDetails,
+  OrderDetails_Topping,
+  Vouchers,
+  UserVouchers,
+  PhuongThucThanhToan,
+  OrderStatus,
+  PaymentStatus,
+  CuaHang,
+  DeliveryAddresses,
+} = models;
+
+// Cấu hình VNPay
+const vnpay = new VNPay({
+  tmnCode: process.env.VNPAY_TMN_CODE || "4Z1QBO45",
+  secureSecret:
+    process.env.VNPAY_SECURE_SECRET || "XQBSS9ZDQJCIKDZZ108ABV5RP6B32FOH",
+  vnpayHost: "https://sandbox.vnpayment.vn",
+  testMode: true,
+  hashAlgorithm: "SHA512",
+});
+
+// ===================== AUTH =====================
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader?.split(" ")[1];
+  if (!token)
+    return res
+      .status(401)
+      .json({ success: false, message: "Bạn chưa đăng nhập!" });
+
+  jwt.verify(
+    token,
+    process.env.JWT_SECRET || "abc123xyz789longrandomstringhere",
+    (err, user) => {
+      if (err)
+        return res
+          .status(403)
+          .json({ success: false, message: "Token không hợp lệ!" });
+      req.user = user;
+      next();
+    }
+  );
+};
+
+// ===================== PLACE ORDER =====================
+const placeOrder = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const {
+      selectedItems,
+      orderItems,
+      pendingOrderId,
+      paymentMethodId,
+      voucherCode,
+      cuaHangId,
+      deliveryAddressId,
+      newAddress,
+      totalPrice,
+      shippingFee,
+    } = req.body;
+
+    console.log("Place order payload:", JSON.stringify(req.body, null, 2));
+
+    if (!cuaHangId) {
+      throw new Error("Thiếu thông tin cửa hàng!");
+    }
+
+    // Kiểm tra bảng CuaHang
+    const cuaHang = await CuaHang.findByPk(parseInt(cuaHangId), {
+      attributes: [
+        "CuaHangId",
+        "CuaHangName",
+        "Address",
+        "Latitude",
+        "Longitude",
+      ],
+    });
+    if (!cuaHang) {
+      console.error(`Không tìm thấy cửa hàng với CuaHangId: ${cuaHangId}`);
+      throw new Error("Không tìm thấy cửa hàng!");
+    }
+    console.log("CuaHang found:", cuaHang.toJSON());
+
+    let deliveryAddress;
+    if (deliveryAddressId) {
+      deliveryAddress = await DeliveryAddresses.findOne({
+        where: {
+          DeliveryAddressId: parseInt(deliveryAddressId),
+          UserId: req.user.id,
+        },
+      });
+      if (!deliveryAddress)
+        throw new Error("Không tìm thấy địa chỉ giao hàng!");
+    } else if (newAddress) {
+      const {
+        address,
+        province,
+        provinceId,
+        district,
+        districtId,
+        ward,
+        wardCode,
+        receiverName,
+        phone,
+      } = newAddress;
+      if (!address || !provinceId || !districtId || !wardCode) {
+        throw new Error("Thông tin địa chỉ mới không đầy đủ!");
+      }
+
+      deliveryAddress = await DeliveryAddresses.findOne({
+        where: {
+          UserId: req.user.id,
+          Address: address,
+          ProvinceId: parseInt(provinceId),
+          DistrictId: parseInt(districtId),
+          WardCode: String(wardCode),
+        },
+      });
+
+      if (!deliveryAddress) {
+        deliveryAddress = await DeliveryAddresses.create(
+          {
+            UserId: req.user.id,
+            Address: address,
+            Province: province || "",
+            ProvinceId: parseInt(provinceId),
+            District: district || "",
+            DistrictId: parseInt(districtId),
+            Ward: ward || "",
+            WardCode: String(wardCode),
+            ReceiverName: receiverName || "",
+            Phone: phone || "",
+            IsDefault: newAddress.isDefault || false,
+          },
+          { transaction }
+        );
+      }
+    } else {
+      throw new Error("Thiếu thông tin địa chỉ giao hàng!");
+    }
+    console.log("DeliveryAddress:", deliveryAddress.toJSON());
+
+    let itemsToOrder = [];
+    if (pendingOrderId) {
+      const pendingOrder = await Orders.findOne({
+        where: { OrderId: pendingOrderId, UserId: req.user.id },
+        include: [
+          {
+            model: OrderDetails,
+            as: "OrderDetails",
+            include: [
+              { model: Food, as: "Food" },
+              { model: Size, as: "Size" },
+              {
+                model: OrderDetails_Topping,
+                as: "OrderDetails_Toppings",
+                include: [{ model: Topping, as: "Topping" }],
+              },
+            ],
+          },
+        ],
+        transaction,
+      });
+      if (!pendingOrder) throw new Error("Không tìm thấy đơn lưu tạm!");
+      itemsToOrder = pendingOrder.OrderDetails.map((d) => ({
+        FoodId: d.Food.FoodId,
+        SizeId: d.Size?.SizeID || null,
+        Quantity: d.Quantity,
+        TotalPrice: d.Price * d.Quantity,
+        ToppingIds: d.OrderDetails_Toppings.map((ot) => ot.Topping.ToppingID),
+      }));
+      await Orders.destroy({ where: { OrderId: pendingOrderId }, transaction });
+    } else if (selectedItems?.length) {
+      const cartItems = await GioHang.findAll({
+        where: { Id: req.user.id, GioHangID: { [Op.in]: selectedItems } },
+        include: [{ model: GioHang_Topping, as: "GioHang_Toppings" }],
+        transaction,
+      });
+      if (!cartItems.length)
+        throw new Error("Không tìm thấy sản phẩm trong giỏ!");
+      itemsToOrder = cartItems.map((item) => ({
+        FoodId: item.FoodId,
+        SizeId: item.SizeID,
+        Quantity: item.SoLuong,
+        TotalPrice: parseFloat(item.TotalPrice),
+        GioHangID: item.GioHangID,
+        ToppingIds: item.GioHang_Toppings.map((t) => t.ToppingID),
+      }));
+    } else if (orderItems?.length) {
+      // Đã loại bỏ kiểm tra TotalPrice <= 0 để tránh throw error thừa (theo yêu cầu)
+      itemsToOrder = orderItems.map((item) => {
+        return {
+          FoodId: item.FoodId,
+          SizeId: item.SizeId,
+          Quantity: item.Quantity,
+          TotalPrice: parseFloat(item.TotalPrice),
+          ToppingIds: item.ToppingIds || [],
+        };
+      });
+    } else throw new Error("Không có sản phẩm để đặt!");
+    console.log("Items to order:", JSON.stringify(itemsToOrder, null, 2));
+
+    for (const item of itemsToOrder) {
+      const food = await Food.findByPk(item.FoodId, {
+        attributes: ["FoodId", "FoodName", "Stock"],
+      });
+      if (!food) {
+        throw new Error(`Sản phẩm FoodId ${item.FoodId} không tồn tại!`);
+      }
+      if (food.Stock < item.Quantity) {
+        throw new Error(`Sản phẩm ${food.FoodName} không đủ số lượng!`);
+      }
+    }
+
+    let finalShippingFee = shippingFee || 10000;
+    if (!shippingFee && deliveryAddress.Latitude && deliveryAddress.Longitude) {
+      const shippingFeeRes = await calculateShippingFee({
+        body: {
+          cuaHangId: cuaHang.CuaHangId,
+          userLat: deliveryAddress.Latitude,
+          userLng: deliveryAddress.Longitude,
+          items: itemsToOrder,
+        },
+      });
+      finalShippingFee = shippingFeeRes.success
+        ? shippingFeeRes.shippingFee
+        : 10000;
+    }
+    console.log("Final shipping fee:", finalShippingFee);
+
+    const subtotal = itemsToOrder.reduce((sum, i) => sum + i.TotalPrice, 0);
+    let discountAmount = 0;
+    let appliedVoucherId = null;
+
+    if (voucherCode) {
+      const userVoucher = await UserVouchers.findOne({
+        where: { UserId: req.user.id, IsUsed: false },
+        include: [
+          {
+            model: Vouchers,
+            as: "Voucher",
+            where: { Code: voucherCode, IsActive: true },
+          },
+        ],
+        transaction,
+      });
+      if (userVoucher) {
+        const voucher = userVoucher.Voucher;
+        appliedVoucherId = voucher.VoucherId;
+        discountAmount = voucher.DiscountAmount
+          ? parseFloat(voucher.DiscountAmount)
+          : (subtotal * parseFloat(voucher.DiscountPercentage || 0)) / 100;
+        await userVoucher.update({ IsUsed: true }, { transaction });
+      }
+    }
+    console.log("Subtotal:", subtotal, "Discount:", discountAmount);
+
+    const totalAmount =
+      totalPrice || subtotal + finalShippingFee - discountAmount;
+    console.log("Total amount:", totalAmount);
+
+    // Validate totalAmount
+    if (totalAmount <= 0) {
+      throw new Error("Tổng tiền đơn hàng phải lớn hơn 0!");
+    }
+
+    const orderStatus = await OrderStatus.findOne({
+      where: { StatusName: "Đặt hàng thành công" },
+    });
+    if (!orderStatus) throw new Error("Không tìm thấy trạng thái đơn hàng!");
+    const [pendingPayment] = await PaymentStatus.findOrCreate({
+      where: { PaymentStatusName: "Chờ thanh toán" },
+      defaults: { PaymentStatusName: "Chờ thanh toán" },
+      transaction,
+    });
+
+    const order = await Orders.create(
+      {
+        UserId: req.user.id,
+        CuaHangId: cuaHangId,
+        OrderDate: new Date(),
+        TotalAmount: totalAmount,
+        PaymentMethodId: paymentMethodId,
+        StatusId: orderStatus.StatusId,
+        PaymentStatusId: pendingPayment.PaymentStatusId,
+        DeliveryAddress: deliveryAddress.Address,
+        VoucherId: appliedVoucherId,
+      },
+      { transaction }
+    );
+    console.log("Order created:", order.OrderId);
+
+    for (const item of itemsToOrder) {
+      let unitPrice = (item.TotalPrice || 0) / (item.Quantity || 1);
+
+      // ✅ FIX: Nếu unitPrice = 0, tính lại từ Food/Size/Topping trong DB
+      if (!unitPrice || unitPrice <= 0) {
+        try {
+          const food = await Food.findByPk(item.FoodId, {
+            attributes: ["Price", "DiscountPrice"],
+            transaction,
+          });
+          const size = item.SizeId
+            ? await Size.findByPk(item.SizeId, {
+                attributes: ["ExtraPrice"],
+                transaction,
+              })
+            : null;
+
+          let toppingSum = 0;
+          if (item.ToppingIds && item.ToppingIds.length > 0) {
+            const toppings = await Topping.findAll({
+              where: { ToppingID: item.ToppingIds },
+              attributes: ["ToppingPrice"],
+              transaction,
+            });
+            toppingSum = toppings.reduce(
+              (sum, t) => sum + parseFloat(t.ToppingPrice || 0),
+              0
+            );
+          }
+
+          const basePrice = food
+            ? parseFloat(food.DiscountPrice || food.Price || 0)
+            : 0;
+          const sizeExtra = size ? parseFloat(size.ExtraPrice || 0) : 0;
+          unitPrice = basePrice + sizeExtra + toppingSum;
+
+          console.log(
+            `✅ Computed unitPrice for FoodId ${item.FoodId}: ${unitPrice}`
+          );
+        } catch (err) {
+          console.warn(
+            `⚠️ Failed to compute unitPrice for item ${item.FoodId}:`,
+            err.message
+          );
+          unitPrice = 0;
+        }
+      }
+
+      // Log diagnostic info
+      console.log(
+        "Creating OrderDetail - item:",
+        JSON.stringify(item),
+        "unitPrice:",
+        unitPrice
+      );
+
+      const orderDetail = await OrderDetails.create(
+        {
+          OrderId: order.OrderId,
+          FoodId: item.FoodId,
+          SizeId: item.SizeId,
+          Quantity: item.Quantity,
+          Price: unitPrice,
+        },
+        { transaction }
+      );
+      for (const toppingId of item.ToppingIds) {
+        await OrderDetails_Topping.create(
+          { OrderDetailId: orderDetail.OrderDetailId, ToppingId: toppingId },
+          { transaction }
+        );
+      }
+    }
+
+    if (parseInt(paymentMethodId) === 2 && selectedItems?.length) {
+      await GioHang.destroy({
+        where: { GioHangID: { [Op.in]: selectedItems } },
+        transaction,
+      });
+    }
+
+    if (parseInt(paymentMethodId) === 1) {
+      const ipAddr =
+        req.headers["x-forwarded-for"] ||
+        req.connection.remoteAddress ||
+        req.socket.remoteAddress ||
+        "127.0.0.1";
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const paymentUrl = await vnpay.buildPaymentUrl({
+        vnp_Amount: totalAmount,
+        vnp_IpAddr: ipAddr,
+        vnp_TxnRef: order.OrderId.toString(),
+        vnp_OrderInfo: `Thanh toán đơn hàng ${order.OrderId}`,
+        vnp_OrderType: ProductCode.Other,
+        vnp_ReturnUrl:
+          process.env.VNPAY_RETURN_URL || "http://localhost:3000/vnpay-return", // ✅ FIX: Đổi từ /successful sang /vnpay-return để hit callback đúng
+        vnp_Locale: VnpLocale.VN,
+        vnp_CreateDate: dateFormat(new Date()),
+        vnp_ExpireDate: dateFormat(tomorrow),
+      });
+      console.log("VNPay URL:", paymentUrl);
+
+      await transaction.commit();
+      return res.json({
+        success: true,
+        message: "Đặt hàng thành công, chuyển hướng đến VNPay!",
+        orderId: order.OrderId,
+        Code: paymentMethodId,
+        Url: paymentUrl,
+      });
+    }
+
+    await transaction.commit();
+    res.json({
+      success: true,
+      message: "Đặt hàng thành công!",
+      orderId: order.OrderId,
+      subtotal,
+      shippingFee: finalShippingFee,
+      totalAmount,
+    });
+  } catch (err) {
+    await transaction.rollback();
+    console.error("PLACE ORDER ERROR:", err.message, err.stack);
+    res.status(400).json({
+      success: false,
+      message: err.message || "Có lỗi xảy ra khi đặt hàng!",
+      detail: err.sql ? `SQL Error: ${err.sql}` : err.message,
+    });
+  }
+};
+
+module.exports = { authenticateToken, placeOrder };

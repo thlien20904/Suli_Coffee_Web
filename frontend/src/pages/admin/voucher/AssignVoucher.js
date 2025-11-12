@@ -42,6 +42,16 @@ const AssignVoucher = () => {
     fetchAll();
   }, []);
 
+  // ================== REFRESH ASSIGNED ==================
+  const refreshAssigned = async () => {
+    try {
+      const assignedRes = await axios.get(API_ASSIGNED);
+      setAssigned(assignedRes.data.data || []);
+    } catch (err) {
+      console.error("❌ Lỗi refresh assigned:", err);
+    }
+  };
+
   // ================== CẤP CHO 1 USER ==================
   const handleAssign = async () => {
     if (!selectedUser || !selectedVoucher) {
@@ -65,9 +75,7 @@ const AssignVoucher = () => {
         });
         setSelectedUser("");
         setSelectedVoucher("");
-
-        const assignedRes = await axios.get(API_ASSIGNED);
-        setAssigned(assignedRes.data.data || []);
+        await refreshAssigned(); // ← THÊM: Refresh bảng realtime
       } else {
         Swal.fire(
           "Thông báo",
@@ -77,7 +85,36 @@ const AssignVoucher = () => {
       }
     } catch (err) {
       console.error("❌ Lỗi khi cấp voucher:", err);
-      Swal.fire("Lỗi", "Không thể kết nối đến server", "error");
+
+      // ← FIX CHÍNH: Xử lý lỗi backend (400: "Người dùng đã nhận", etc.)
+      if (err.response) {
+        const { status, data } = err.response;
+        const errorMsg = data?.message || "Lỗi không xác định từ server";
+
+        if (status === 400) {
+          // Lỗi validate/duplicate (ví dụ: "Người dùng đã nhận voucher này")
+          Swal.fire("Thông báo", errorMsg, "info"); // Dùng "info" cho non-error, hoặc "warning"
+        } else if (status === 401) {
+          Swal.fire(
+            "Cảnh báo",
+            "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+            "warning"
+          );
+        } else if (status >= 500) {
+          Swal.fire("Lỗi", "Lỗi server. Vui lòng thử lại sau!", "error");
+        } else {
+          Swal.fire("Lỗi", errorMsg, "error");
+        }
+      } else if (err.request) {
+        // Network error
+        Swal.fire(
+          "Lỗi",
+          "Không thể kết nối đến server! Kiểm tra mạng.",
+          "error"
+        );
+      } else {
+        Swal.fire("Lỗi", "Đã xảy ra lỗi không mong muốn!", "error");
+      }
     }
   };
 
@@ -106,19 +143,45 @@ const AssignVoucher = () => {
             Swal.fire({
               icon: "success",
               title: "🎁 Thành công!",
-              text: res.data.message,
+              text: res.data.message, // Ví dụ: "Đã gửi cho 3 users"
               showConfirmButton: false,
               timer: 1500,
             });
-
-            const assignedRes = await axios.get(API_ASSIGNED);
-            setAssigned(assignedRes.data.data || []);
+            setSelectedVoucher(""); // Reset select
+            await refreshAssigned(); // ← THÊM: Refresh bảng
           } else {
             Swal.fire("Thông báo", res.data.message || "Không thể cấp", "info");
           }
         } catch (err) {
           console.error("❌ Lỗi khi cấp tất cả:", err);
-          Swal.fire("Lỗi", "Không thể kết nối đến server", "error");
+
+          // ← FIX CHÍNH: Tương tự handleAssign
+          if (err.response) {
+            const { status, data } = err.response;
+            const errorMsg = data?.message || "Lỗi không xác định từ server";
+
+            if (status === 400) {
+              Swal.fire("Thông báo", errorMsg, "info");
+            } else if (status === 401) {
+              Swal.fire(
+                "Cảnh báo",
+                "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+                "warning"
+              );
+            } else if (status >= 500) {
+              Swal.fire("Lỗi", "Lỗi server. Vui lòng thử lại sau!", "error");
+            } else {
+              Swal.fire("Lỗi", errorMsg, "error");
+            }
+          } else if (err.request) {
+            Swal.fire(
+              "Lỗi",
+              "Không thể kết nối đến server! Kiểm tra mạng.",
+              "error"
+            );
+          } else {
+            Swal.fire("Lỗi", "Đã xảy ra lỗi không mong muốn!", "error");
+          }
         }
       }
     });

@@ -10,7 +10,7 @@ module.exports = function(sequelize, DataTypes) {
     StatusName: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: "UQ__OrderSta__05E7698A2EBCE035"
+      unique: "UQ__OrderSta__05E7698A0F60EE2E"
     }
   }, {
     sequelize,
@@ -19,14 +19,14 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: false,
     indexes: [
       {
-        name: "PK__OrderSta__C8EE2063C403F67A",
+        name: "PK__OrderSta__C8EE2063EAB9BEEC",
         unique: true,
         fields: [
           { name: "StatusId" },
         ]
       },
       {
-        name: "UQ__OrderSta__05E7698A2EBCE035",
+        name: "UQ__OrderSta__05E7698A0F60EE2E",
         unique: true,
         fields: [
           { name: "StatusName" },

@@ -1,4 +1,5 @@
 import { Table, Form, Button, Spinner } from "react-bootstrap";
+import { useState, useCallback } from "react";
 
 export default function OrderSummary({
   itemsState,
@@ -10,6 +11,39 @@ export default function OrderSummary({
   totalAfterDiscount,
   apiFetch,
 }) {
+  const [loadingItemIndex, setLoadingItemIndex] = useState(null);
+
+  // ✅ Move async logic ra ngoài onClick để giảm "click handler took Xms" warning
+  const handleLoadProductOptions = useCallback(
+    async (index, foodId) => {
+      setLoadingItemIndex(index);
+      try {
+        const res = await apiFetch(`/api/products/${foodId}`);
+        if (res.success && res.data) {
+          const productData = res.data.data || res.data;
+          setItemsState((prev) =>
+            prev.map((it, i) =>
+              i === index
+                ? {
+                    ...it,
+                    AvailableSizes: productData.sizes || [],
+                    AvailableToppings: productData.toppings || [],
+                    editing: true,
+                  }
+                : it
+            )
+          );
+        }
+      } catch (err) {
+        console.error("Load product options error:", err);
+        alert("Không thể tải tuỳ chọn sản phẩm");
+      } finally {
+        setLoadingItemIndex(null);
+      }
+    },
+    [apiFetch, setItemsState]
+  );
+
   return (
     <div className="checkout-box p-3 shadow-sm">
       <h4 className="mb-3">Đơn hàng</h4>
@@ -60,32 +94,27 @@ export default function OrderSummary({
                         <Button
                           size="sm"
                           variant="outline-primary"
-                          onClick={async () => {
-                            try {
-                              const res = await apiFetch(
-                                `/api/products/${item.FoodId}`
-                              );
-                              if (res.success && res.data) {
-                                setItemsState((prev) =>
-                                  prev.map((it, i) =>
-                                    i === index
-                                      ? {
-                                          ...it,
-                                          AvailableSizes: res.data.sizes || [],
-                                          AvailableToppings:
-                                            res.data.toppings || [],
-                                          editing: true,
-                                        }
-                                      : it
-                                  )
-                                );
-                              }
-                            } catch (err) {
-                              alert("Không thể tải tuỳ chọn sản phẩm");
-                            }
+                          disabled={loadingItemIndex === index}
+                          onClick={() => {
+                            // ✅ Call async function ngay lập tức để giảm warning
+                            handleLoadProductOptions(index, item.FoodId);
                           }}
                         >
-                          Chỉnh sửa tuỳ chọn
+                          {loadingItemIndex === index ? (
+                            <>
+                              <Spinner
+                                as="span"
+                                animation="border"
+                                size="sm"
+                                role="status"
+                                aria-hidden="true"
+                                className="me-1"
+                              />
+                              Đang tải...
+                            </>
+                          ) : (
+                            "Chỉnh sửa tuỳ chọn"
+                          )}
                         </Button>
                       ) : (
                         <div>

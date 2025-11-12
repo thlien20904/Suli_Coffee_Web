@@ -45,9 +45,10 @@ exports.getAssignedVouchers = async (req, res) => {
 };
 
 // =========================
-// 📌 CẤP VOUCHER CHO USER (chỉ tạo Notification)
+// 📌 CẤP VOUCHER CHO USER (TẠO USERVOUCHERS NGAY + NOTIFICATION)
 // =========================
 exports.assignVoucherToUser = async (req, res) => {
+  const t = await sequelize.transaction(); // ← THÊM: Transaction cho safety
   try {
     const { UserId, VoucherId } = req.body;
     if (!UserId || !VoucherId)
@@ -55,36 +56,67 @@ exports.assignVoucherToUser = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Thiếu UserId hoặc VoucherId" });
 
-    // Kiểm tra voucher đã có trong UserVouchers chưa (để không gửi nhiều lần)
-    const exists = await UserVouchers.findOne({ where: { UserId, VoucherId } });
+    // Kiểm tra voucher đã có trong UserVouchers chưa (để không cấp nhiều lần)
+    const exists = await UserVouchers.findOne({
+      where: { UserId, VoucherId },
+      transaction: t,
+    });
     if (exists)
       return res.json({
         success: false,
-        message: "Người dùng đã nhận voucher này",
+        message: "Người dùng đã được cấp voucher này rồi!", // ← UPDATE: Message rõ hơn
       });
 
-    // Tạo Notification nhắc user nhận voucher
-    const notification = Notifications.build({
-      UserId,
-      Title: "🎁 Voucher mới dành cho bạn!",
-      Message: "Admin đã gửi voucher mới. Nhấn nhận để sử dụng.",
-      IsRead: false,
-    });
-    await notification.save({
-      fields: ["UserId", "Title", "Message", "IsRead"],
-    });
+    // Kiểm tra user và voucher tồn tại
+    const user = await Users.findByPk(UserId, { transaction: t });
+    const voucher = await Vouchers.findByPk(VoucherId, { transaction: t });
+    if (!user || !voucher || !voucher.IsActive)
+      return res
+        .status(400)
+        .json({ success: false, message: "User hoặc voucher không hợp lệ" });
 
-    res.json({ success: true, message: "Đã gửi thông báo voucher cho user!" });
+    const now = new Date(); // ← THÊM: Ngày cấp ngay
+
+    // Tạo UserVouchers NGAY (để hiện bảng)
+    await UserVouchers.create(
+      {
+        UserId,
+        VoucherId,
+        ReceivedDate: now,
+        // Có thể thêm Status: 'pending' nếu cần user confirm sau
+      },
+      { transaction: t }
+    );
+
+    // Tạo Notification nhắc user sử dụng voucher
+    const notification = await Notifications.create(
+      {
+        UserId,
+        Title: "🎁 Voucher mới đã được cấp cho bạn!",
+        Message: `Bạn đã nhận voucher ${voucher.Code}. Sử dụng ngay trong đơn hàng!`,
+        IsRead: false,
+      },
+      { transaction: t }
+    );
+
+    await t.commit(); // ← COMMIT
+
+    res.json({
+      success: true,
+      message: "Đã cấp voucher thành công cho user! (Họ sẽ nhận thông báo)", // ← UPDATE: Message rõ
+    });
   } catch (err) {
+    await t.rollback(); // ← ROLLBACK nếu lỗi
     console.error("❌ Lỗi cấp voucher:", err);
     res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
 
 // =========================
-// 📌 CẤP VOUCHER CHO TẤT CẢ USER (chỉ tạo Notification)
+// 📌 CẤP VOUCHER CHO TẤT CẢ USER (TẠO USERVOUCHERS NGAY + NOTIFICATION)
 // =========================
 exports.assignVoucherToAllUsers = async (req, res) => {
+  const t = await sequelize.transaction(); // ← THÊM: Transaction outer
   try {
     const { VoucherId } = req.body;
     if (!VoucherId)
@@ -92,37 +124,63 @@ exports.assignVoucherToAllUsers = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Thiếu VoucherId" });
 
+    const voucher = await Vouchers.findByPk(VoucherId, { transaction: t });
+    if (!voucher || !voucher.IsActive)
+      return res
+        .status(400)
+        .json({ success: false, message: "Voucher không hợp lệ" });
+
     const users = await Users.findAll({
       where: { Role: { [Op.ne]: "admin" } },
+      transaction: t,
     });
 
+    const now = new Date();
     let count = 0;
+
+    // Bulk tạo để nhanh (nếu Sequelize hỗ trợ, hoặc loop với transaction)
+    const newUserVouchers = [];
+    const newNotifications = [];
+
     for (const user of users) {
-      // Kiểm tra user đã có Notification hoặc UserVouchers chưa
+      // Kiểm tra user đã có UserVouchers chưa
       const exists = await UserVouchers.findOne({
         where: { UserId: user.Id, VoucherId },
+        transaction: t,
       });
 
       if (!exists) {
-        // Tạo Notification nhắc user nhận voucher
-        const notification = Notifications.build({
+        // Thêm vào bulk
+        newUserVouchers.push({
           UserId: user.Id,
-          Title: "🎁 Voucher mới dành cho bạn!",
-          Message: "Admin vừa gửi voucher mới. Nhấn nhận để sử dụng.",
-          IsRead: false,
+          VoucherId,
+          ReceivedDate: now,
         });
-        await notification.save({
-          fields: ["UserId", "Title", "Message", "IsRead"],
+
+        newNotifications.push({
+          UserId: user.Id,
+          Title: "🎁 Voucher mới đã được cấp cho bạn!",
+          Message: `Bạn đã nhận voucher ${voucher.Code}. Sử dụng ngay trong đơn hàng!`,
+          IsRead: false,
         });
         count++;
       }
     }
 
+    // Bulk create (nhanh hơn loop await)
+    if (newUserVouchers.length > 0) {
+      await UserVouchers.bulkCreate(newUserVouchers, { transaction: t });
+      await Notifications.bulkCreate(newNotifications, { transaction: t });
+    }
+
+    await t.commit();
+
     res.json({
       success: true,
-      message: `Đã gửi thông báo voucher cho ${count} người dùng!`,
+      message: `Đã cấp voucher thành công cho ${count} người dùng! (Họ sẽ nhận thông báo)`,
     });
   } catch (err) {
+    await t.rollback();
     console.error("❌ Lỗi cấp voucher cho tất cả user:", err);
     res.status(500).json({ success: false, message: "Lỗi server" });
   }

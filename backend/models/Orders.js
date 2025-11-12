@@ -15,6 +15,14 @@ module.exports = function(sequelize, DataTypes) {
         key: 'Id'
       }
     },
+    CuaHangId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'CuaHang',
+        key: 'CuaHangId'
+      }
+    },
     OrderDate: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -52,6 +60,26 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING(255),
       allowNull: true
     },
+    Province: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    District: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    Ward: {
+      type: DataTypes.STRING(100),
+      allowNull: true
+    },
+    Phone: {
+      type: DataTypes.STRING(20),
+      allowNull: true
+    },
+    Note: {
+      type: DataTypes.STRING(255),
+      allowNull: true
+    },
     VoucherId: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -59,6 +87,10 @@ module.exports = function(sequelize, DataTypes) {
         model: 'Vouchers',
         key: 'VoucherId'
       }
+    },
+    ClientOrderCode: {
+      type: DataTypes.STRING(50),
+      allowNull: true
     }
   }, {
     sequelize,
@@ -67,7 +99,7 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: false,
     indexes: [
       {
-        name: "PK__Orders__C3905BCF630B9BC0",
+        name: "PK__Orders__C3905BCFA37E59B0",
         unique: true,
         fields: [
           { name: "OrderId" },

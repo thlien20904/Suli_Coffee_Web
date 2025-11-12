@@ -39,6 +39,18 @@ export default function VnpayReturn() {
         );
 
         if (response.data.success) {
+          // Nếu backend trả về luôn chi tiết đơn ở data, chuyển tiếp về trang Successful để hiển thị giống nhau
+          if (response.data.data) {
+            // Điều hướng sang trang Successful, truyền order trong state
+            navigate("/successful", {
+              state: {
+                order: response.data.data,
+                fromVnpay: true,
+                orderId: response.data.orderId,
+              },
+            });
+            return;
+          }
           setResult(response.data);
         } else {
           setError(response.data.message || "Thanh toán thất bại.");

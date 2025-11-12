@@ -1,19 +1,11 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
-  return sequelize.define('GioHang', {
-    GioHangID: {
+  return sequelize.define('FoodDimensions', {
+    DimensionId: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
       primaryKey: true
-    },
-    Id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'Users',
-        key: 'Id'
-      }
     },
     FoodId: {
       type: DataTypes.INTEGER,
@@ -23,34 +15,42 @@ module.exports = function(sequelize, DataTypes) {
         key: 'FoodId'
       }
     },
-    SoLuong: {
+    Length: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: 1
+      defaultValue: 10
     },
-    SizeID: {
+    Width: {
       type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'Size',
-        key: 'SizeID'
-      }
+      allowNull: false,
+      defaultValue: 10
     },
-    TotalPrice: {
-      type: DataTypes.DECIMAL(18,3),
-      allowNull: false
+    Height: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 15
+    },
+    Weight: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 300
+    },
+    CreatedDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: Sequelize.Sequelize.fn('getdate')
     }
   }, {
     sequelize,
-    tableName: 'GioHang',
+    tableName: 'FoodDimensions',
     schema: 'dbo',
     timestamps: false,
     indexes: [
       {
-        name: "PK__GioHang__4242280D045C4E00",
+        name: "PK__FoodDime__1F7D4F118B2820F5",
         unique: true,
         fields: [
-          { name: "GioHangID" },
+          { name: "DimensionId" },
         ]
       },
     ]

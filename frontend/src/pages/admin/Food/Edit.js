@@ -206,11 +206,44 @@ const EditFood = () => {
           timer: 1000,
         }).then(() => window.history.back());
       } else {
+        // Xử lý response không success (status 200 nhưng data.success=false, hiếm xảy ra)
         Swal.fire("", res.data.message || "Không thể cập nhật món ăn", "error");
       }
     } catch (err) {
       console.error("❌ Lỗi cập nhật món ăn:", err);
-      Swal.fire("", "Không thể kết nối server!", "error");
+
+      // ← FIX CHÍNH: Xử lý lỗi từ backend (400, 401, etc.) – Tương tự AddFood
+      if (err.response) {
+        const { status, data } = err.response;
+        const errorMsg = data?.message || "Lỗi không xác định từ server";
+
+        if (status === 400) {
+          // Lỗi validation/duplicate từ backend (ví dụ: tên trùng)
+          Swal.fire("", errorMsg, "error");
+
+          // Bonus: Set error cho field cụ thể nếu backend chỉ rõ (ví dụ: nếu message chứa "Tên món ăn")
+          if (errorMsg.includes("Tên món ăn")) {
+            setErrors((prev) => ({ ...prev, FoodName: errorMsg }));
+          }
+        } else if (status === 401) {
+          Swal.fire(
+            "",
+            "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!",
+            "warning"
+          );
+          // Có thể redirect login: window.location.href = "/login";
+        } else if (status >= 500) {
+          Swal.fire("", "Lỗi server. Vui lòng thử lại sau!", "error");
+        } else {
+          Swal.fire("", errorMsg, "error");
+        }
+      } else if (err.request) {
+        // Không kết nối được server (network error)
+        Swal.fire("", "Không thể kết nối server! Kiểm tra mạng.", "error");
+      } else {
+        // Lỗi khác (config axios)
+        Swal.fire("", "Đã xảy ra lỗi không mong muốn!", "error");
+      }
     }
   };
 

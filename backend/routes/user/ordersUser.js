@@ -1,38 +1,88 @@
+// backend/routes/user/ordersUser.js
 const express = require("express");
 const router = express.Router();
+
+// Chỉ import 1 lần toàn bộ controller
 const ordersUserController = require("../../controllers/user/ordersUserController");
 
-// ✅ IMPORT HÀM MỚI
-const {
-  autoCancelPendingOrders,
-} = require("../../controllers/user/ordersUserController");
+// ===== Auto cancel pending orders mỗi 1 phút =====
+if (typeof ordersUserController.autoCancelPendingOrders === "function") {
+  setInterval(ordersUserController.autoCancelPendingOrders, 60 * 1000);
+}
 
-// ✅ import middleware xác thực
-const {
-  authenticateToken,
-} = require("../../controllers/user/ordersUserController");
+// ===== ROUTES =====
 
-// ✅ CHẠY HÀM TỰ ĐỘNG HỦY MỖI PHÚT
-setInterval(autoCancelPendingOrders, 60 * 1000); // 60 * 1000ms = 1 phút
+// --- Store ---
+router.get(
+  "/stores",
+  ordersUserController.authenticateToken,
+  ordersUserController.getStores
+);
 
-// ✅ Gắn middleware vào các route cần đăng nhập
-router.post("/prepare", authenticateToken, ordersUserController.prepareOrder);
-router.post("/place-order", authenticateToken, ordersUserController.placeOrder);
+// --- User Addresses ---
+router.get(
+  "/addresses",
+  ordersUserController.authenticateToken,
+  ordersUserController.getUserAddresses
+);
+router.post(
+  "/addresses/save",
+  ordersUserController.authenticateToken,
+  ordersUserController.saveUserAddress
+);
+
+router.post(
+  "/shipping/calculate",
+  ordersUserController.authenticateToken,
+  ordersUserController.calculateShippingFee
+);
+
+// --- Geocode Address ---
+router.post(
+  "/geocode",
+  ordersUserController.authenticateToken,
+  ordersUserController.geocodeAddress
+);
+
+// --- Prepare & Place & Save Pending Orders ---
+router.post(
+  "/prepare",
+  ordersUserController.authenticateToken,
+  ordersUserController.prepareOrder
+);
+router.post(
+  "/place-order",
+  ordersUserController.authenticateToken,
+  ordersUserController.placeOrder
+);
 router.post(
   "/save-pending",
-  authenticateToken,
+  ordersUserController.authenticateToken,
   ordersUserController.savePending
 );
 
+// --- Pending Orders ---
 router.get(
   "/pending",
-  authenticateToken,
+  ordersUserController.authenticateToken,
   ordersUserController.getPendingOrders
 );
 
-// VNPay callback không cần token - đặt trước route ":orderId" để tránh bị coi là param
+// --- Re-order ---
+router.post(
+  "/reorder/:orderId",
+  ordersUserController.authenticateToken,
+  ordersUserController.reOrder
+);
+
+// --- VNPay callback (không cần token) ---
 router.get("/vnpay-return", ordersUserController.vnpayReturn);
 
-router.get("/:orderId", authenticateToken, ordersUserController.getOrderById);
+// --- Get single order by ID ---
+router.get(
+  "/:orderId",
+  ordersUserController.authenticateToken,
+  ordersUserController.getOrderById
+);
 
 module.exports = router;

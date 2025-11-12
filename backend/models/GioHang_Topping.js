@@ -30,7 +30,7 @@ module.exports = function(sequelize, DataTypes) {
     timestamps: false,
     indexes: [
       {
-        name: "PK__GioHang___0A7C5B6D6AEFAB1B",
+        name: "PK__GioHang___0A7C5B6DD4A9BA27",
         unique: true,
         fields: [
           { name: "GioHangToppingID" },
