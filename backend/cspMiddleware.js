@@ -8,6 +8,8 @@ const express = require("express");
 const {
   saveViolation,
   loadViolations,
+  savePass,
+  loadPasses,
   mergeDataFile,
 } = require("./utils/logger");
 
@@ -28,10 +30,13 @@ function createCSPMiddleware(frontendBuildPath, options = {}) {
   router.use(express.json());
   router.use(express.urlencoded({ extended: true }));
 
-  // Load/merge logs
+  // Load/merge logs from files
   mergeDataFile();
   let cspViolations = loadViolations();
-  let cspPasses = [];
+  let cspPasses = loadPasses();
+  console.log(
+    `📦 Loaded ${cspViolations.length} violations, ${cspPasses.length} passes from disk`
+  );
 
   const generateNonce = () => crypto.randomBytes(16).toString("base64");
 
@@ -108,6 +113,40 @@ function createCSPMiddleware(frontendBuildPath, options = {}) {
     });
   });
 
+  // 🧪 CSP Test Suite - Test inline scripts với nonce/hash
+  router.get("/csp-test", (req, res) => {
+    const nonce = generateNonce();
+    const scriptHash = process.env.HASH_CSP; // Load từ .env nếu có
+
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'nonce-${nonce}' ${
+        scriptHash ? `'${scriptHash}'` : ""
+      }`,
+      "style-src 'self' 'unsafe-inline'",
+      "object-src 'none'",
+      "base-uri 'none'",
+      "frame-ancestors 'none'",
+      "upgrade-insecure-requests",
+      `report-uri ${HOST}/csp-report`,
+    ].join("; ");
+
+    res.setHeader("Content-Security-Policy", csp);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    console.log(
+      "🧪 CSP Test Suite - Nonce:",
+      nonce,
+      "Hash:",
+      scriptHash || "not configured"
+    );
+
+    const testPath = path.join(PUBLIC_PATH, "csp_test.html");
+    fs.readFile(testPath, "utf8", (err, html) => {
+      if (err) return res.status(500).send("Server error");
+      res.send(html.replace(/{{NONCE}}/g, nonce));
+    });
+  });
+
   /* ---------------- CSP Reporting ---------------- */
   router.post(
     "/csp-report",
@@ -130,6 +169,10 @@ function createCSPMiddleware(frontendBuildPath, options = {}) {
           reportObj.timestamp = new Date().toLocaleString("vi-VN");
           reportObj.status = "fail"; // Mark as violation
           cspViolations.push(reportObj);
+          // Limit memory to 1000 entries (keep latest)
+          if (cspViolations.length > 1000) {
+            cspViolations.shift();
+          }
           saveViolation(reportObj);
           if (io) io.emit("newViolation", reportObj);
           console.log(
@@ -159,6 +202,11 @@ function createCSPMiddleware(frontendBuildPath, options = {}) {
         status: "pass",
       };
       cspPasses.push(passLog);
+      // Limit memory to 1000 entries
+      if (cspPasses.length > 1000) {
+        cspPasses.shift();
+      }
+      savePass(passLog);
       console.log("✅ Script pass:", page);
       if (io) io.emit("scriptPass", passLog);
     } catch (err) {
@@ -166,6 +214,18 @@ function createCSPMiddleware(frontendBuildPath, options = {}) {
     }
     res.status(204).end();
   });
+
+  /* ---------------- Socket.IO initial data emit ---------------- */
+  if (io) {
+    io.on("connection", (socket) => {
+      console.log("🔌 Client connected, sending initial logs...");
+      // Send all historical data to new client
+      socket.emit("initLogs", {
+        violations: cspViolations,
+        passes: cspPasses,
+      });
+    });
+  }
 
   /* ---------------- Dashboard / API ---------------- */
   // Real-time dashboard routes
@@ -221,8 +281,8 @@ function createCSPMiddleware(frontendBuildPath, options = {}) {
 
       const csp = [
         "default-src 'self'",
-       // `script-src 'self' 'nonce-${nonce}'`,
-       `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'unsafe-eval'`,
+        // `script-src 'self' 'nonce-${nonce}'`,
+        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'unsafe-eval'`,
 
         "style-src 'self' https: 'unsafe-inline'", // ✅ Cho phép inline styles
         "img-src * data: blob:", // cho phép ảnh backend + blob/data

@@ -11,6 +11,8 @@ const AssignVoucher = () => {
   const [selectedUser, setSelectedUser] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState("");
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const API_USER = "http://localhost:5000/api/admin/users";
   const API_VOUCHER = "http://localhost:5000/api/admin/voucher";
@@ -242,54 +244,105 @@ const AssignVoucher = () => {
       {assigned.length === 0 ? (
         <p className="no-data">Chưa có voucher nào được cấp.</p>
       ) : (
-        <div className="table-wrapper">
-          <table className="assign-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Người Dùng</th>
-                <th>Voucher</th>
-                <th>Mô tả</th>
-                <th>Ngày cấp</th>
-                <th>Hết hạn</th>
-                <th>Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assigned.map((item, index) => (
-                <tr key={item.UserVoucherId || item.id || index}>
-                  <td>{item.UserVoucherId || item.id || index + 1}</td>
-                  <td>{item.User?.FullName || "N/A"}</td>
-                  <td>{item.Voucher?.Code || "N/A"}</td>
-                  <td>{item.Voucher?.Description || "N/A"}</td>
-                  <td>
-                    {new Date(item.ReceivedDate).toLocaleDateString("vi-VN")}
-                  </td>
-                  <td>
-                    {item.Voucher?.ExpiryDate
-                      ? new Date(item.Voucher.ExpiryDate).toLocaleDateString(
-                          "vi-VN"
-                        )
-                      : "—"}
-                  </td>
-                  <td>
-                    <span
-                      className={
-                        new Date(item.Voucher?.ExpiryDate) < new Date()
-                          ? "status expired"
-                          : "status active"
-                      }
-                    >
-                      {new Date(item.Voucher?.ExpiryDate) < new Date()
-                        ? "Hết hạn"
-                        : "Còn hiệu lực"}
-                    </span>
-                  </td>
+        <>
+          <div className="table-wrapper">
+            <table className="assign-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Người Dùng</th>
+                  <th>Voucher</th>
+                  <th>Mô tả</th>
+                  <th>Ngày cấp</th>
+                  <th>Hết hạn</th>
+                  <th>Trạng thái</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {assigned
+                  .slice(
+                    (currentPage - 1) * itemsPerPage,
+                    currentPage * itemsPerPage
+                  )
+                  .map((item, index) => (
+                    <tr key={item.UserVoucherId || item.id || index}>
+                      <td>
+                        {item.UserVoucherId ||
+                          item.id ||
+                          (currentPage - 1) * itemsPerPage + index + 1}
+                      </td>
+                      <td>{item.User?.FullName || "N/A"}</td>
+                      <td>{item.Voucher?.Code || "N/A"}</td>
+                      <td>{item.Voucher?.Description || "N/A"}</td>
+                      <td>
+                        {new Date(item.ReceivedDate).toLocaleDateString(
+                          "vi-VN"
+                        )}
+                      </td>
+                      <td>
+                        {item.Voucher?.ExpiryDate
+                          ? new Date(
+                              item.Voucher.ExpiryDate
+                            ).toLocaleDateString("vi-VN")
+                          : "—"}
+                      </td>
+                      <td>
+                        <span
+                          className={
+                            new Date(item.Voucher?.ExpiryDate) < new Date()
+                              ? "status expired"
+                              : "status active"
+                          }
+                        >
+                          {new Date(item.Voucher?.ExpiryDate) < new Date()
+                            ? "Hết hạn"
+                            : "Còn hiệu lực"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ================== PAGINATION ================== */}
+          <div className="pagination">
+            <button
+              className="btn-page"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Trước
+            </button>
+
+            {Array.from(
+              { length: Math.ceil(assigned.length / itemsPerPage) },
+              (_, i) => i + 1
+            ).map((page) => (
+              <button
+                key={page}
+                className={`btn-page ${currentPage === page ? "active" : ""}`}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </button>
+            ))}
+
+            <button
+              className="btn-page"
+              onClick={() =>
+                setCurrentPage((prev) =>
+                  Math.min(prev + 1, Math.ceil(assigned.length / itemsPerPage))
+                )
+              }
+              disabled={
+                currentPage === Math.ceil(assigned.length / itemsPerPage)
+              }
+            >
+              Sau
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

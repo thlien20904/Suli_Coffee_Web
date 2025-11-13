@@ -7,40 +7,170 @@ const {
   emitUserNotification,
   emitAdminNotification,
 } = require("../../utils/realtimeHelper");
+const {
+  getGHNOrderDetail,
+  getGHNOrderByClientCode,
+  mapGHNStatusToLocal,
+} = require("../../services/ghnService");
 
-const { Orders, Users, OrderStatus, PaymentStatus } = models;
+const {
+  Orders,
+  Users,
+  OrderStatus,
+  PaymentStatus,
+  PhuongThucThanhToan,
+  OrderDetails,
+  Food,
+  Size,
+  OrderDetails_Topping,
+  Topping,
+} = models;
 
 /* =====================================================
-   1️⃣ LẤY DANH SÁCH ĐƠN HÀNG (Admin)
-   GET /api/admin/orders
+   1️⃣ LẤY DANH SÁCH ĐƠN HÀNG (Admin) - HỖ TRỢ TAB
+   GET /api/admin/orders?tab=cho-xac-nhan&page=1&pageSize=10
 ===================================================== */
 exports.getOrders = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const tab = req.query.tab || "cho-xac-nhan";
+
+    let whereClause = {};
+
+    // Lọc theo tab
+    let statusName;
+    switch (tab) {
+      case "cho-xac-nhan":
+        statusName = "Đặt hàng thành công";
+        break;
+      case "dang-chuan-bi":
+        statusName = "Đang chuẩn bị đơn hàng";
+        break;
+      case "dang-giao-hang":
+        statusName = "Đang giao hàng";
+        break;
+      case "da-giao":
+        statusName = "Giao hàng thành công";
+        break;
+      case "da-huy":
+        statusName = "Đã hủy";
+        break;
+      default:
+        statusName = "Đặt hàng thành công";
+    }
+
+    // Lấy StatusId
+    if (statusName) {
+      const status = await OrderStatus.findOne({
+        where: { StatusName: statusName },
+      });
+      if (status) {
+        whereClause.StatusId = status.StatusId;
+      } else {
+        whereClause.StatusId = -1; // Không tồn tại
+      }
+    }
+
+    // Tổng số đơn
+    const totalOrders = await Orders.count({ where: whereClause });
+
+    // Lấy danh sách đơn hàng phân trang
     const orders = await Orders.findAll({
+      where: whereClause,
+      order: [["OrderDate", "DESC"]],
+      offset: (page - 1) * pageSize,
+      limit: pageSize,
+      attributes: [
+        "OrderId",
+        "OrderDate",
+        "TotalAmount",
+        "StatusId",
+        "PaymentMethodId",
+        "PaymentStatusId",
+        "UserId",
+      ],
       include: [
         {
           model: Users,
           as: "User",
           attributes: ["Id", "FullName"],
-          required: true,
+        },
+        {
+          model: PhuongThucThanhToan,
+          as: "PaymentMethod",
+          attributes: ["TenPhuongThuc"],
         },
         {
           model: OrderStatus,
           as: "Status",
-          attributes: ["StatusId", "StatusName"],
-          required: true,
+          attributes: ["StatusName"],
         },
         {
           model: PaymentStatus,
           as: "PaymentStatus",
-          attributes: ["PaymentStatusId", "PaymentStatusName"],
-          required: false,
+          attributes: ["PaymentStatusName", "PaymentStatusId"],
         },
       ],
-      order: [["OrderDate", "DESC"]],
     });
 
-    res.json({ success: true, data: orders });
+    // Lấy chi tiết đơn
+    const orderIds = orders.map((o) => o.OrderId);
+    let detailsMap = {};
+    if (orderIds.length > 0) {
+      const details = await OrderDetails.findAll({
+        where: { OrderId: { [Op.in]: orderIds } },
+        include: [
+          { model: Food, as: "Food", attributes: ["FoodName"] },
+          { model: Size, as: "Size", attributes: ["SizeName"] },
+          {
+            model: OrderDetails_Topping,
+            as: "OrderDetails_Toppings",
+            include: [
+              { model: Topping, as: "Topping", attributes: ["ToppingName"] },
+            ],
+          },
+        ],
+      });
+
+      details.forEach((d) => {
+        if (!detailsMap[d.OrderId]) detailsMap[d.OrderId] = [];
+        detailsMap[d.OrderId].push({
+          FoodName: d.Food?.FoodName || "Không xác định",
+          SizeName: d.Size?.SizeName || null,
+          Toppings: (d.OrderDetails_Toppings || [])
+            .map((ot) => ({ ToppingName: ot.Topping?.ToppingName }))
+            .filter((t) => t.ToppingName),
+          Quantity: d.Quantity,
+          Price: parseFloat(d.Price),
+        });
+      });
+    }
+
+    const ordersWithDetails = orders.map((o) => ({
+      OrderId: o.OrderId,
+      OrderDate: o.OrderDate,
+      TotalAmount: parseFloat(o.TotalAmount),
+      StatusId: o.StatusId,
+      Status: o.Status?.StatusName || "Không xác định",
+      PaymentMethod: o.PaymentMethod?.TenPhuongThuc || "Không xác định",
+      PaymentStatus: o.PaymentStatus?.PaymentStatusName || null,
+      PaymentStatusId: o.PaymentStatus?.PaymentStatusId || null,
+      PaymentMethodId: o.PaymentMethodId,
+      User: o.User,
+      OrderDetails: detailsMap[o.OrderId] || [],
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        orders: ordersWithDetails,
+        totalOrders,
+        currentPage: page,
+        pageSize,
+        totalPages: Math.ceil(totalOrders / pageSize),
+      },
+    });
   } catch (err) {
     console.error("❌ Lỗi lấy danh sách đơn hàng:", err);
     res.status(500).json({ success: false, message: "Lỗi server" });
@@ -138,5 +268,113 @@ exports.updateOrderStatus = async (req, res) => {
   } catch (err) {
     console.error("❌ Lỗi cập nhật trạng thái:", err);
     res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
+
+/* =====================================================
+   3️⃣ ĐỒNG BỘ TRẠNG THÁI ĐƠN HÀNG TỪ GHN
+   POST /api/admin/orders/:id/sync-ghn
+===================================================== */
+exports.syncGHNOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const orderId = parseInt(id);
+
+    const order = await Orders.findByPk(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng!",
+      });
+    }
+
+    // Lấy ClientOrderCode từ DB
+    const clientOrderCode = order.ClientOrderCode;
+    if (!clientOrderCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Đơn hàng không có mã GHN (ClientOrderCode)!",
+      });
+    }
+
+    // Lấy thông tin từ GHN
+    console.log(
+      `🔄 Syncing order ${orderId} with GHN code: ${clientOrderCode}`
+    );
+    const ghnOrder = await getGHNOrderByClientCode(clientOrderCode);
+
+    if (!ghnOrder) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng trên GHN!",
+      });
+    }
+
+    // Map trạng thái GHN sang local
+    const ghnStatus = ghnOrder.status; // e.g., "cancel", "delivered", etc.
+    const newStatusId = mapGHNStatusToLocal(ghnStatus);
+
+    console.log(`📦 GHN Status: ${ghnStatus} -> Local Status: ${newStatusId}`);
+
+    // Cập nhật trạng thái nếu khác
+    if (order.StatusId !== newStatusId) {
+      await order.update({ StatusId: newStatusId });
+
+      const status = await OrderStatus.findByPk(newStatusId);
+
+      // Emit real-time event
+      const statusChangeData = {
+        orderId: order.OrderId,
+        status: status.StatusName,
+        statusId: status.StatusId,
+        message: `Đơn hàng đã được đồng bộ từ GHN: ${status.StatusName}`,
+        ghnStatus,
+      };
+
+      emitOrderStatusChange(req, order.UserId, statusChangeData);
+      emitUserNotification(req, order.UserId, {
+        type: "order-status",
+        title: "Cập nhật đơn hàng",
+        message: `Đơn hàng #${order.OrderId} - ${status.StatusName}`,
+      });
+      emitAdminNotification(req, {
+        type: "order-sync",
+        title: "Đồng bộ trạng thái từ GHN",
+        message: `Đơn hàng #${order.OrderId} → ${status.StatusName}`,
+        data: statusChangeData,
+      });
+
+      return res.json({
+        success: true,
+        message: "Đồng bộ trạng thái thành công!",
+        data: {
+          orderId: order.OrderId,
+          oldStatus: order.StatusId,
+          newStatus: newStatusId,
+          ghnStatus,
+          ghnOrder: {
+            order_code: ghnOrder.order_code,
+            status: ghnOrder.status,
+            updated_date: ghnOrder.updated_date,
+          },
+        },
+      });
+    } else {
+      return res.json({
+        success: true,
+        message: "Trạng thái đã đồng bộ, không có thay đổi!",
+        data: {
+          orderId: order.OrderId,
+          currentStatus: order.StatusId,
+          ghnStatus,
+        },
+      });
+    }
+  } catch (err) {
+    console.error("❌ Lỗi đồng bộ trạng thái GHN:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Lỗi server",
+    });
   }
 };

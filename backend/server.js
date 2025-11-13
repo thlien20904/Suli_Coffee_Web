@@ -251,6 +251,10 @@ app.use("/api/admin/orders", orderAdminRouter);
 app.use("/api/admin/report", reportRouter);
 app.use("/api/admin/voucher", voucherRouter);
 
+// Webhooks
+const webhooksRouter = require("./routes/webhooks");
+app.use("/api/webhooks", webhooksRouter);
+
 /* ---------------- CONNECT DB ---------------- */
 const connectDB = async () => {
   try {

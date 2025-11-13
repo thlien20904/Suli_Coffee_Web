@@ -12,4 +12,9 @@ router.get("/", orderController.getOrders);
 ===================================================== */
 router.post("/:id/status", orderController.updateOrderStatus);
 
+/* =====================================================
+   3️⃣ ĐỒNG BỘ TRẠNG THÁI ĐƠN HÀNG TỪ GHN
+===================================================== */
+router.post("/:id/sync-ghn", orderController.syncGHNOrderStatus);
+
 module.exports = router;

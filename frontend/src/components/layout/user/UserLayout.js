@@ -8,17 +8,13 @@ const UserLayout = () => {
     // compute header height and set CSS variable and content padding accordingly
     const applyHeaderHeight = () => {
       const header = document.querySelector(".header");
-      const main = document.querySelector(".user-layout .content");
-      if (header) {
+      const main = document.querySelector(".user-layout main");
+      if (header && main) {
         const h = header.offsetHeight;
         // set CSS variable for other styles if needed
         document.documentElement.style.setProperty("--header-height", `${h}px`);
-        if (main) {
-          main.style.paddingTop = `${h}px`;
-        } else {
-          // fallback: set body padding if main not found
-          document.body.style.paddingTop = `${h}px`;
-        }
+        // Set padding-top cho main để không bị header che
+        main.style.paddingTop = `${h + 20}px`; // +20px cho khoảng cách đẹp
       }
     };
 
@@ -35,7 +31,7 @@ const UserLayout = () => {
   return (
     <div className="user-layout">
       <UserNavbar />
-      <main className="content">
+      <main>
         <Outlet /> {/* ✅ render các route con như Home, Products,... */}
       </main>
       <Footer />

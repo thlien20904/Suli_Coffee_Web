@@ -75,7 +75,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="container mt-4">
+    <div className="container admin-dashboard mt-4">
       {/* Thống kê */}
       <div className="row">
         <div className="col-md-3">
@@ -195,77 +195,95 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Đơn hàng gần đây */}
-      <section className="mt-5">
-        <h3 className="text-center">📝 Đơn hàng gần đây</h3>
-        <table className="table table-bordered">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Người dùng</th>
-              <th>Trạng thái</th>
-              <th>Ngày đặt</th>
-              <th>Tổng tiền</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentOrders.length > 0 ? (
-              recentOrders.map((o, i) => (
-                <tr key={i}>
-                  <td>{o.OrderId}</td>
-                  <td>{o.FullName}</td>
-                  <td>{o.StatusName}</td>
-                  <td>{new Date(o.OrderDate).toLocaleString()}</td>
-                  <td>{o.TotalAmount.toLocaleString()}đ</td>
-                </tr>
-              ))
-            ) : (
+      <div className="row mt-5">
+        {/* Bảng Đơn hàng gần đây */}
+        <div className="col-md-6">
+          <h3 className="text-center">📝 Đơn hàng gần đây</h3>
+          <table className="table table-bordered">
+            <thead>
               <tr>
-                <td colSpan="5" className="text-center">
-                  Không có dữ liệu
-                </td>
+                <th>
+                  <span>ID</span>
+                </th>
+                <th>
+                  <span>Người dùng</span>
+                </th>
+                <th>
+                  <span>Trạng thái</span>
+                </th>
+                <th>
+                  <span>Ngày đặt</span>
+                </th>
+                <th>
+                  <span>Tổng tiền</span>
+                </th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
-
-      {/* Nguyên liệu sắp hết */}
-      <section className="mt-5">
-        <h3 className="text-center">⚠️ Nguyên liệu sắp hết ⚠️</h3>
-        <table className="table table-bordered">
-          <thead>
-            <tr>
-              <th>Hình ảnh</th>
-              <th>Tên</th>
-              <th>Số lượng</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lowStockIngredients.length > 0 ? (
-              lowStockIngredients.map((item, i) => (
-                <tr key={i}>
-                  <td>
-                    <img
-                      src={item.ImageURL || "/images/no-image.png"}
-                      alt={item.IngredientName}
-                      className="ingredient-img"
-                    />
+            </thead>
+            <tbody>
+              {recentOrders.length > 0 ? (
+                recentOrders.map((o, i) => (
+                  <tr key={i}>
+                    <td>{o.OrderId}</td>
+                    <td>{o.FullName}</td>
+                    <td>{o.StatusName}</td>
+                    <td>{new Date(o.OrderDate).toLocaleString()}</td>
+                    <td>{o.TotalAmount.toLocaleString()}đ</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="text-center">
+                    Không có dữ liệu
                   </td>
-                  <td>{item.IngredientName}</td>
-                  <td>{item.SoLuong}</td>
                 </tr>
-              ))
-            ) : (
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Bảng Nguyên liệu sắp hết */}
+        <div className="col-md-6">
+          <h3 className="text-center">⚠️ Nguyên liệu sắp hết ⚠️</h3>
+          <table className="table table-bordered">
+            <thead>
               <tr>
-                <td colSpan="3" className="text-center">
-                  Không có dữ liệu
-                </td>
+                <th>
+                  <span>Hình ảnh</span>
+                </th>
+                <th>
+                  <span>Tên</span>
+                </th>
+                <th>
+                  <span>Số lượng</span>
+                </th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+            </thead>
+            <tbody>
+              {lowStockIngredients.length > 0 ? (
+                lowStockIngredients.map((item, i) => (
+                  <tr key={i}>
+                    <td>
+                      <img
+                        src={item.ImageURL || "/images/no-image.png"}
+                        alt={item.IngredientName}
+                        className="ingredient-img"
+                      />
+                    </td>
+                    <td>{item.IngredientName}</td>
+                    <td>{item.SoLuong}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="3" className="text-center">
+                    Không có dữ liệu
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };

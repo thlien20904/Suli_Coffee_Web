@@ -1,16 +1,17 @@
 /* frontend/src/styles/components/login.css */
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap");
 
-body {
+.login-page {
   margin: 0;
   padding: 0;
   background: url("/public/images/nen6.png") no-repeat center center fixed;
   background-size: cover;
   font-family: "Poppins", sans-serif;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 
-.container {
+.login-page .container {
   width: 35%;
   margin: 50px auto;
   min-height: 600px;

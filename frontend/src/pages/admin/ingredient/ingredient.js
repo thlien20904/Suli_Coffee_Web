@@ -4,7 +4,7 @@ import Swal from "sweetalert2";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { Link, useNavigate } from "react-router-dom";
 
-import "../../../styles/components/admin/ingredient.css";
+import "../../../styles/components/admin/Food.css";
 
 const Ingredient = () => {
   const [ingredients, setIngredients] = useState([]);

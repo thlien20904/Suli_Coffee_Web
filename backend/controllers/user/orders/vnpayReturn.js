@@ -11,14 +11,18 @@ const {
   Topping,
   GioHang,
   GioHang_Topping,
+  DeliveryAddresses,
 } = models;
 const { VNPay } = require("vnpay");
+const { createGHNOrder } = require("../../../services/ghnService");
 
 // Cấu hình VNPay
 const vnpay = new VNPay({
-  tmnCode: process.env.VNPAY_TMN_CODE || "4Z1QBO45",
+  tmnCode: process.env.VNP_TMN_CODE || process.env.VNPAY_TMN_CODE || "4Z1QBO45",
   secureSecret:
-    process.env.VNPAY_SECURE_SECRET || "XQBSS9ZDQJCIKDZZ108ABV5RP6B32FOH",
+    process.env.VNP_SECURE_SECRET ||
+    process.env.VNPAY_SECURE_SECRET ||
+    "XQBSS9ZDQJCIKDZZ108ABV5RP6B32FOH",
   vnpayHost: "https://sandbox.vnpayment.vn",
   testMode: true,
   hashAlgorithm: "SHA512",
@@ -92,6 +96,121 @@ const vnpayReturn = async (req, res) => {
     }
 
     await transaction.commit();
+
+    // ✅ Tạo đơn GHN sau khi thanh toán thành công (non-blocking)
+    try {
+      console.log(`\n🚀 ===== CREATING GHN ORDER FOR VNPAY #${orderId} =====`);
+
+      const orderWithDetails = await Orders.findByPk(orderId, {
+        include: [{ model: OrderDetails, as: "OrderDetails" }],
+      });
+
+      if (!orderWithDetails) {
+        console.warn(`⚠️ VNPay Order #${orderId} - Order not found in DB`);
+        return;
+      }
+
+      console.log(`Order UserId: ${orderWithDetails.UserId}`);
+      console.log(
+        `Order Province/District/Ward: ${orderWithDetails.Province}/${orderWithDetails.District}/${orderWithDetails.Ward}`
+      );
+
+      if (orderWithDetails) {
+        // ⚠️ Query DeliveryAddresses table để lấy coordinates và thông tin chi tiết
+        // Tìm địa chỉ của user khớp với Province/District/Ward trong Orders
+        let deliveryAddressRecord = await DeliveryAddresses.findOne({
+          where: {
+            UserId: orderWithDetails.UserId,
+            Province: orderWithDetails.Province,
+            District: orderWithDetails.District,
+            Ward: orderWithDetails.Ward,
+          },
+        });
+
+        console.log(
+          `DeliveryAddress found:`,
+          deliveryAddressRecord ? "YES" : "NO"
+        );
+
+        // Fallback nếu không tìm thấy DeliveryAddress: dùng info từ Orders (nhưng vẫn cần WardCode/DistrictId cho GHN)
+        if (!deliveryAddressRecord) {
+          console.warn(
+            `⚠️ VNPay Order #${orderId} - Không tìm thấy DeliveryAddress khớp với Province/District/Ward, dùng fallback từ Orders`
+          );
+          // Có thể thêm logic lấy default address của user nếu cần, nhưng skip GHN nếu thiếu required fields
+          deliveryAddressRecord = {
+            ReceiverName: orderWithDetails.ReceiverName || "Khách hàng", // Giả sử có field này
+            Phone: orderWithDetails.Phone || "0123456789", // Fallback phone default
+            WardCode: null, // Phải có từ DB, không fallback được
+            DistrictId: null,
+            Latitude: null,
+            Longitude: null,
+          };
+        }
+
+        if (
+          !deliveryAddressRecord.DistrictId ||
+          !deliveryAddressRecord.WardCode
+        ) {
+          console.warn(
+            `⚠️ VNPay Order #${orderId} - DeliveryAddress thiếu DistrictId hoặc WardCode (bắt buộc cho GHN), skip tạo đơn`
+          );
+          return; // GHN yêu cầu bắt buộc DistrictId và WardCode
+        }
+
+        // CHỈ dùng tọa độ nếu có THẬT trong DB
+        const toLatitude = deliveryAddressRecord.Latitude
+          ? parseFloat(deliveryAddressRecord.Latitude)
+          : null;
+        const toLongitude = deliveryAddressRecord.Longitude
+          ? parseFloat(deliveryAddressRecord.Longitude)
+          : null;
+
+        const ghnItems = (orderWithDetails.OrderDetails || []).map(
+          (item, idx) => ({
+            name: item.Food?.FoodName || `Sản phẩm ${idx + 1}`, // Cải thiện: dùng FoodName thật
+            quantity: item.Quantity || 1,
+            weight: 500,
+          })
+        );
+
+        const ghnResult = await createGHNOrder({
+          clientOrderCode: `ORDER-${orderId}`,
+          toName: deliveryAddressRecord.ReceiverName || "Khách hàng",
+          toPhone:
+            orderWithDetails.Phone ||
+            deliveryAddressRecord.Phone ||
+            "0123456789", // Fallback phone an toàn hơn
+          toAddress: orderWithDetails.DeliveryAddress,
+          toWardCode: deliveryAddressRecord.WardCode,
+          toDistrictId: deliveryAddressRecord.DistrictId,
+          toProvinceName: orderWithDetails.Province || "Hà Nội",
+          toDistrictName: orderWithDetails.District || "",
+          toWardName: orderWithDetails.Ward || "",
+          toLatitude,
+          toLongitude,
+          items: ghnItems,
+          codAmount: 0, // VNPay đã thanh toán rồi, không thu COD
+        });
+
+        // Lưu ClientOrderCode vào DB chỉ nếu GHN success
+        await Orders.update(
+          { ClientOrderCode: ghnResult.clientOrderCode || `ORDER-${orderId}` },
+          { where: { OrderId: orderId } }
+        );
+
+        console.log(
+          `✅ VNPay Order #${orderId} - GHN Order created: ${ghnResult.ghnOrderCode}`
+        );
+      }
+    } catch (ghnErr) {
+      console.error(
+        `❌ VNPay Order #${orderId} - GHN Order creation failed:`,
+        ghnErr.message
+      );
+      // Không throw error vì đơn hàng và thanh toán đã thành công. Có thể update status GHN failed nếu cần
+    }
+
     // Lấy chi tiết đơn hàng đầy đủ để frontend hiển thị giống màn hình success
     try {
       const orderFull = await Orders.findOne({

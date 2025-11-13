@@ -8,6 +8,7 @@ const {
   emitUserNotification,
   emitAdminNotification,
 } = require("../../../utils/realtimeHelper");
+const { createGHNOrder } = require("../../../services/ghnService");
 
 const {
   GioHang,
@@ -30,9 +31,11 @@ const {
 
 // Cấu hình VNPay
 const vnpay = new VNPay({
-  tmnCode: process.env.VNPAY_TMN_CODE || "4Z1QBO45",
+  tmnCode: process.env.VNP_TMN_CODE || process.env.VNPAY_TMN_CODE || "DEMOV210",
   secureSecret:
-    process.env.VNPAY_SECURE_SECRET || "XQBSS9ZDQJCIKDZZ108ABV5RP6B32FOH",
+    process.env.VNP_SECURE_SECRET ||
+    process.env.VNPAY_SECURE_SECRET ||
+    "RAOEXHYVSDDIIENYWSNE831AENAWIIVG",
   vnpayHost: "https://sandbox.vnpayment.vn",
   testMode: true,
   hashAlgorithm: "SHA512",
@@ -293,6 +296,14 @@ const placeOrder = async (req, res) => {
       transaction,
     });
 
+    // Get payment method name
+    const paymentMethod = await PhuongThucThanhToan.findByPk(paymentMethodId, {
+      attributes: ["TenPhuongThuc"],
+      transaction,
+    });
+    const paymentMethodName = paymentMethod?.TenPhuongThuc || "Không xác định";
+    console.log("Payment method:", paymentMethodName);
+
     const order = await Orders.create(
       {
         UserId: req.user.id,
@@ -303,6 +314,10 @@ const placeOrder = async (req, res) => {
         StatusId: orderStatus.StatusId,
         PaymentStatusId: pendingPayment.PaymentStatusId,
         DeliveryAddress: deliveryAddress.Address,
+        Province: deliveryAddress.Province,
+        District: deliveryAddress.District,
+        Ward: deliveryAddress.Ward,
+        Phone: deliveryAddress.Phone,
         VoucherId: appliedVoucherId,
       },
       { transaction }
@@ -391,26 +406,71 @@ const placeOrder = async (req, res) => {
     }
 
     if (parseInt(paymentMethodId) === 1) {
-      const ipAddr =
+      // ✅ FIX: Convert IPv6 localhost (::1) sang IPv4 (127.0.0.1)
+      let ipAddr =
         req.headers["x-forwarded-for"] ||
         req.connection.remoteAddress ||
         req.socket.remoteAddress ||
         "127.0.0.1";
+
+      // VNPay KHÔNG CHẤP NHẬN IPv6 → Convert ::1 thành 127.0.0.1
+      if (ipAddr === "::1" || ipAddr === "::ffff:127.0.0.1") {
+        ipAddr = "127.0.0.1";
+      }
+      // Nếu có nhiều IP (qua proxy), lấy IP đầu tiên
+      if (ipAddr.includes(",")) {
+        ipAddr = ipAddr.split(",")[0].trim();
+      }
+
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      const paymentUrl = await vnpay.buildPaymentUrl({
-        vnp_Amount: totalAmount,
+
+      // ✅ Validate amount trước khi gửi
+      const amountNumber = Number(totalAmount);
+      if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
+        throw new Error(`Invalid amount: ${totalAmount}`);
+      }
+
+      // ⚠️ VNPay SDK (package 'vnpay') TỰ ĐỘNG nhân 100 trong buildPaymentUrl
+      // → Không cần nhân 100 thủ công, chỉ truyền số VND
+      console.log("\n💳 ===== VNPAY PAYMENT URL GENERATION =====");
+      console.log(`💰 Amount (VND): ${amountNumber}`);
+      console.log(
+        `🔑 TMN_CODE: ${
+          process.env.VNP_TMN_CODE || process.env.VNPAY_TMN_CODE || "4Z1QBO45"
+        }`
+      );
+      console.log(
+        `🔐 SECRET: ${process.env.VNPAY_SECURE_SECRET ? "✅ Có" : "❌ Không"}`
+      );
+      console.log(
+        `🔗 Return URL: ${
+          process.env.VNPAY_RETURN_URL || "http://localhost:3000/vnpay-return"
+        }`
+      );
+      console.log(`📦 Order ID: ${order.OrderId}`);
+      console.log(`🌐 VNPay Host: https://sandbox.vnpayment.vn`);
+
+      const vnpayParams = {
+        vnp_Amount: amountNumber, // ✅ Truyền số VND thuần, SDK sẽ tự nhân 100
         vnp_IpAddr: ipAddr,
         vnp_TxnRef: order.OrderId.toString(),
         vnp_OrderInfo: `Thanh toán đơn hàng ${order.OrderId}`,
         vnp_OrderType: ProductCode.Other,
         vnp_ReturnUrl:
-          process.env.VNPAY_RETURN_URL || "http://localhost:3000/vnpay-return", // ✅ FIX: Đổi từ /successful sang /vnpay-return để hit callback đúng
+          process.env.VNP_RETURN_URL ||
+          process.env.VNPAY_RETURN_URL ||
+          "http://localhost:3000/vnpay-return",
         vnp_Locale: VnpLocale.VN,
         vnp_CreateDate: dateFormat(new Date()),
         vnp_ExpireDate: dateFormat(tomorrow),
-      });
-      console.log("VNPay URL:", paymentUrl);
+      };
+
+      console.log("📝 VNPay Params:", JSON.stringify(vnpayParams, null, 2));
+
+      const paymentUrl = await vnpay.buildPaymentUrl(vnpayParams);
+      console.log("✅ VNPay URL Generated:", paymentUrl);
+      console.log("====================================\n");
 
       await transaction.commit();
 
@@ -454,7 +514,122 @@ const placeOrder = async (req, res) => {
       });
     }
 
+    // ✅ TẠO ĐơN GHN TRƯỚC KHI COMMIT (CRITICAL - phải thành công mới tạo order)
+    let ghnOrderCode = null;
+    try {
+      console.log("\n🚀 ===== CREATING GHN ORDER (BEFORE COMMIT) =====");
+      console.log("Payment Method:", paymentMethodName);
+      console.log("Delivery Address:", {
+        name: deliveryAddress.ReceiverName,
+        phone: deliveryAddress.Phone,
+        address: deliveryAddress.Address,
+        districtId: deliveryAddress.DistrictId,
+        wardCode: deliveryAddress.WardCode,
+        province: deliveryAddress.Province,
+        district: deliveryAddress.District,
+        ward: deliveryAddress.Ward,
+      });
+
+      const ghnItems = itemsToOrder.map((item, idx) => ({
+        name: `Sản phẩm ${idx + 1}`,
+        quantity: item.Quantity || 1,
+        weight: 500,
+      }));
+      console.log("GHN Items:", ghnItems);
+
+      const isCOD =
+        paymentMethodName.toLowerCase().includes("cod") ||
+        paymentMethodName.toLowerCase().includes("tiền mặt") ||
+        paymentMethodName.toLowerCase().includes("tiền mặt khi nhận hàng");
+      const codAmount = isCOD ? totalAmount : 0;
+      console.log("COD Amount:", codAmount, "(isCOD:", isCOD, ")");
+
+      const toLatitude = deliveryAddress.Latitude
+        ? parseFloat(deliveryAddress.Latitude)
+        : null;
+      const toLongitude = deliveryAddress.Longitude
+        ? parseFloat(deliveryAddress.Longitude)
+        : null;
+      console.log(
+        "Coordinates:",
+        toLatitude && toLongitude
+          ? `${toLatitude}, ${toLongitude}`
+          : "NOT AVAILABLE - GHN will geocode"
+      );
+
+      const ghnResult = await createGHNOrder({
+        clientOrderCode: `ORDER-${order.OrderId}`,
+        toName: deliveryAddress.ReceiverName || "Khách hàng",
+        toPhone: deliveryAddress.Phone || "0366413924",
+        toAddress: deliveryAddress.Address,
+        toWardCode: deliveryAddress.WardCode,
+        toDistrictId: deliveryAddress.DistrictId,
+        toProvinceName: deliveryAddress.Province || "",
+        toDistrictName: deliveryAddress.District || "",
+        toWardName: deliveryAddress.Ward || "",
+        toLatitude,
+        toLongitude,
+        items: ghnItems,
+        codAmount,
+      });
+
+      ghnOrderCode = ghnResult.ghnOrderCode;
+      console.log(`✅ GHN Order created: ${ghnOrderCode}`);
+      console.log("GHN Result:", ghnResult);
+
+      // Lưu ClientOrderCode vào DB (vẫn trong transaction)
+      await Orders.update(
+        { ClientOrderCode: `ORDER-${order.OrderId}` },
+        { where: { OrderId: order.OrderId }, transaction }
+      );
+      console.log(`💾 Saved ClientOrderCode: ORDER-${order.OrderId}`);
+      console.log("====================================\n");
+    } catch (ghnErr) {
+      console.error("❌ GHN Order creation FAILED:", ghnErr.message);
+
+      // ⚠️ ROLLBACK transaction TRƯỚC KHI trả response
+      if (!transaction.finished) {
+        await transaction.rollback();
+        console.log("🔄 Transaction rolled back due to GHN failure");
+      }
+
+      // Kiểm tra lỗi địa chỉ không hợp lệ
+      const errorCode = ghnErr.response?.data?.code || ghnErr.code || "";
+      const errorMsg = ghnErr.response?.data?.message || ghnErr.message || "";
+
+      if (
+        errorCode === "TO_ADDRESS_CONVERT_FAIL" ||
+        errorMsg.includes("invalid google status") ||
+        errorMsg.includes("address") ||
+        errorMsg.includes("geocode")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `❌ Địa chỉ giao hàng không hợp lệ hoặc không thể xác minh với Giao Hàng Nhanh.
+
+📍 Vui lòng kiểm tra lại:
+• Số nhà, tên đường phải chính xác
+• Phường/Xã, Quận/Huyện, Tỉnh/Thành phố phải đúng
+• Địa chỉ phải tồn tại thực tế trên bản đồ
+
+💡 Gợi ý: Thử nhập địa chỉ chi tiết hơn hoặc chọn địa chỉ khác.`,
+          errorCode: "INVALID_ADDRESS",
+          ghnError: errorMsg,
+        });
+      }
+
+      // Các lỗi GHN khác
+      return res.status(400).json({
+        success: false,
+        message: `❌ Không thể tạo đơn giao hàng: ${errorMsg}`,
+        errorCode: "GHN_ERROR",
+        ghnError: errorMsg,
+      });
+    }
+
+    // ✅ Commit transaction SAU KHI GHN thành công
     await transaction.commit();
+    console.log("✅ Transaction committed successfully");
 
     // ✅ Emit real-time event cho đơn COD (non-blocking, không throw error)
     try {
@@ -465,6 +640,7 @@ const placeOrder = async (req, res) => {
         paymentMethod: paymentMethodName,
         status: "pending",
         timestamp: new Date().toISOString(),
+        ghnOrderCode, // Thêm mã đơn GHN
       };
 
       emitOrderUpdate(req, req.user.id, orderData);
@@ -472,12 +648,16 @@ const placeOrder = async (req, res) => {
       emitUserNotification(req, req.user.id, {
         type: "order",
         title: "Đặt hàng thành công",
-        message: `Đơn hàng #${order.OrderId} đã được tạo`,
+        message: `Đơn hàng #${order.OrderId} đã được tạo${
+          ghnOrderCode ? ` - Mã GHN: ${ghnOrderCode}` : ""
+        }`,
       });
       emitAdminNotification(req, {
         type: "order",
         title: "Đơn hàng mới",
-        message: `Đơn hàng #${order.OrderId} - ${paymentMethodName}`,
+        message: `Đơn hàng #${order.OrderId} - ${paymentMethodName}${
+          ghnOrderCode ? ` - GHN: ${ghnOrderCode}` : ""
+        }`,
         data: orderData,
       });
     } catch (emitErr) {

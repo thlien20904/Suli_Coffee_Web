@@ -509,7 +509,7 @@ export default function Checkout() {
 
       <h2
         className="checkout-title mb-4 text-center"
-        style={{ marginTop: "50px" }}
+        style={{ marginTop: "-40px" }}
       >
         Thanh toán
       </h2>

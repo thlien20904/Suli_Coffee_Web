@@ -1,4 +1,3 @@
-// src/pages/Contact.jsx
 import React, { useState } from "react";
 import {
   Container,
@@ -7,7 +6,6 @@ import {
   Card,
   Form,
   Button,
-  InputGroup,
   Badge,
   Alert,
   ListGroup,
@@ -75,11 +73,11 @@ export default function Contact() {
       </section>
 
       <Container className="py-5">
-        <Row className="g-4">
+        <Row className="g-lg-5 g-4">
           {/* ===== FORM ===== */}
           <Col lg={7}>
             <Card
-              className="border-0 shadow-lg"
+              className="border-0 shadow-lg contact-form-card"
               style={{
                 borderTop: `5px solid ${gold}`,
                 borderRadius: 14,
@@ -101,16 +99,21 @@ export default function Contact() {
                 </div>
 
                 {submitted && (
-                  <Alert variant="success" className="rounded-3">
+                  <Alert variant="success" className="rounded-3 py-2">
                     Cảm ơn bạn! Chúng tôi đã nhận được thông tin và sẽ phản hồi
                     sớm nhất.
                   </Alert>
                 )}
 
-                <Form noValidate validated={validated} onSubmit={handleSubmit}>
+                <Form
+                  noValidate
+                  validated={validated}
+                  onSubmit={handleSubmit}
+                  className="contact-form"
+                >
                   {/* Họ tên */}
-                  <Form.Group className="mb-3" controlId="contactName">
-                    <Form.Label className="fw-semibold">
+                  <Form.Group className="mb-2" controlId="contactName">
+                    <Form.Label className="fw-semibold mb-1">
                       <FiUser className="me-2" />
                       Họ và tên *
                     </Form.Label>
@@ -118,6 +121,7 @@ export default function Contact() {
                       required
                       type="text"
                       placeholder="Nguyễn Văn A"
+                      className="shadow-sm"
                     />
                     <Form.Control.Feedback type="invalid">
                       Vui lòng nhập họ và tên.
@@ -125,8 +129,8 @@ export default function Contact() {
                   </Form.Group>
 
                   {/* Email */}
-                  <Form.Group className="mb-3" controlId="contactEmail">
-                    <Form.Label className="fw-semibold">
+                  <Form.Group className="mb-2" controlId="contactEmail">
+                    <Form.Label className="fw-semibold mb-1">
                       <FiMail className="me-2" />
                       Email *
                     </Form.Label>
@@ -134,6 +138,7 @@ export default function Contact() {
                       required
                       type="email"
                       placeholder="email@domain.com"
+                      className="shadow-sm"
                     />
                     <Form.Control.Feedback type="invalid">
                       Vui lòng nhập email hợp lệ.
@@ -141,10 +146,10 @@ export default function Contact() {
                   </Form.Group>
 
                   {/* Phone + Subject */}
-                  <Row className="g-3">
+                  <Row className="g-2">
                     <Col md={6}>
                       <Form.Group controlId="contactPhone">
-                        <Form.Label className="fw-semibold">
+                        <Form.Label className="fw-semibold mb-1">
                           <FiPhone className="me-2" />
                           Điện thoại
                         </Form.Label>
@@ -152,18 +157,23 @@ export default function Contact() {
                           type="tel"
                           placeholder="098x xxx xxx"
                           pattern="^[0-9+\s()-]{8,}$"
+                          className="shadow-sm"
                         />
-                        <Form.Text className="text-muted">
+                        <Form.Text className="text-muted small">
                           Có thể bỏ trống
                         </Form.Text>
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group controlId="contactSubject">
-                        <Form.Label className="fw-semibold">
+                        <Form.Label className="fw-semibold mb-1">
                           Chủ đề *
                         </Form.Label>
-                        <Form.Select required defaultValue="">
+                        <Form.Select
+                          required
+                          defaultValue=""
+                          className="shadow-sm"
+                        >
                           <option value="" disabled>
                             Chọn chủ đề
                           </option>
@@ -181,15 +191,16 @@ export default function Contact() {
 
                   {/* Message */}
                   <Form.Group className="mt-3" controlId="contactMessage">
-                    <Form.Label className="fw-semibold">
+                    <Form.Label className="fw-semibold mb-1">
                       <FiMessageCircle className="me-2" />
                       Nội dung *
                     </Form.Label>
                     <Form.Control
                       as="textarea"
                       required
-                      rows={5}
+                      rows={4}
                       placeholder="Mô tả yêu cầu của bạn..."
+                      className="shadow-sm"
                     />
                     <Form.Control.Feedback type="invalid">
                       Vui lòng nhập nội dung.
@@ -206,7 +217,7 @@ export default function Contact() {
                         borderColor: gold,
                         color: "#111",
                         borderRadius: 12,
-                        boxShadow: "0 10px 24px rgba(212,175,55,.35)",
+                        boxShadow: "0 6px 16px rgba(212,175,55,.35)",
                       }}
                     >
                       <FiSend className="me-2" /> Gửi liên hệ
@@ -269,7 +280,7 @@ export default function Contact() {
                     target="_blank"
                     rel="noreferrer"
                     variant="outline-dark"
-                    className="rounded-pill px-3"
+                    className="rounded-pill px-3 py-2"
                   >
                     <FiFacebook className="me-2" /> Facebook
                   </Button>
@@ -279,7 +290,7 @@ export default function Contact() {
                     target="_blank"
                     rel="noreferrer"
                     variant="outline-dark"
-                    className="rounded-pill px-3"
+                    className="rounded-pill px-3 py-2"
                   >
                     <FiInstagram className="me-2" /> Instagram
                   </Button>
@@ -304,6 +315,37 @@ export default function Contact() {
           </Col>
         </Row>
       </Container>
+      <style>{`
+  .contact-form-card .form-control,
+  .contact-form-card .form-select {
+    margin-bottom: 6px !important;
+  }
+  .contact-form-card label {
+    margin-bottom: 3px !important;
+    font-weight: 500;
+  }
+  .contact-form .row {
+    margin-bottom: 4px !important;
+  }
+  .contact-form .form-text {
+    margin-top: 2px;
+    font-size: 12px;
+  }
+  .contact-form .form-group {
+    margin-bottom: 8px !important;
+  }
+  .contact-form-card {
+    --gold: #d4af37;
+  }
+  .contact-form-card .form-control:focus,
+  .contact-form-card .form-select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 0.15rem rgba(212,175,55,0.25);
+  }
+  .contact-form-card button[type="submit"]:hover {
+    filter: brightness(1.08);
+  }
+`}</style>
     </div>
   );
 }

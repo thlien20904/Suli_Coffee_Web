@@ -6,8 +6,8 @@
 
 .user-layout main {
   flex: 1;
-  padding: 20px;
   background-color: #f9f9f9;
+  /* padding-top sẽ được set động bởi JS */
 }
 
 .user-layout footer {

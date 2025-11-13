@@ -34,7 +34,7 @@ export default function OrdersList() {
       } else {
         res = await axios.get("http://localhost:5000/api/profile/orders", {
           headers: { Authorization: `Bearer ${token}` },
-          params: { tab, page, pageSize: 10 },
+          params: { tab, page, pageSize: 5 },
         });
       }
 

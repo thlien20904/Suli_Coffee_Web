@@ -1,272 +1,394 @@
-/* ===============================
-   Trang danh sách voucher
-================================ */
+/* ==================== VOUCHER PAGE ==================== */
 .voucher-page {
   padding: 20px;
-  background: #f5f5f5;
-  font-family: "Segoe UI", "Roboto", sans-serif;
-  color: #000;
+  background: #f9f9fb;
+  font-family: "Poppins", "Segoe UI", sans-serif;
+  color: #495057;
+  position: relative;
+  z-index: 1;
 }
 
-/* Thanh trên cùng */
+/* ==================== HEADER BAR ==================== */
 .header-bar {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
 .header-bar input {
-  padding: 8px 12px;
-  width: 250px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  padding: 10px 14px;
+  width: 280px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
   font-size: 14px;
+  transition: all 0.3s ease;
+  background: #fff;
 }
 
 .header-bar input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 3px rgba(0, 123, 255, 0.3);
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
 
-/* ===============================
-   Bảng voucher
-================================ */
+/* ==================== TABLE STYLING ==================== */
 .voucher-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 1;
 }
 
-.voucher-table th,
-.voucher-table td {
-  border: 1px solid #eee;
-  padding: 10px;
-  text-align: center;
-  font-size: 14px;
+.voucher-table thead {
+  background: linear-gradient(135deg, #83aafd 0%, #70bffc 100%);
 }
 
 .voucher-table th {
-  background: #f8f9fa;
+  padding: 1rem 0.75rem;
+  text-align: center;
+  color: #fff;
   font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: none;
 }
-/* ===============================
-   Nút hành động
-================================ */
+
+.voucher-table tbody tr {
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.voucher-table tbody tr:hover {
+  background: #f8f9fa;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.voucher-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.voucher-table td {
+  padding: 1rem 0.75rem;
+  color: #495057;
+  font-size: 0.9rem;
+  vertical-align: middle;
+  text-align: center;
+  border: 1px solid #eee;
+}
+
+/* ==================== ACTION BUTTONS ==================== */
 .btn-green {
-  background: #28a745;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
   color: #fff;
   border: none;
-  padding: 8px 14px;
-  border-radius: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  transition: 0.3s;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+  position: relative;
+  z-index: 1;
 }
+
 .btn-green:hover {
-  background: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
 }
 
 .btn-blue {
-  background: #007bff;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
   color: #fff;
   border: none;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  margin-right: 4px;
-  transition: 0.3s;
+  margin-right: 6px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+  position: relative;
+  z-index: 1;
 }
+
 .btn-blue:hover {
-  background: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
 }
 
 .btn-red {
-  background: #dc3545;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
   color: #fff;
   border: none;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  transition: 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+  position: relative;
+  z-index: 1;
 }
+
 .btn-red:hover {
-  background: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4);
 }
 
 .btn-gray {
   background: #6c757d;
   color: #fff;
   border: none;
-  padding: 8px 14px;
-  border-radius: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
   cursor: pointer;
-}
-.btn-gray:hover {
-  background: #565e64;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
 }
 
-/* ✅ Nút bật/tắt trạng thái voucher */
+.btn-gray:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* ==================== TOGGLE BUTTON ==================== */
 .btn-toggle {
-  background: #adb5bd; /* xám nhẹ */
+  background: #adb5bd;
   color: #fff;
   border: none;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  transition: 0.3s;
-  margin-right: 4px;
+  transition: all 0.3s ease;
+  margin-right: 6px;
+  position: relative;
+  z-index: 1;
 }
+
 .btn-toggle:hover {
   background: #6c757d;
+  transform: translateY(-2px);
 }
 
 .btn-toggle.active {
-  background: #28a745; /* xanh khi đang hoạt động */
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
 }
+
 .btn-toggle.active:hover {
-  background: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
 }
 
-/* ===============================
-   Phân trang
-================================ */
+/* ==================== PAGINATION ==================== */
 .pagination {
-  text-align: center;
-  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
 }
 
+.pagination button,
 .page-btn {
-  border: 1px solid #ccc;
-  background: white;
-  margin: 0 3px;
-  padding: 5px 10px;
-  border-radius: 4px;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid #dee2e6;
+  background: #fff;
   cursor: pointer;
-  transition: 0.3s;
+  color: #495057;
+  position: relative;
+  z-index: 1;
 }
+
+.pagination button:hover:not(:disabled),
+.page-btn:hover:not(.active) {
+  background: #f8f9fa;
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.pagination button.active,
 .page-btn.active {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
+  background: linear-gradient(135deg, #83aafd 0%, #70bffc 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
 }
-.page-btn:hover {
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
   background: #e9ecef;
 }
+
+/* ==================== MODAL OVERLAY ==================== */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 60px;
+  padding-top: 80px;
   padding-bottom: 40px;
   overflow-y: auto;
-  z-index: 9999 !important; /* tăng z-index thật cao */
+  z-index: 9000;
 }
 
-/* Ẩn thanh cuộn nhưng vẫn cuộn được */
 .modal-overlay::-webkit-scrollbar {
   display: none;
 }
+
 .modal-overlay {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
+/* ==================== VOUCHER MODAL ==================== */
 .voucher-modal {
   background: #fff;
-  padding: 25px;
-  border-radius: 12px;
-  width: 500px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-  animation: fadeIn 0.25s ease;
-  z-index: 10000 !important; /* đảm bảo modal nổi lên trên overlay */
+  padding: 30px;
+  border-radius: 16px;
+  width: 520px;
+  max-width: 95%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  animation: fadeInScale 0.3s ease;
+  z-index: 9100;
+  position: relative;
 }
 
-@keyframes fadeIn {
+@keyframes fadeInScale {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-20px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .voucher-modal h3 {
   text-align: center;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  color: #212529;
 }
 
-/* Form trong modal */
+/* ==================== FORM STYLING ==================== */
 .form-grid {
   display: flex;
   flex-direction: column;
 }
+
 .form-grid div {
-  margin-bottom: 15px;
+  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
 }
+
 .voucher-modal label {
   font-weight: 500;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: 14px;
+  color: #495057;
 }
+
 .voucher-modal input,
 .voucher-modal select,
 .voucher-modal textarea {
-  padding: 9px 10px;
-  border: 1px solid #ccc;
+  padding: 10px 12px;
+  border: 2px solid #e9ecef;
   border-radius: 8px;
   font-size: 14px;
-  transition: 0.3s;
+  transition: all 0.3s ease;
   background: #fff;
+  color: #495057;
 }
+
 .voucher-modal input:focus,
 .voucher-modal select:focus,
 .voucher-modal textarea:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 3px rgba(0, 123, 255, 0.3);
-}
-.input-error {
-  border-color: red !important;
-}
-small {
-  color: red;
-  font-size: 12px;
-  margin-top: 3px;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
 
-/* Nút trong modal */
+.input-error {
+  border-color: #dc3545 !important;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15) !important;
+}
+
+small {
+  color: #dc3545;
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* ==================== MODAL ACTIONS ==================== */
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 12px;
+  margin-top: 20px;
 }
-/* Bắt SweetAlert luôn luôn nằm trên mọi modal */
+
+/* ==================== SWEETALERT OVERRIDE ==================== */
 .swal2-container {
-  z-index: 99999 !important;
+  z-index: 9200 !important;
 }
-button {
-  position: relative;
-  z-index: 9999 !important;
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 768px) {
+  .voucher-table {
+    font-size: 0.85rem;
+  }
+
+  .voucher-table th,
+  .voucher-table td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .header-bar input {
+    width: 200px;
+  }
+
+  .pagination button,
+  .page-btn {
+    min-width: 35px;
+    height: 35px;
+    font-size: 0.875rem;
+  }
+
+  .voucher-modal {
+    width: 95%;
+    padding: 20px;
+  }
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
-import "../../../styles/pages/orderslist.css";
+import "../../../styles/pages/Vouchers.css";
 
 export default function VoucherTab() {
   const [available, setAvailable] = useState([]);
@@ -9,11 +9,14 @@ export default function VoucherTab() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("available");
   const [message, setMessage] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const token = localStorage.getItem("token");
 
   useEffect(() => {
     fetchAllVouchers();
+    setCurrentPage(1); // Reset page khi đổi tab
   }, [tab]);
 
   // 🔹 Lấy danh sách voucher khả dụng + đã nhận
@@ -135,6 +138,14 @@ export default function VoucherTab() {
     </div>
   );
 
+  // Pagination logic
+  const currentVouchers = tab === "available" ? available : myVouchers;
+  const totalPages = Math.ceil(currentVouchers.length / itemsPerPage);
+  const displayedVouchers = currentVouchers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="voucher-tab">
       <div className="voucher-header">
@@ -158,13 +169,43 @@ export default function VoucherTab() {
         <>
           {message && <p className="text-center text-danger">{message}</p>}
           <div className="voucher-list">
-            {(tab === "available" ? available : myVouchers).map((v) =>
-              renderVoucherCard(v, tab === "my")
-            )}
-            {(tab === "available" ? available : myVouchers).length === 0 && (
+            {displayedVouchers.map((v) => renderVoucherCard(v, tab === "my"))}
+            {currentVouchers.length === 0 && (
               <p className="text-center mt-3">Không có voucher nào.</p>
             )}
           </div>
+
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                className="btn-pagination"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(currentPage - 1)}
+              >
+                ← Trước
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    className={`btn-page ${
+                      currentPage === page ? "active" : ""
+                    }`}
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
+              <button
+                className="btn-pagination"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(currentPage + 1)}
+              >
+                Sau →
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -30,33 +30,30 @@ export default function VnpayReturn() {
     const fetchVnpayResult = async () => {
       try {
         const response = await axios.get(
-          `${API_BASE_URL}/api/orders/vnpay-return${queryParams}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
+          `${API_BASE_URL}/api/orders/vnpay-return${queryParams}`
         );
 
-        if (response.data.success) {
-          // Nếu backend trả về luôn chi tiết đơn ở data, chuyển tiếp về trang Successful để hiển thị giống nhau
-          if (response.data.data) {
-            // Điều hướng sang trang Successful, truyền order trong state
-            navigate("/successful", {
-              state: {
-                order: response.data.data,
-                fromVnpay: true,
-                orderId: response.data.orderId,
-              },
-            });
-            return;
-          }
-          setResult(response.data);
+        const data = response.data;
+        console.log("🔁 VNPay Return Response:", data);
+
+        // ✅ Lưu lại toàn bộ phản hồi để hiển thị
+        setResult(data);
+
+        if (data.success) {
+          // ✅ Điều hướng sang trang thành công (frontend sẽ dùng state hiển thị)
+          navigate("/successful", {
+            state: {
+              order: data.data || null,
+              orderId: data.orderId,
+              amount: data.ThanhToanThanhCong,
+              fromVnpay: true,
+            },
+          });
         } else {
-          setError(response.data.message || "Thanh toán thất bại.");
+          setError(data.message || "Thanh toán thất bại.");
         }
       } catch (err) {
-        console.error("Lỗi khi gọi API VNPay:", err.response?.data || err);
+        console.error("❌ Lỗi khi gọi API VNPay:", err.response?.data || err);
         setError(
           err.response?.data?.message ||
             "Lỗi kết nối đến máy chủ. Không thể xác nhận kết quả thanh toán."
@@ -84,7 +81,7 @@ export default function VnpayReturn() {
   const isSuccess = result?.success === true;
   const displayText =
     result?.message || (isSuccess ? "Thanh toán thành công!" : error);
-  const displayAmount = result?.amount ?? null;
+  const displayAmount = result?.ThanhToanThanhCong ?? null;
   const orderId = result?.orderId ?? null;
 
   return (

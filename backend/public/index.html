@@ -158,6 +158,27 @@
 
         <a
           class="card"
+          href="/csp-test"
+          style="text-decoration: none; min-width: 220px; max-width: 320px"
+        >
+          <div
+            style="
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              padding: 16px;
+              border-radius: 8px;
+              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            "
+          >
+            <h3 style="color: white">🧪 /csp-test</h3>
+            <p style="margin: 6px 0; color: rgba(255, 255, 255, 0.9)">
+              <strong>Test Suite:</strong> 4 test cases inline scripts với
+              nonce/hash
+            </p>
+          </div>
+        </a>
+
+        <a
+          class="card"
           href="/report-log-realtime"
           style="text-decoration: none; min-width: 220px; max-width: 320px"
         >
@@ -219,11 +240,14 @@
         document.getElementById("statusText").textContent = "❌ Mất kết nối";
       });
 
-      socket.on("initLogs", (logs) => {
-        logs.forEach((log) => {
-          if (log.status === "pass") passCount++;
-          else failCount++;
-        });
+      socket.on("initLogs", (data) => {
+        console.log("📦 Received initial logs:", data);
+        if (data.violations) {
+          failCount = data.violations.length;
+        }
+        if (data.passes) {
+          passCount = data.passes.length;
+        }
         updateStats();
       });
 

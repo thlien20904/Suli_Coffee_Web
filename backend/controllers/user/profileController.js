@@ -676,10 +676,13 @@ const applyVoucher = async (req, res) => {
     }
 
     // Kiểm tra subtotal
+    // Kiểm tra subtotal
     if (voucher.MinOrderAmount && subtotal < voucher.MinOrderAmount) {
       return res.status(400).json({
         success: false,
-        message: `Đơn hàng phải >= ${voucher.MinOrderAmount} ₫ để áp dụng voucher`,
+        message: `Đơn hàng phải >= ${voucher.MinOrderAmount.toLocaleString(
+          "vi-VN"
+        )} ₫ để áp dụng voucher`,
       });
     }
 

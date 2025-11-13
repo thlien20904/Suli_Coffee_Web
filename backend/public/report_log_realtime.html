@@ -296,10 +296,30 @@
       });
 
       // Load initial logs
-      socket.on("initLogs", (logs) => {
-        console.log("📦 Received initial logs:", logs);
-        violations = logs || [];
-        allEvents = [...violations];
+      socket.on("initLogs", (data) => {
+        console.log("📦 Received initial logs:", data);
+
+        // Sort violations by timestamp descending (newest first)
+        violations = (data.violations || []).sort((a, b) => {
+          const timeA = new Date(a.timestamp || 0).getTime();
+          const timeB = new Date(b.timestamp || 0).getTime();
+          return timeB - timeA;
+        });
+
+        // Sort passes by timestamp descending (newest first)
+        passed = (data.passes || []).sort((a, b) => {
+          const timeA = new Date(a.timestamp || 0).getTime();
+          const timeB = new Date(b.timestamp || 0).getTime();
+          return timeB - timeA;
+        });
+
+        // Merge and sort all events (newest first)
+        allEvents = [...violations, ...passed].sort((a, b) => {
+          const timeA = new Date(a.timestamp || 0).getTime();
+          const timeB = new Date(b.timestamp || 0).getTime();
+          return timeB - timeA;
+        });
+
         updateUI();
       });
 

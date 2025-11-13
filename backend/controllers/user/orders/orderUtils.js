@@ -321,15 +321,17 @@ const saveUserAddress = async (req, res) => {
 };
 
 // =================== 4. TÍNH PHÍ SHIP ===================
-// Tính phí ship
-// ✅ Cache cho cửa hàng coordinates (tránh query DB nhiều lần)
-const storeCache = new Map();
+// ✅ Import GHN Service
+const { calculateGHNShippingFee } = require("../../../services/ghnService");
+
+// ✅ Cache cho phí ship (tránh call API nhiều lần)
+const shippingCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const calculateShippingFee = async (req, res) => {
   try {
     const {
-      cuaHangId,
+      cuaHangId, // User vẫn chọn cửa hàng (nhưng không dùng để tính ship)
       address,
       provinceId,
       districtId,
@@ -339,13 +341,6 @@ const calculateShippingFee = async (req, res) => {
     } = req.body;
 
     // ✅ OPTIMIZATION: Validate sớm
-    if (!cuaHangId) {
-      return res.status(400).json({
-        success: false,
-        message: "Thiếu thông tin cửa hàng!",
-      });
-    }
-
     if (!items?.length) {
       return res.status(400).json({
         success: false,
@@ -363,127 +358,56 @@ const calculateShippingFee = async (req, res) => {
       });
     }
 
-    // ✅ OPTIMIZATION: Cache cửa hàng coordinates
-    let cuaHang;
-    const cacheKey = `store_${cuaHangId}`;
-    const cached = storeCache.get(cacheKey);
+    // ✅ Check cache trước
+    const cacheKey = `shipping_${districtId}_${wardCode}_${items.length}`;
+    const cached = shippingCache.get(cacheKey);
 
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      cuaHang = cached.data;
-    } else {
-      cuaHang = await CuaHang.findByPk(cuaHangId, {
-        attributes: ["Latitude", "Longitude"],
+      console.log("✅ Using cached shipping fee:", cached.fee);
+      return res.json({
+        success: true,
+        shippingFee: cached.fee,
+        distance: 0,
+        message: "Phí ship từ GHN (cached)",
       });
-
-      if (cuaHang?.Latitude && cuaHang?.Longitude) {
-        storeCache.set(cacheKey, {
-          data: cuaHang,
-          timestamp: Date.now(),
-        });
-      }
     }
 
-    if (!cuaHang || !cuaHang.Latitude || !cuaHang.Longitude) {
-      return res.status(400).json({
-        success: false,
-        message: "Không tìm thấy cửa hàng hoặc cửa hàng chưa có tọa độ!",
+    // ✅ Tính phí ship bằng GHN API
+    try {
+      const ghnItems = items.map((item) => ({
+        name: item.FoodName || item.name || "Sản phẩm",
+        quantity: item.quantity || 1,
+        weight: 500, // Fix cứng 500g/sản phẩm
+      }));
+
+      const shippingFee = await calculateGHNShippingFee({
+        toDistrictId: districtId,
+        toWardCode: wardCode,
+        items: ghnItems,
+      });
+
+      // ✅ Cache kết quả
+      shippingCache.set(cacheKey, {
+        fee: shippingFee,
+        timestamp: Date.now(),
+      });
+
+      return res.json({
+        success: true,
+        shippingFee,
+        distance: 0,
+        message: "Phí ship từ GHN",
+      });
+    } catch (ghnError) {
+      console.error("❌ GHN API Error:", ghnError.message);
+      // ✅ Fallback về phí mặc định nếu GHN lỗi
+      return res.json({
+        success: true,
+        shippingFee: 30000, // Phí mặc định nếu GHN lỗi
+        distance: 0,
+        message: "Phí ship mặc định (GHN tạm thời không khả dụng)",
       });
     }
-    let userLat, userLng;
-    if (userId && address && provinceId && districtId && wardCode) {
-      const savedAddress = await DeliveryAddresses.findOne({
-        where: {
-          UserId: userId,
-          Address: address,
-          ProvinceId: parseInt(provinceId),
-          DistrictId: parseInt(districtId),
-          WardCode: String(wardCode),
-        },
-      });
-      if (savedAddress && savedAddress.Latitude && savedAddress.Longitude) {
-        userLat = savedAddress.Latitude;
-        userLng = savedAddress.Longitude;
-        console.log("User coordinates from DB:", { userLat, userLng });
-      }
-    }
-    if (!userLat || !userLng) {
-      if (!address || !provinceId || !districtId || !wardCode) {
-        return res.json({
-          success: true,
-          shippingFee: 10000,
-          distance: 0,
-          message: "Thiếu thông tin địa chỉ, áp dụng phí mặc định.",
-        });
-      }
-      const { province, district, ward } = await getGHNLocationNames(
-        provinceId,
-        districtId,
-        wardCode
-      );
-      if (!province || !district || !ward) {
-        return res.status(400).json({
-          success: false,
-          message: "Không tìm thấy thông tin tỉnh, quận, phường!",
-        });
-      }
-      const { latitude, longitude } = await getCoordinatesFromAddress(
-        address,
-        ward,
-        district,
-        province
-      );
-      if (!latitude || !longitude) {
-        return res.json({
-          success: true,
-          shippingFee: 10000,
-          distance: 0,
-          message: "Không lấy được tọa độ, áp dụng phí mặc định.",
-        });
-      }
-      userLat = latitude;
-      userLng = longitude;
-      console.log("User coordinates from Geocoding API:", { userLat, userLng });
-    }
-    if (
-      isNaN(userLat) ||
-      isNaN(userLng) ||
-      userLat < -90 ||
-      userLat > 90 ||
-      userLng < -180 ||
-      userLng > 180
-    ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Tọa độ người dùng không hợp lệ!" });
-    }
-    // ✅ Sử dụng hàm getDistance đã được định nghĩa ở đầu file
-    const distance = getDistance(
-      cuaHang.Latitude,
-      cuaHang.Longitude,
-      userLat,
-      userLng
-    );
-    console.log("CuaHang coordinates:", {
-      lat: cuaHang.Latitude,
-      lng: cuaHang.Longitude,
-    });
-    console.log("Distance (km):", distance);
-    if (distance > 20) {
-      return res.status(400).json({
-        success: false,
-        message: "Khoảng cách giao hàng quá xa (tối đa 20km)!",
-      });
-    }
-    const shippingFee = Math.min(
-      Math.max(Math.ceil(distance) * 5000, 10000),
-      50000
-    );
-    console.log("Calculated shipping fee:", shippingFee);
-    res.json({
-      success: true,
-      shippingFee,
-      distance: distance.toFixed(2),
-    });
   } catch (err) {
     console.error("CALCULATE SHIPPING FEE ERROR:", err.stack);
     res
