@@ -561,7 +561,7 @@ export default function Checkout() {
       <style>{`
         .success-banner {
           position: fixed;
-          top: 60px;
+          top: var(--header-height, 70px); /* place below header */
           left: 0;
           width: 100%;
           background: linear-gradient(90deg, #dae4daff, #81c784);
@@ -570,7 +570,7 @@ export default function Checkout() {
           padding: 10px 0;
           font-weight: 600;
           font-size: 15px;
-          z-index: 9999;
+          z-index: 900; /* keep below header so header never gets covered */
           box-shadow: 0 2px 6px rgba(0,0,0,0.2);
           border-radius: 0 0 8px 8px;
         }

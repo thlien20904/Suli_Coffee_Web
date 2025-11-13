@@ -2,6 +2,12 @@ const { sequelize, models, Op } = require("./config");
 const jwt = require("jsonwebtoken");
 const { calculateShippingFee } = require("./prepareOrder");
 const { VNPay, ProductCode, VnpLocale, dateFormat } = require("vnpay");
+const {
+  emitOrderUpdate,
+  emitNewOrderToAdmin,
+  emitUserNotification,
+  emitAdminNotification,
+} = require("../../../utils/realtimeHelper");
 
 const {
   GioHang,
@@ -407,6 +413,38 @@ const placeOrder = async (req, res) => {
       console.log("VNPay URL:", paymentUrl);
 
       await transaction.commit();
+
+      // ✅ Emit real-time event (non-blocking, không throw error)
+      try {
+        const orderData = {
+          orderId: order.OrderId,
+          userId: req.user.id,
+          totalAmount,
+          paymentMethod: paymentMethodName,
+          status: "pending",
+          timestamp: new Date().toISOString(),
+        };
+
+        emitOrderUpdate(req, req.user.id, orderData);
+        emitNewOrderToAdmin(req, orderData);
+        emitUserNotification(req, req.user.id, {
+          type: "order",
+          title: "Đặt hàng thành công",
+          message: `Đơn hàng #${order.OrderId} đang chờ thanh toán VNPay`,
+        });
+        emitAdminNotification(req, {
+          type: "order",
+          title: "Đơn hàng mới",
+          message: `Đơn hàng #${order.OrderId} - Thanh toán VNPay`,
+          data: orderData,
+        });
+      } catch (emitErr) {
+        console.error(
+          "❌ Real-time emit error (non-critical):",
+          emitErr.message
+        );
+      }
+
       return res.json({
         success: true,
         message: "Đặt hàng thành công, chuyển hướng đến VNPay!",
@@ -417,6 +455,35 @@ const placeOrder = async (req, res) => {
     }
 
     await transaction.commit();
+
+    // ✅ Emit real-time event cho đơn COD (non-blocking, không throw error)
+    try {
+      const orderData = {
+        orderId: order.OrderId,
+        userId: req.user.id,
+        totalAmount,
+        paymentMethod: paymentMethodName,
+        status: "pending",
+        timestamp: new Date().toISOString(),
+      };
+
+      emitOrderUpdate(req, req.user.id, orderData);
+      emitNewOrderToAdmin(req, orderData);
+      emitUserNotification(req, req.user.id, {
+        type: "order",
+        title: "Đặt hàng thành công",
+        message: `Đơn hàng #${order.OrderId} đã được tạo`,
+      });
+      emitAdminNotification(req, {
+        type: "order",
+        title: "Đơn hàng mới",
+        message: `Đơn hàng #${order.OrderId} - ${paymentMethodName}`,
+        data: orderData,
+      });
+    } catch (emitErr) {
+      console.error("❌ Real-time emit error (non-critical):", emitErr.message);
+    }
+
     res.json({
       success: true,
       message: "Đặt hàng thành công!",
@@ -426,7 +493,15 @@ const placeOrder = async (req, res) => {
       totalAmount,
     });
   } catch (err) {
-    await transaction.rollback();
+    // Chỉ rollback nếu transaction chưa commit hoặc rollback
+    if (transaction && !transaction.finished) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackErr) {
+        console.error("❌ Rollback error:", rollbackErr.message);
+      }
+    }
+
     console.error("PLACE ORDER ERROR:", err.message, err.stack);
     res.status(400).json({
       success: false,

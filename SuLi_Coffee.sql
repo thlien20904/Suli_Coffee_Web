@@ -810,3 +810,4 @@ SELECT
   END as CoordinatesStatus
 FROM DeliveryAddresses
 ORDER BY DeliveryAddressId DESC;
+select *from orderstatus

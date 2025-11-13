@@ -322,10 +322,12 @@ const saveUserAddress = async (req, res) => {
 
 // =================== 4. TÍNH PHÍ SHIP ===================
 // Tính phí ship
+// ✅ Cache cho cửa hàng coordinates (tránh query DB nhiều lần)
+const storeCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 const calculateShippingFee = async (req, res) => {
   try {
-    console.log("=== Calculate Shipping Fee Request ===");
-    console.log("Request body:", req.body);
     const {
       cuaHangId,
       address,
@@ -335,15 +337,52 @@ const calculateShippingFee = async (req, res) => {
       items,
       userId,
     } = req.body;
-    if (!cuaHangId || !items?.length) {
+
+    // ✅ OPTIMIZATION: Validate sớm
+    if (!cuaHangId) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu thông tin cửa hàng hoặc sản phẩm!",
+        message: "Thiếu thông tin cửa hàng!",
       });
     }
-    const cuaHang = await CuaHang.findByPk(cuaHangId, {
-      attributes: ["Latitude", "Longitude"],
-    });
+
+    if (!items?.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin sản phẩm!",
+      });
+    }
+
+    // ✅ OPTIMIZATION: Kiểm tra địa chỉ đầy đủ trước
+    if (!address?.trim() || !provinceId || !districtId || !wardCode) {
+      return res.json({
+        success: true,
+        shippingFee: 10000,
+        distance: 0,
+        message: "Vui lòng nhập đầy đủ địa chỉ",
+      });
+    }
+
+    // ✅ OPTIMIZATION: Cache cửa hàng coordinates
+    let cuaHang;
+    const cacheKey = `store_${cuaHangId}`;
+    const cached = storeCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      cuaHang = cached.data;
+    } else {
+      cuaHang = await CuaHang.findByPk(cuaHangId, {
+        attributes: ["Latitude", "Longitude"],
+      });
+
+      if (cuaHang?.Latitude && cuaHang?.Longitude) {
+        storeCache.set(cacheKey, {
+          data: cuaHang,
+          timestamp: Date.now(),
+        });
+      }
+    }
+
     if (!cuaHang || !cuaHang.Latitude || !cuaHang.Longitude) {
       return res.status(400).json({
         success: false,

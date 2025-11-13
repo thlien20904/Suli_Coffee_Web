@@ -170,7 +170,7 @@ const Order = () => {
               <td>{item.PaymentStatus?.PaymentStatusName || "N/A"}</td>
               <td>{(item.TotalAmount || 0).toLocaleString()} đ</td>
               <td>
-                {item.StatusId === 2 ? (
+                {item.StatusId === 5 ? (
                   <span className="status-cancelled">Đã hủy</span>
                 ) : item.PaymentStatusId === 3 ? (
                   <span className="status-failed">Thanh toán thất bại</span>
@@ -181,12 +181,12 @@ const Order = () => {
                       updateStatus(item.OrderId, parseInt(e.target.value))
                     }
                   >
-                    <option value={1}>Chờ thanh toán</option>
-                    <option value={2}>Đã hủy</option>
-                    <option value={3}>Đặt hàng thành công</option>
-                    <option value={4}>Đang chuẩn bị đơn hàng</option>
-                    <option value={5}>Đang giao hàng</option>
-                    <option value={6}>Giao hàng thành công</option>
+                    <option value={1}>Đặt hàng thành công</option>
+                    <option value={2}>Đang chuẩn bị đơn hàng</option>
+                    <option value={3}>Đang giao hàng</option>
+                    <option value={4}>Giao hàng thành công</option>
+                    <option value={5}>Đã hủy</option>
+                    <option value={6}>Chưa hoàn tất</option>
                   </select>
                 )}
               </td>

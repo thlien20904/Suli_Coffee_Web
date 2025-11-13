@@ -243,35 +243,34 @@ exports.getProductDetail = async (req, res) => {
       order: [["ToppingName", "ASC"]],
     });
 
+    // Lấy sản phẩm liên quan (cùng category, khác ID)
     let related = [];
-    if (product.CategoryId) {
+    const categoryId = product.Category?.CategoryId || product.CategoryId;
+
+    if (categoryId) {
+      console.log(
+        `🔍 Tìm sản phẩm liên quan cho CategoryId: ${categoryId}, loại trừ FoodId: ${id}`
+      );
+
       related = await Food.findAll({
         where: {
-          CategoryId: product.CategoryId,
+          CategoryId: categoryId,
           FoodId: { [Op.ne]: id },
+          Status: true, // Chỉ lấy sản phẩm đang hoạt động
         },
-        limit: 4,
-        order: [[literal("NEWID()"), ""]], // Random trong SQL Server
+        limit: 6,
+        order: [["FoodId", "DESC"]], // Lấy sản phẩm mới nhất
         attributes: [
           "FoodId",
           "FoodName",
           "Price",
-          [
-            literal(
-              "ISNULL([Food].[DiscountPrice], [Food].[Price] * (1 - ISNULL([Food].[Discount], 0) / 100.0))"
-            ),
-            "DiscountPrice",
-          ],
+          "Discount",
+          "DiscountPrice",
           "ImageURL",
         ],
-        include: [
-          {
-            model: Category,
-            as: "Category",
-            attributes: ["CategoryName"],
-          },
-        ],
       });
+
+      console.log(`✅ Tìm thấy ${related.length} sản phẩm liên quan`);
     }
 
     const formattedProduct = {
@@ -292,9 +291,11 @@ exports.getProductDetail = async (req, res) => {
       FoodId: r.FoodId,
       FoodName: r.FoodName,
       Price: parseFloat(r.Price),
-      DiscountPrice: parseFloat(r.dataValues.DiscountPrice),
+      DiscountPrice: r.DiscountPrice
+        ? parseFloat(r.DiscountPrice)
+        : parseFloat(r.Price) *
+          (1 - (r.Discount ? parseFloat(r.Discount) / 100 : 0)),
       ImageURL: r.ImageURL || "/images/no-image.png",
-      CategoryName: r.Category?.CategoryName,
     }));
 
     res.json({

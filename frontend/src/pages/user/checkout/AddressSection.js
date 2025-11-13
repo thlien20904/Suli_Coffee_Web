@@ -338,22 +338,26 @@ export default function AddressSection({
     setUserCoordinates,
   ]);
 
-  // Tính phí ship
+  // ✅ OPTIMIZED: Tính phí ship - chỉ call khi đã chọn đủ thông tin
   useEffect(() => {
     let timeoutId;
     const calculateShipping = async () => {
+      // ✅ Kiểm tra đầy đủ thông tin trước khi call API
       if (
         !selectedCuaHangId ||
-        !baseStreet ||
+        !baseStreet?.trim() ||
         !selectedProvince ||
         !selectedDistrict ||
         !selectedWard ||
         !selectedItems?.length
-      )
+      ) {
+        // ✅ Reset shipping về 0 nếu chưa đủ thông tin
+        setShippingFee(0);
         return;
+      }
+
       setLoadingShipping(true);
       try {
-        // ✅ FIX: Lấy token từ localStorage và thêm vào header
         const token = localStorage.getItem("token");
         const res = await axios.post(
           "http://localhost:5000/api/orders/shipping/calculate",
@@ -364,7 +368,7 @@ export default function AddressSection({
             districtId: selectedDistrict,
             wardCode: selectedWard,
             items: selectedItems,
-            userId: user.id || user.Id, // Support cả 2 format
+            userId: user.id || user.Id,
           },
           {
             headers: {
@@ -373,15 +377,22 @@ export default function AddressSection({
             },
           }
         );
-        if (res.data.success) setShippingFee(res.data.shippingFee || 0);
+        if (res.data.success) {
+          setShippingFee(res.data.shippingFee || 0);
+        }
       } catch (err) {
-        console.error(err);
-        setError("Lỗi khi tính phí ship!");
+        console.error("❌ Shipping calculation error:", err);
+        // ✅ Không hiển thị error nếu chỉ là thiếu thông tin
+        if (err.response?.status !== 400) {
+          setError("Lỗi khi tính phí ship!");
+        }
       } finally {
         setLoadingShipping(false);
       }
     };
-    timeoutId = setTimeout(calculateShipping, 500);
+
+    // ✅ OPTIMIZATION: Giảm timeout từ 500ms → 300ms
+    timeoutId = setTimeout(calculateShipping, 300);
     return () => clearTimeout(timeoutId);
   }, [
     selectedCuaHangId,
@@ -390,7 +401,7 @@ export default function AddressSection({
     selectedDistrict,
     selectedWard,
     selectedItems,
-    user.Id,
+    // ✅ REMOVED: user.Id - không cần dependency này
   ]);
 
   return (

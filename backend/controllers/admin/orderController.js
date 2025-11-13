@@ -2,6 +2,11 @@ const sequelize = require("../../config/sequelize");
 const initModels = require("../../models/init-models");
 const models = initModels(sequelize);
 const { Sequelize, Op } = require("sequelize");
+const {
+  emitOrderStatusChange,
+  emitUserNotification,
+  emitAdminNotification,
+} = require("../../utils/realtimeHelper");
 
 const { Orders, Users, OrderStatus, PaymentStatus } = models;
 
@@ -27,7 +32,7 @@ exports.getOrders = async (req, res) => {
         },
         {
           model: PaymentStatus,
-          as: "PaymentStatus", // ✅ thêm trạng thái thanh toán
+          as: "PaymentStatus",
           attributes: ["PaymentStatusId", "PaymentStatusName"],
           required: false,
         },
@@ -73,14 +78,15 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
-    // Nếu đơn hàng đã hủy hoặc thanh toán thất bại → không cho update
-    if (order.StatusId === 2) {
+    // Nếu đơn hàng đã hủy (OrderStatusId = 5) → không cho update
+    if (order.StatusId === 5) {
       return res.status(400).json({
         success: false,
         message: "Đơn hàng đã hủy, không thể cập nhật trạng thái!",
       });
     }
 
+    // Nếu thanh toán thất bại (PaymentStatusId = 3) → không cho update
     if (order.PaymentStatusId === 3) {
       return res.status(400).json({
         success: false,
@@ -99,6 +105,27 @@ exports.updateOrderStatus = async (req, res) => {
 
     // Cập nhật trạng thái
     await order.update({ StatusId: newStatusId });
+
+    // ✅ Emit real-time event
+    const statusChangeData = {
+      orderId: order.OrderId,
+      status: status.StatusName,
+      statusId: status.StatusId,
+      message: `Đơn hàng đã được cập nhật sang trạng thái: ${status.StatusName}`,
+    };
+
+    emitOrderStatusChange(req, order.UserId, statusChangeData);
+    emitUserNotification(req, order.UserId, {
+      type: "order-status",
+      title: "Cập nhật đơn hàng",
+      message: `Đơn hàng #${order.OrderId} - ${status.StatusName}`,
+    });
+    emitAdminNotification(req, {
+      type: "order-status",
+      title: "Đã cập nhật trạng thái",
+      message: `Đơn hàng #${order.OrderId} → ${status.StatusName}`,
+      data: statusChangeData,
+    });
 
     res.json({
       success: true,

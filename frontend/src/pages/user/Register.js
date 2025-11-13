@@ -100,7 +100,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await axios.post(`${API_BASE}/api/auth/register`, {
+      const resp = await axios.post(`${API_BASE}/api/auth/register`, {
         username: form.username.trim(),
         email: form.email.trim(),
         password: form.password,
@@ -109,10 +109,37 @@ export default function Register() {
         address: form.address.trim(),
       });
 
-      setSuccessMsg("Đăng ký thành công! Vui lòng đăng nhập.");
-      setTimeout(() => navigate("/login", { replace: true }), 900);
+      // Server now sends a verification email. Inform the user and do not auto-redirect.
+      if (resp && resp.data && resp.data.success) {
+        setSuccessMsg(
+          "Đăng ký tạm thời thành công. Vui lòng kiểm tra email để xác nhận và hoàn tất đăng ký."
+        );
+      } else {
+        setSuccessMsg(
+          "Đăng ký thành công. Vui lòng kiểm tra email để xác nhận."
+        );
+      }
     } catch (err) {
-      setAlertMsg("Đăng ký thất bại. Vui lòng thử lại.");
+      // If server returned field errors (e.g. 409 with errors array), map them to the form
+      const resp = err?.response?.data;
+      if (resp) {
+        // If server returned structured errors array: [{ field, msg }]
+        if (Array.isArray(resp.errors) && resp.errors.length) {
+          const fieldErrs = {};
+          resp.errors.forEach((it) => {
+            if (it.field) fieldErrs[it.field] = it.msg || it.message || it.msg;
+          });
+          setErrors((prev) => ({ ...prev, ...fieldErrs }));
+          setAlertMsg("Vui lòng kiểm tra và sửa các trường có lỗi.");
+        } else if (resp.message) {
+          // Generic server message
+          setAlertMsg(resp.message);
+        } else {
+          setAlertMsg("Đăng ký thất bại. Vui lòng thử lại.");
+        }
+      } else {
+        setAlertMsg("Đăng ký thất bại. Vui lòng thử lại.");
+      }
     } finally {
       setLoading(false);
     }

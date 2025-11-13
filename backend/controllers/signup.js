@@ -1,4 +1,4 @@
-const bcryptjs = require("bcryptjsjs");
+const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { Op } = require("sequelize"); // Import Op để fix lỗi Op.or

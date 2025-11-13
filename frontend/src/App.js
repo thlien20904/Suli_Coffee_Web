@@ -9,6 +9,7 @@ import { jwtDecode } from "jwt-decode";
 import Home from "./pages/user/Home";
 import Login from "./pages/user/Login";
 import Register from "./pages/user/Register";
+import EmailVerified from "./pages/user/EmailVerified";
 import ForgotPassword from "./pages/user/ForgotPassword";
 import ResetPassword from "./pages/user/ResetPassword";
 import ProductList from "./pages/user/ProductList";
@@ -101,6 +102,7 @@ function App() {
       {/* Auth routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/email-verified" element={<EmailVerified />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 

@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 const passport = require("passport");
@@ -12,13 +13,38 @@ const initModels = require("./models/init-models");
 const models = initModels(sequelize);
 const bcrypt = require("bcryptjs");
 const { Users } = models;
+const createCSPMiddleware = require("./cspMiddleware");
+const frontendBuildPath = path.join(__dirname, "../frontend/build");
+const http = require("http");
+const socketIO = require("socket.io");
+const { initializeSocketIO } = require("./socketManager");
+
+// Khởi tạo app trước
+const app = express();
+
+// Tạo server từ app
+const server = http.createServer(app);
+
+// Tạo socket.io
+const io = new socketIO.Server(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    credentials: true,
+  },
+});
+
+// Initialize Socket.IO với real-time features
+const socketManager = initializeSocketIO(io);
+
+// Export socketManager để các routes khác sử dụng
+app.set("socketManager", socketManager);
 
 // Database helper (mssql)
 const { poolPromise } = require("./db");
 
 dotenv.config();
 
-// Global error handlers to log unexpected errors and rejections for easier debugging
+// Global error handlers
 process.on("uncaughtException", (err) => {
   console.error("UNCAUGHT EXCEPTION:", err && err.stack ? err.stack : err);
 });
@@ -26,7 +52,7 @@ process.on("unhandledRejection", (reason, p) => {
   console.error("UNHANDLED REJECTION at:", p, "reason:", reason);
 });
 
-const app = express();
+/* ---------------- MIDDLEWARE ---------------- */
 app.use(
   cors({
     origin: "http://localhost:3000",
@@ -37,7 +63,9 @@ app.use(express.json());
 app.use(passport.initialize());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logger - prints method, path and a short body preview for every incoming request
+// ✅ CSP middleware serve frontend build (đã có express.static bên trong)
+app.use(createCSPMiddleware(frontendBuildPath, { io }));
+// Request logger
 app.use((req, res, next) => {
   try {
     const preview =
@@ -53,12 +81,43 @@ app.use((req, res, next) => {
   next();
 });
 
-// 📌 Phục vụ ảnh tĩnh (chỉ dùng một thư mục images/)
-app.use("/images", express.static(path.join(__dirname, "../images"))); // Thư mục images/ trong backend/
-app.use("/uploads", express.static(path.join(__dirname, "Uploads")));
-app.use("/images", express.static(path.join(__dirname, "public/images")));
+// Serve ảnh tĩnh
+// Ảnh cũ
+app.use(
+  "/images/old",
+  (req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.join(__dirname, "../images"))
+);
 
-// 📌 Route cho trang thành công
+// Ảnh mới upload
+app.use(
+  "/images/new",
+  (req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.join(__dirname, "public/images"))
+);
+
+// Nếu muốn mount chung /images cho cả hai
+app.use(
+  "/images",
+  (req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.join(__dirname, "../images")),
+  express.static(path.join(__dirname, "public/images"))
+);
+
+/* ---------------- ROUTES ---------------- */
+// Success route
 app.get("/successful", async (req, res) => {
   try {
     const authHeader = req.headers["authorization"];
@@ -74,7 +133,6 @@ app.get("/successful", async (req, res) => {
       process.env.JWT_SECRET || "dev_secret_fallback"
     );
 
-    // Kiểm tra user tồn tại qua model Users
     const user = await Users.findOne({ where: { Id: decoded.id } });
     if (!user) {
       return res
@@ -91,6 +149,7 @@ app.get("/successful", async (req, res) => {
   }
 });
 
+// Passport Google OAuth
 passport.use(
   new GoogleStrategy(
     {
@@ -107,7 +166,6 @@ passport.use(
         let user = await Users.findOne({ where: { Email: email } });
 
         if (!user) {
-          // Tạo mới user với PasswordHash mặc định
           user = await Users.create({
             Username: username,
             Email: email,
@@ -116,7 +174,6 @@ passport.use(
             AvatarUrl: avatar,
           });
         } else {
-          // Cập nhật thông tin user
           await Users.update(
             { Username: username, AvatarUrl: avatar },
             { where: { Email: email } }
@@ -132,7 +189,7 @@ passport.use(
   )
 );
 
-/* ---------------- MULTER UPLOAD ---------------- */
+/* ---------------- MULTER ---------------- */
 const storage = multer.diskStorage({
   destination: (req, file, cb) =>
     cb(null, path.join(__dirname, "public/images")),
@@ -176,7 +233,7 @@ app.use("/api/orders", ordersUserRouter);
 app.use("/api/Stores", StoresUserRouter);
 app.use("/api/addresses", addressesUserRouter);
 app.use("/api/home", homeRouter);
-app.use("/api/address", require("./routes/user/address"));
+app.use("/api/address", addressRouter);
 
 // Admin routes
 app.use("/api/admin/home", homeAdminRouter);
@@ -193,6 +250,7 @@ app.use("/api/admin/invoice", invoiceRouter);
 app.use("/api/admin/orders", orderAdminRouter);
 app.use("/api/admin/report", reportRouter);
 app.use("/api/admin/voucher", voucherRouter);
+
 /* ---------------- CONNECT DB ---------------- */
 const connectDB = async () => {
   try {
@@ -220,11 +278,11 @@ app.get(
   (req, res) => {
     const token = jwt.sign(
       {
-        id: req.user.Id, // Sử dụng Id thay vì UserID
+        id: req.user.Id,
         role: (req.user.Role || "user").toLowerCase(),
         username: req.user.Username,
         email: req.user.Email,
-        avatar: req.user.AvatarUrl || null, // Sử dụng AvatarUrl thay vì AvatarURL
+        avatar: req.user.AvatarUrl || null,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
@@ -272,8 +330,20 @@ app.get("/api/current_user", async (req, res) => {
 const passwordRouter = require("./routes/user/password");
 app.use("/api/password", passwordRouter);
 
-const PORT = process.env.PORT || 5000;
+// Route serve CSP demo
+app.get("/csp", (req, res) => {
+  const filePath = path.join(__dirname, "public/index.html"); // đường dẫn tới file index.html của CSP demo
+  if (!fs.existsSync(filePath)) return res.status(404).send("Not found");
 
-app.listen(PORT, () => {
+  // Nếu muốn thêm nonce từ middleware CSP (nếu đã setup)
+  // const nonce = res.locals.nonce || '';
+  // let html = fs.readFileSync(filePath, 'utf8').replace(/__NONCE__/g, nonce);
+
+  const html = fs.readFileSync(filePath, "utf8");
+  res.send(html);
+});
+/* ---------------- START SERVER ---------------- */
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
   console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
 });

@@ -152,7 +152,7 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
         position: "fixed",
         top: 0,
         width: "100%",
-        zIndex: 1000,
+        zIndex: 50000, // ensure header stays above floating buttons/overlays
         backgroundColor: "#ffffff",
       }}
     >
@@ -196,6 +196,11 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
               <Link to="/stores" className="nav-link">
                 Cửa hàng
               </Link>
+            </li>
+            <li>
+              <a href="/csp" target="_self">
+                CSP Demo
+              </a>
             </li>
           </ul>
         </nav>

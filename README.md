@@ -4,6 +4,7 @@
 
 **SuLi Coffee** là ứng dụng web quản lý và đặt đồ uống trực tuyến.
 Hệ thống cho phép **khách hàng** đặt đồ uống, theo dõi đơn hàng, quản lý thông tin cá nhân và **admin** có thể quản lý toàn bộ hoạt động của cửa hàng như sản phẩm, nhân viên, đơn hàng và báo cáo.
+
 ## Tác giả
 
 | Họ và tên              | MSSV        |
@@ -11,7 +12,6 @@ Hệ thống cho phép **khách hàng** đặt đồ uống, theo dõi đơn hà
 | 💠 **Điêu Thúy Liên**  | 22810310267 |
 | 💠 **Phạm Đăng Khuê**  | 22810310270 |
 | 💠 **Nguyễn Đức Minh** | 22810310235 |
-
 
 ## 2. Công nghệ sử dụng
 
@@ -168,7 +168,6 @@ npm start
 ![Quản lý đơn hàng admin ](./images/order_admin.jpg)
 ![Quản lý Voucher admin](./images/voucher_admin.jpg)
 
-
 ## 📎 Link nộp bài
 
 - 🔗 Source Code + Database (GitHub Public):
@@ -176,3 +175,53 @@ npm start
 
 - 🎥 Video Demo (YouTube – Không công khai):
   [https://youtu.be/](https://youtu.be/ZksVXJf6EvM)
+
+## hi
+
+2️⃣ Script 1: Inline không nonce, không hash (PHẢI bị chặn)
+const s1 = document.createElement('script');
+s1.textContent = "console.log('❌ BLOCKED'); alert('Should NOT show!');";
+document.documentElement.appendChild(s1);
+
+Kết quả mong đợi:
+
+Console báo lỗi CSP: “Executing inline script violates …”
+
+Alert không hiển thị ✅
+
+3️⃣ Script 2: Inline có nonce đúng (PHẢI chạy)
+const s2 = document.createElement('script');
+s2.setAttribute('nonce', 'ABC123'); // Lấy từ CSP header
+s2.textContent = "console.log('✅ NONCE works!'); alert('✅ NONCE Works!');";
+document.documentElement.appendChild(s2);
+
+Kết quả mong đợi:
+
+Console: ✅ NONCE works!
+
+Alert hiện: ✅
+
+4️⃣ Script 3: Inline không nonce nhưng có hash đúng (PHẢI chạy)
+
+Giả sử bạn muốn cho phép inline script:
+
+console.log('✅ HASH works!'); alert('✅ HASH Works!');
+
+Bạn tính hash SHA256 Base64 của script này trước. Ví dụ: sha256-q1w2e3r4t5y6u7i8o9p0a1s2d3f4g5h6j7k8l9m0=
+
+const s3 = document.createElement('script');
+s3.textContent = "console.log('✅ HASH works!'); alert('✅ HASH Works!');";
+document.documentElement.appendChild(s3);
+
+CSP sẽ cho phép chạy vì hash khớp.
+
+5️⃣ Script sai hash hoặc nonce (PHẢI block)
+const s4 = document.createElement('script');
+s4.textContent = "console.log('❌ Wrong nonce/hash');";
+document.documentElement.appendChild(s4);
+
+Kết quả mong đợi:
+
+CSP block, console báo lỗi
+
+Script không chạy
