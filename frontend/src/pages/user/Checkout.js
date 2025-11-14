@@ -120,7 +120,12 @@ export default function Checkout() {
         console.log("📦 STORES RESPONSE:", data); // ✅ THÊM LOG: Response stores
         if (data.success) {
           setStores(data.data || []);
-          console.log(`🗺️ Filtered stores:`, data.data?.length || 0, "with userCoords:", userCoordinates);
+          console.log(
+            `🗺️ Filtered stores:`,
+            data.data?.length || 0,
+            "with userCoords:",
+            userCoordinates
+          );
         }
       } catch (err) {
         console.error("LỖI LẤY CỬA HÀNG:", err);
@@ -430,7 +435,10 @@ export default function Checkout() {
         payload.orderItems = finalOrderItems;
       }
 
-      console.log("🚀 PLACE ORDER PAYLOAD FULL:", JSON.stringify(payload, null, 2)); // ✅ THÊM LOG: Payload đầy đủ
+      console.log(
+        "🚀 PLACE ORDER PAYLOAD FULL:",
+        JSON.stringify(payload, null, 2)
+      ); // ✅ THÊM LOG: Payload đầy đủ
       console.log("🔍 PendingOrderId:", pendingOrderId);
       console.log("📦 FinalOrderItems:", finalOrderItems);
       console.log("💰 FinalTotal:", finalTotal);
@@ -444,12 +452,27 @@ export default function Checkout() {
       console.log("🔗 VNPAY URL GENERATED:", data.Url);
       console.log("📊 RESPONSE CODE:", data.Code);
 
+      // VNPay redirect
       if (data.success && data.Code === 1 && data.Url) {
         console.log("🚀 REDIRECTING TO VNPAY:", data.Url); // ✅ THÊM LOG: Redirect VNPay
         window.location.href = data.Url;
         return;
       }
 
+      // QR Code payment redirect
+      if (data.success && data.paymentMethod === "QR" && data.qrCodeUrl) {
+        console.log("📱 REDIRECTING TO QR PAYMENT PAGE");
+        navigate("/qr-payment", {
+          state: {
+            orderId: data.orderId,
+            totalPrice: data.totalPrice,
+            qrCodeUrl: data.qrCodeUrl,
+          },
+        });
+        return;
+      }
+
+      // COD success
       if (data.success) {
         isSubmitted.current = true;
         setSuccessMessage(`Đặt hàng thành công! Mã đơn: ${data.orderId}`);
@@ -518,7 +541,7 @@ export default function Checkout() {
 
       <h2
         className="checkout-title mb-4 text-center"
-        style={{ marginTop: "50px" }}
+        style={{ marginTop: "-40px" }}
       >
         Thanh toán
       </h2>

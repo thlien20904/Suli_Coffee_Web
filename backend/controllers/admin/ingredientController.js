@@ -5,6 +5,11 @@ const multer = require("multer");
 const { Op } = require("sequelize");
 const sequelize = require("../../config/sequelize");
 const initModels = require("../../models/init-models");
+const {
+  uploadToSupabase,
+  deleteFromSupabase,
+  isSupabaseUrl,
+} = require("../../services/supabaseService");
 
 const models = initModels(sequelize);
 const { Ingredient, Food, FoodIngredient } = models;
@@ -12,21 +17,30 @@ const { Ingredient, Food, FoodIngredient } = models;
 const HOST = "http://localhost:5000";
 
 // ==================== MULTER UPLOAD ====================
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, "../../public/images");
-    fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
+// Use memory storage for Supabase upload
+const storage = multer.memoryStorage();
+
+exports.upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+  fileFilter: (req, file, cb) => {
+    // Only allow image files
+    if (file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error("Chỉ chấp nhận file ảnh (jpeg, jpg, png, gif, webp)!"),
+        false
+      );
+    }
   },
 });
-exports.upload = multer({ storage });
 
 // ==================== XỬ LÝ LỖI ====================
 const handleControllerError = (err, res, uploadedFile = null) => {
-  if (uploadedFile) fs.unlink(uploadedFile.path, () => {});
+  // Note: No need to delete file for memory storage
   console.error("❌ Lỗi Controller:", err);
   return res
     .status(500)
@@ -114,9 +128,25 @@ exports.addIngredient = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Tên nguyên liệu đã tồn tại." });
 
-    const imageUrl = req.file
-      ? `/images/${req.file.filename}`
-      : "/images/no-image.png";
+    let imageUrl = "/images/no-image.png"; // Default fallback
+
+    // Upload image to Supabase if provided
+    if (req.file) {
+      const uploadResult = await uploadToSupabase(
+        req.file.buffer,
+        req.file.originalname,
+        "nguyenlieu" // folder name for ingredients
+      );
+      if (uploadResult.success) {
+        imageUrl = uploadResult.url; // Full Supabase URL
+      } else {
+        await transaction.rollback();
+        return res.status(500).json({
+          success: false,
+          message: `Lỗi upload ảnh: ${uploadResult.error}`,
+        });
+      }
+    }
 
     const newIngredient = await Ingredient.create(
       {
@@ -187,7 +217,24 @@ exports.editIngredient = async (req, res) => {
       SoLuong,
       PhanLoai: PhanLoai || "Khác",
     };
-    if (req.file) updateData.ImageURL = `/images/${req.file.filename}`;
+
+    // Upload new image to Supabase if provided
+    if (req.file) {
+      const uploadResult = await uploadToSupabase(
+        req.file.buffer,
+        req.file.originalname,
+        "nguyenlieu" // folder name for ingredients
+      );
+      if (uploadResult.success) {
+        updateData.ImageURL = uploadResult.url; // Full Supabase URL
+      } else {
+        await transaction.rollback();
+        return res.status(500).json({
+          success: false,
+          message: `Lỗi upload ảnh: ${uploadResult.error}`,
+        });
+      }
+    }
 
     await ingredient.update(updateData, { transaction });
 
@@ -204,9 +251,16 @@ exports.editIngredient = async (req, res) => {
 
     await transaction.commit();
 
+    // Delete old image from Supabase if new image was uploaded and old image exists
     if (req.file && oldImage && oldImage !== "/images/no-image.png") {
-      const oldPath = path.join(__dirname, "../../public", oldImage);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      if (isSupabaseUrl(oldImage)) {
+        // Delete from Supabase Storage
+        await deleteFromSupabase(oldImage);
+      } else {
+        // Delete from local filesystem (for backward compatibility)
+        const oldPath = path.join(__dirname, "../../public", oldImage);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
     }
 
     res.json({

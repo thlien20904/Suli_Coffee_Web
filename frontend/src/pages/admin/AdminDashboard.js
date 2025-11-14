@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Line } from "react-chartjs-2";
+import { getImageUrl } from "../../utils/imageUtils";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
   Chart as ChartJS,
@@ -60,18 +61,116 @@ const AdminDashboard = () => {
     recentOrders,
   } = data;
 
+  console.log("📊 Dashboard data:", { monthlySales, totalSales }); // Debug log
+
+  // Ensure monthlySales exists and has proper format
+  const safelyMonthlySales = monthlySales || [];
+  console.log("📈 Monthly sales data:", safelyMonthlySales); // Debug log
+  console.log("🔍 Raw data from API:", {
+    totalSales,
+    monthlySales,
+    statusCount,
+  }); // Debug API data
+  console.log(
+    "📊 TotalSales type and value:",
+    typeof totalSales,
+    totalSales,
+    Number(totalSales)
+  ); // Check number conversion
+
   const monthlyLabels = Array.from({ length: 12 }, (_, i) => `Tháng ${i + 1}`);
+  const monthlyRevenueData = Array.from({ length: 12 }, (_, i) => {
+    const monthData = safelyMonthlySales.find((m) => m.Month === i + 1);
+    const revenue = monthData ? monthData.TotalRevenue : 0;
+    console.log(`📅 Tháng ${i + 1}:`, { monthData, revenue }); // Debug each month
+    return revenue || 0;
+  });
+
+  console.log("📊 Chart data array:", monthlyRevenueData); // Debug log
+
+  // Check if there's any revenue data - use multiple checks
+  const hasRevenueData =
+    totalSales > 0 || monthlyRevenueData.some((value) => value > 0);
+  const totalRevenue =
+    totalSales || monthlyRevenueData.reduce((sum, value) => sum + value, 0);
+
+  console.log("🔍 Revenue check - totalSales > 0:", totalSales > 0);
+  console.log(
+    "🔍 Revenue check - monthlyData has values:",
+    monthlyRevenueData.some((value) => value > 0)
+  );
+  console.log("🔍 Final hasRevenueData:", hasRevenueData);
+  console.log("💰 Final totalRevenue:", totalRevenue);
+
   const chartData = {
     labels: monthlyLabels,
     datasets: [
       {
-        label: "Doanh thu",
-        data: monthlySales.map((m) => m.TotalRevenue),
-        borderColor: "rgba(54, 162, 235, 1)",
-        backgroundColor: "rgba(54, 162, 235, 0.2)",
+        label: "Doanh thu (VNĐ)",
+        data: monthlyRevenueData,
+        borderColor: "#28a745",
+        backgroundColor: "rgba(40, 167, 69, 0.1)",
         fill: true,
+        tension: 0.3,
+        pointBackgroundColor: "#28a745",
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2,
+        pointRadius: 5,
       },
     ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "top",
+        labels: {
+          font: {
+            size: 14,
+            weight: "bold",
+          },
+        },
+      },
+      title: {
+        display: true,
+        text: "Doanh thu theo tháng năm 2025 (VNĐ)",
+        font: {
+          size: 16,
+          weight: "bold",
+        },
+        color: "#2c3e50",
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: "rgba(0,0,0,0.1)",
+        },
+        ticks: {
+          font: {
+            size: 12,
+          },
+          callback: function (value) {
+            if (value === 0) return "0 ₫";
+            return new Intl.NumberFormat("vi-VN").format(value) + " ₫";
+          },
+        },
+      },
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          font: {
+            size: 12,
+            weight: "bold",
+          },
+        },
+      },
+    },
   };
 
   return (
@@ -134,10 +233,58 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      {/* Biểu đồ */}
+      {/* Biểu đồ Doanh thu */}
       <section className="mt-5">
-        <h3 className="text-center">📊 Doanh thu theo tháng</h3>
-        <Line data={chartData} />
+        <div className="row">
+          <div className="col-12">
+            <div className="card shadow-lg border-0">
+              <div className="card-header bg-gradient-success text-white">
+                <h4 className="mb-0 text-center">
+                  📊 Biểu Đồ Doanh Thu Theo Tháng Năm 2025
+                </h4>
+              </div>
+              <div className="card-body p-4">
+                <div className="row mb-4">
+                  <div className="col-md-6">
+                    <div className="text-center">
+                      <small className="text-muted">Tổng doanh thu năm</small>
+                      <h5 className="text-success mb-0">
+                        {new Intl.NumberFormat("vi-VN").format(totalRevenue)} ₫
+                      </h5>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="text-center">
+                      <small className="text-muted">
+                        Số tháng có doanh thu
+                      </small>
+                      <h5 className="text-info mb-0">
+                        {monthlyRevenueData.filter((v) => v > 0).length} / 12
+                        tháng
+                      </h5>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className="chart-container"
+                  style={{ height: "450px", position: "relative" }}
+                >
+                  <Line data={chartData} options={chartOptions} />
+                </div>
+
+                {!hasRevenueData && (
+                  <div className="text-center mt-3">
+                    <div className="alert alert-info" role="alert">
+                      📈 Chưa có dữ liệu doanh thu trong năm nay. Biểu đồ sẽ
+                      hiển thị khi có đơn hàng đầu tiên!
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Top sản phẩm + quốc gia */}
@@ -150,7 +297,7 @@ const AdminDashboard = () => {
                 <div className="col-md-4 mb-3" key={i}>
                   <div className="card text-center p-3 bg-light">
                     <img
-                      src={item.ImageURL || "/images/no-image.png"}
+                      src={getImageUrl(item.ImageURL)}
                       alt={item.FoodName}
                       style={{
                         maxWidth: "100%",
@@ -264,7 +411,7 @@ const AdminDashboard = () => {
                   <tr key={i}>
                     <td>
                       <img
-                        src={item.ImageURL || "/images/no-image.png"}
+                        src={getImageUrl(item.ImageURL)}
                         alt={item.IngredientName}
                         className="ingredient-img"
                       />

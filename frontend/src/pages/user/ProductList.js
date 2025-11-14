@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Row, Col, Card, Form, Button, Spinner } from "react-bootstrap";
 import { FaSearch } from "react-icons/fa";
+import { getImageUrl, getDefaultImage } from "../../utils/imageUtils";
 import "../../styles/pages/ProductList.css";
 
 const API = "http://localhost:5000";
@@ -27,7 +28,7 @@ const fmtVND = (n) =>
     : "";
 
 const getVariantImage = (p) =>
-  p.ImageURL ? `${API}${p.ImageURL}` : PLACEHOLDER;
+  p.ImageURL ? getImageUrl(p.ImageURL) : getDefaultImage();
 
 function ProductCardItem({ p }) {
   const navigate = useNavigate();

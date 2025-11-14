@@ -10,6 +10,7 @@ import {
   setUnreadCount,
   updateUser,
 } from "../../../redux/userSlice";
+import { getAvatarUrl } from "../../../utils/imageUtils";
 import "../../../styles/components/Navbar.css";
 
 export default function Navbar({ brandText = "SuLi Coffee" }) {
@@ -49,10 +50,7 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
           }
 
           if (avatarPath) {
-            const fullUrl = avatarPath.startsWith("http")
-              ? avatarPath
-              : `http://localhost:5000${avatarPath}`;
-            dispatch(updateUser({ avatar: fullUrl }));
+            dispatch(updateUser({ avatar: getAvatarUrl(avatarPath) }));
           }
         }
       } catch (err) {
@@ -235,9 +233,10 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
           {/* 👤 Avatar */}
           <div
             className="avatar-container"
+            onClick={() => setMenuVisible(!menuVisible)}
             onMouseEnter={() => setMenuVisible(true)}
             onMouseLeave={() => {
-              setTimeout(() => setMenuVisible(false), 200);
+              setTimeout(() => setMenuVisible(false), 300);
             }}
           >
             {renderUserAvatar()}
@@ -245,7 +244,9 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
             <div
               className={`avatar-dropdown ${menuVisible ? "show" : ""}`}
               onMouseEnter={() => setMenuVisible(true)}
-              onMouseLeave={() => setMenuVisible(false)}
+              onMouseLeave={() => {
+                setTimeout(() => setMenuVisible(false), 300);
+              }}
             >
               {isAuthenticated ? (
                 <>

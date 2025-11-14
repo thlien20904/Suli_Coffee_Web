@@ -11,6 +11,7 @@ import {
   Carousel,
 } from "react-bootstrap";
 import { Link } from "react-router-dom";
+import { getImageUrl, getDefaultImage } from "../../utils/imageUtils";
 import "../../styles/pages/Home.css";
 
 export default function Home() {
@@ -33,7 +34,10 @@ export default function Home() {
         const res = await axios.get("http://localhost:5000/api/home");
         console.log("API response:", res.data);
         // Support multiple response shapes: { success:true, data: [...] } or direct array
-        const payload = res.data && (res.data.data ?? res.data) ? (res.data.data ?? res.data) : [];
+        const payload =
+          res.data && (res.data.data ?? res.data)
+            ? res.data.data ?? res.data
+            : [];
         setFoods(Array.isArray(payload) ? payload : []);
       } catch (err) {
         // Log helpful details (message + server response body if available)
@@ -143,10 +147,9 @@ export default function Home() {
                           <div className="thumb-wrap">
                             <Card.Img
                               variant="top"
-                              src={`http://localhost:5000${food.DefaultImage}`}
+                              src={getImageUrl(food.DefaultImage)}
                               onError={(e) => {
-                                e.target.src =
-                                  "http://localhost:5000/images/no-image.png";
+                                e.target.src = getDefaultImage();
                                 console.log(
                                   "Image load error for:",
                                   food.Name,

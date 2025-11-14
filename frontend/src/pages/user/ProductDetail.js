@@ -4,6 +4,7 @@ import axios from "axios";
 import { Row, Col, Button, Spinner, Alert, Form } from "react-bootstrap";
 import { useDispatch } from "react-redux";
 import { setCartCount } from "../../redux/userSlice";
+import { getImageUrl, getDefaultImage } from "../../utils/imageUtils";
 import "../../styles/pages/ProductDetail.css";
 
 const API = "http://localhost:5000";
@@ -119,7 +120,11 @@ export default function ProductDetail() {
       }
     } catch (err) {
       console.error("ADD TO CART ERROR:", err.response?.data || err);
-      const msg = err.response?.data?.message || err.response?.data || err.message || "Có lỗi xảy ra, vui lòng thử lại.";
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data ||
+        err.message ||
+        "Có lỗi xảy ra, vui lòng thử lại.";
       if (err.response?.status === 401) {
         alert(msg + " (Bạn sẽ được chuyển tới trang đăng nhập)");
         navigate("/login");
@@ -205,10 +210,10 @@ export default function ProductDetail() {
         {/* Ảnh sản phẩm */}
         <Col md={5} className="text-center">
           <img
-            src={product.ImageURL ? `${API}${product.ImageURL}` : PLACEHOLDER}
+            src={getImageUrl(product.ImageURL)}
             alt={product.FoodName}
             className="product-image"
-            onError={(e) => (e.currentTarget.src = PLACEHOLDER)}
+            onError={(e) => (e.currentTarget.src = getDefaultImage())}
           />
         </Col>
 
@@ -301,10 +306,10 @@ export default function ProductDetail() {
                 }}
               >
                 <img
-                  src={item.ImageURL ? `${API}${item.ImageURL}` : PLACEHOLDER}
+                  src={getImageUrl(item.ImageURL)}
                   alt={item.FoodName}
                   className="related-image rounded"
-                  onError={(e) => (e.currentTarget.src = PLACEHOLDER)}
+                  onError={(e) => (e.currentTarget.src = getDefaultImage())}
                 />
                 <p className="related-name mt-2">{item.FoodName}</p>
                 <p className="related-price text-muted">{fmtVND(item.Price)}</p>

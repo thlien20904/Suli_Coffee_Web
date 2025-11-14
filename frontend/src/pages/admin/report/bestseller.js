@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { getImageUrl } from "../../../utils/imageUtils";
 import "../../../styles/components/admin/bestseller.css";
 
 const BestSeller = () => {
@@ -62,7 +63,7 @@ const BestSeller = () => {
                     <div className="col-md-3 d-flex" key={item.FoodId}>
                       <div className="product-card">
                         <img
-                          src={item.ImageURL}
+                          src={getImageUrl(item.ImageURL)}
                           alt={item.FoodName}
                           className="product-img"
                         />

@@ -6,6 +6,7 @@ import {
   InfoWindow,
   useJsApiLoader,
 } from "@react-google-maps/api";
+import { getImageUrl } from "../../utils/imageUtils";
 import "../../styles/pages/StoresUser.css";
 
 const API_URL = "http://localhost:5000/api/stores";
@@ -88,19 +89,23 @@ export default function StoresUser() {
   if (loadError)
     return (
       <div className="stores-container error-text">
+        <p>Lỗi Google Maps: {loadError.message}</p>
         <p>
-          Lỗi Google Maps: {loadError.message}
-        </p>
-        <p>
-          Nguyên nhân thường gặp: API key chưa bật billing hoặc key không hợp lệ. Để sửa bạn có thể:
+          Nguyên nhân thường gặp: API key chưa bật billing hoặc key không hợp
+          lệ. Để sửa bạn có thể:
         </p>
         <ol>
           <li>
-            Kiểm tra biến môi trường <code>REACT_APP_GOOGLE_MAPS_API_KEY</code> và thay API key hợp lệ.
+            Kiểm tra biến môi trường <code>REACT_APP_GOOGLE_MAPS_API_KEY</code>{" "}
+            và thay API key hợp lệ.
           </li>
-          <li>Bật Billing cho Google Cloud project chứa API key: https://console.cloud.google.com/</li>
           <li>
-            Nếu không muốn hiển thị bản đồ, xóa biến môi trường hoặc liên hệ admin để thêm key hợp lệ.
+            Bật Billing cho Google Cloud project chứa API key:
+            https://console.cloud.google.com/
+          </li>
+          <li>
+            Nếu không muốn hiển thị bản đồ, xóa biến môi trường hoặc liên hệ
+            admin để thêm key hợp lệ.
           </li>
         </ol>
       </div>
@@ -153,11 +158,7 @@ export default function StoresUser() {
                 }
               >
                 <img
-                  src={
-                    store.Image_URL?.startsWith("http")
-                      ? store.Image_URL
-                      : `http://localhost:5000${store.Image_URL}`
-                  }
+                  src={getImageUrl(store.Image_URL)}
                   alt={store.CuaHangName}
                 />
                 <div className="store-info">

@@ -17,32 +17,43 @@ const {
 } = models;
 // ✅ THÊM: Import PaymentStatus
 const { PaymentStatus } = models;
-const { Op } = require("sequelize");
+const { Op, Sequelize } = require("sequelize");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 
+// Import Supabase service
+const {
+  uploadToSupabase,
+  deleteFromSupabase,
+  isSupabaseUrl,
+} = require("../../services/supabaseService");
+
 // JWT Secret từ .env
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_fallback";
 
-// Cấu hình upload file (Giữ nguyên)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, "../../public/images");
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
+// Cấu hình upload file - sử dụng memory storage cho Supabase
+const storage = multer.memoryStorage();
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  filename: (req, file, cb) => {
-    const fileExt = path.extname(file.originalname).toLowerCase();
-    const uniqueName = crypto.randomUUID() + fileExt;
-    cb(null, uniqueName);
+  fileFilter: (req, file, cb) => {
+    // Only allow image files
+    if (file.mimetype.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error("Chỉ chấp nhận file ảnh (jpeg, jpg, png, gif, webp)!"),
+        false
+      );
+    }
   },
 });
-const upload = multer({ storage });
 
 // Middleware xác thực JWT (Giữ nguyên)
 const authenticate = (req, res, next) => {
@@ -151,20 +162,38 @@ const updateProfile = async (req, res) => {
       errors.Address = "Address không được để trống";
 
     if (Object.keys(errors).length > 0) {
-      if (file && fs.existsSync(file.path)) fs.unlinkSync(file.path);
       return res
         .status(400)
         .json({ success: false, message: Object.values(errors).join("\n") });
     }
 
-    // Xử lý avatar
+    // Xử lý avatar upload to Supabase
     let avatarUrl = user.AvatarUrl || "";
     if (file) {
-      if (user.AvatarUrl && user.AvatarUrl.trim() !== "") {
-        const oldPath = path.join(__dirname, "../../public", user.AvatarUrl);
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      // Upload new avatar to Supabase
+      const uploadResult = await uploadToSupabase(
+        file.buffer,
+        file.originalname,
+        "Avatar" // folder for user avatars
+      );
+
+      if (uploadResult.success) {
+        avatarUrl = uploadResult.url; // Full Supabase URL
+
+        // Delete old avatar from Supabase if it exists
+        if (user.AvatarUrl && isSupabaseUrl(user.AvatarUrl)) {
+          await deleteFromSupabase(user.AvatarUrl);
+        } else if (user.AvatarUrl && user.AvatarUrl.trim() !== "") {
+          // Delete old local file for backward compatibility
+          const oldPath = path.join(__dirname, "../../public", user.AvatarUrl);
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        }
+      } else {
+        return res.status(500).json({
+          success: false,
+          message: `Lỗi upload avatar: ${uploadResult.error}`,
+        });
       }
-      avatarUrl = `/images/${file.filename.replace(/\\/g, "/")}`;
     }
 
     // Update instance
@@ -182,7 +211,6 @@ const updateProfile = async (req, res) => {
     });
   } catch (err) {
     console.error("UPDATE USER ERROR:", err);
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res
       .status(500)
       .json({ success: false, message: "Có lỗi xảy ra khi cập nhật." });

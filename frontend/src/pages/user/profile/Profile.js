@@ -3,6 +3,9 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../../styles/pages/profile.css";
 
+// Import helper functions
+import { getAvatarUrl, getDefaultImage } from "../../../utils/imageUtils";
+
 // Import các phần con
 import ProfileInfo from "./ProfileInfo";
 import OrdersList from "./OrdersList";
@@ -17,7 +20,7 @@ function Profile() {
   const token = localStorage.getItem("token");
   const [activeSection, setActiveSection] = useState("profile");
   const [userState, setUserState] = useState(null);
-  const [avatar, setAvatar] = useState(`${API_BASE}/images/no-image.png`);
+  const [avatar, setAvatar] = useState(getDefaultImage());
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -50,11 +53,7 @@ function Profile() {
         if (data.success && data.data) {
           // <- sửa từ data.user -> data.data
           setUserState(data.data);
-          setAvatar(
-            data.data.AvatarUrl
-              ? `${API_BASE}${data.data.AvatarUrl}`
-              : `${API_BASE}/images/no-image.png`
-          );
+          setAvatar(getAvatarUrl(data.data.AvatarUrl));
         }
       } catch (err) {
         setError(err.message);

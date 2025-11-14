@@ -32,31 +32,50 @@ exports.getHome = async (req, res) => {
     ]);
     const totalSales = totalSalesRes || 0;
 
-    // 3. Doanh thu theo tháng (năm hiện tại)
+    // 3. Doanh thu theo tháng (năm hiện tại) - Fix PostgreSQL query
     const currentYear = new Date().getFullYear();
-const monthlySales = await Orders.findAll({
-  attributes: [
-    [Sequelize.literal(`EXTRACT(MONTH FROM "OrderDate")`), "Month"],
-    [Sequelize.fn("SUM", Sequelize.col("TotalAmount")), "TotalRevenue"],
-  ],
-  where: {
-    OrderDate: {
-      [Op.gte]: `${currentYear}-01-01`,
-      [Op.lte]: `${currentYear}-12-31`,
-    },
-  },
-  group: [Sequelize.literal(`EXTRACT(MONTH FROM "OrderDate")`)],
-  order: [[Sequelize.literal(`EXTRACT(MONTH FROM "OrderDate")`), "ASC"]],
-});
+    console.log("📅 Current year:", currentYear);
 
+    // Use raw SQL for PostgreSQL compatibility
+    const monthlySales = await sequelize.query(
+      `
+      SELECT 
+        EXTRACT(MONTH FROM "OrderDate")::INTEGER as "Month",
+        SUM("TotalAmount")::FLOAT as "TotalRevenue"
+      FROM "Orders" 
+      WHERE "OrderDate" >= '${currentYear}-01-01' 
+        AND "OrderDate" <= '${currentYear}-12-31'
+      GROUP BY EXTRACT(MONTH FROM "OrderDate")
+      ORDER BY EXTRACT(MONTH FROM "OrderDate") ASC
+    `,
+      {
+        type: Sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    console.log(
+      "📊 Raw monthly sales from DB:",
+      JSON.stringify(monthlySales, null, 2)
+    );
 
     const monthlySalesArray = Array.from({ length: 12 }, (_, i) => {
-      const found = monthlySales.find((r) => r.dataValues.Month === i + 1);
+      const found = monthlySales.find((r) => r.Month === i + 1);
+      const revenue = found ? parseFloat(found.TotalRevenue) : 0;
+      console.log(`📅 Month ${i + 1}:`, {
+        found: !!found,
+        revenue,
+        raw: found,
+      });
       return {
         Month: i + 1,
-        TotalRevenue: found ? parseFloat(found.dataValues.TotalRevenue) : 0,
+        TotalRevenue: revenue,
       };
     });
+
+    console.log(
+      "📊 Final monthly sales array:",
+      JSON.stringify(monthlySalesArray, null, 2)
+    );
 
     // 4. Sản phẩm bán chạy (top 3) - Separate query to avoid group with include
     const topFoodIds = await OrderDetails.findAll({
@@ -100,8 +119,8 @@ const monthlySales = await Orders.findAll({
     }));
 
     // 6. Top Address (GROUP BY Address in Users) - Raw SQL fix for MSSQL
-const topAddressesRaw = await sequelize.query(
-  `
+    const topAddressesRaw = await sequelize.query(
+      `
   SELECT COALESCE(u."Address", 'Unknown') AS "Address",
          COUNT(o."OrderId") AS "OrderCount"
   FROM "Users" u
@@ -111,9 +130,8 @@ const topAddressesRaw = await sequelize.query(
   ORDER BY "OrderCount" DESC
   LIMIT 5;
   `,
-  { type: Sequelize.QueryTypes.SELECT }
-);
-
+      { type: Sequelize.QueryTypes.SELECT }
+    );
 
     const topAddressesProcessed = topAddressesRaw.map((item) => ({
       Address: item.Address,

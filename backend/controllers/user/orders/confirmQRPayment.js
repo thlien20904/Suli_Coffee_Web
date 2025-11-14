@@ -1,5 +1,6 @@
 const { sequelize, models } = require("./config");
 const jwt = require("jsonwebtoken");
+const { createGHNOrder } = require("../../../services/ghnService");
 const {
   emitOrderUpdate,
   emitUserNotification,
@@ -95,6 +96,20 @@ const confirmQRPayment = async (req, res) => {
       PaymentStatusId: paidStatus.PaymentStatusId,
       Note: newNote,
     });
+
+    console.log(`🚀 ===== CREATING GHN ORDER FOR QR PAYMENT #${orderId} =====`);
+
+    // Create GHN order for QR payment (COD = 0, same as VNPay)
+    try {
+      await createGHNOrder(orderId, 0); // COD = 0 for QR payment
+      console.log(`✅ QR Payment #${orderId} - GHN Order created successfully`);
+    } catch (ghnError) {
+      console.error(
+        `❌ GHN Order creation failed for QR #${orderId}:`,
+        ghnError.message
+      );
+      // Don't fail the confirmation if GHN fails - just log it
+    }
 
     // Emit notification (non-blocking)
     try {

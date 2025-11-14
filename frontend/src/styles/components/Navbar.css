@@ -81,6 +81,8 @@
   position: relative;
   cursor: pointer;
   height: 32px;
+  padding: 8px; /* Larger clickable area */
+  margin: -8px; /* Compensate for padding */
 }
 
 .avatar-img {
@@ -100,18 +102,20 @@
   display: none;
   position: absolute;
   right: 0;
-  top: 110%;
-  background-color: #ffffff; /* nền trắng cho dropdown */
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  padding: 8px 0;
+  top: 100%;
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 12px 0;
   border-radius: 8px;
-  min-width: 160px;
+  min-width: 180px;
   z-index: 999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Khi hover vào avatar hoặc menu vẫn giữ hiển thị */
 .avatar-container:hover .avatar-dropdown,
-.avatar-dropdown:hover {
+.avatar-dropdown:hover,
+.avatar-dropdown.show {
   display: block;
 }
 
@@ -119,18 +123,23 @@
 .avatar-dropdown a,
 .avatar-dropdown p {
   display: block;
-  padding: 10px 14px;
+  padding: 14px 20px;
   color: #333;
   text-decoration: none;
   transition: all 0.2s ease;
   cursor: pointer;
   font-weight: 500;
+  font-size: 16px;
+  margin: 0;
+  border: none;
+  background: none;
 }
 
 .avatar-dropdown a:hover,
 .avatar-dropdown p:hover {
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
   color: #8ebe86;
+  transform: translateX(2px);
 }
 
 /* ====== Search Bar ====== */
@@ -171,15 +180,17 @@
 
 .dropdown-item {
   margin: 0;
-  padding: 10px 15px;
+  padding: 14px 20px;
   color: #333;
-  font-size: 15px;
+  font-size: 16px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .dropdown-item:hover {
-  background-color: #f5f5f5;
-  color: #000;
+  background-color: #f8f9fa;
+  color: #8ebe86;
+  transform: translateX(2px);
 }
 
 .custom-search-input::placeholder {

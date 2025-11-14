@@ -1,5 +1,6 @@
 import { Table, Form, Button, Spinner } from "react-bootstrap";
 import { useState, useCallback } from "react";
+import { getImageUrl, getDefaultImage } from "../../../utils/imageUtils";
 
 export default function OrderSummary({
   itemsState,
@@ -99,8 +100,8 @@ export default function OrderSummary({
                   <img
                     src={
                       item.ImageURL
-                        ? `http://localhost:5000${item.ImageURL}`
-                        : `http://localhost:5000/images/no-image.png`
+                        ? getImageUrl(item.ImageURL)
+                        : getDefaultImage()
                     }
                     alt={item.FoodName}
                     className="checkout-img"

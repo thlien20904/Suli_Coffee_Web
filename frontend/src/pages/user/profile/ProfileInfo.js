@@ -3,9 +3,12 @@ import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import axios from "axios";
 
+// Import helper functions
+import { getAvatarUrl, getDefaultImage } from "../../../utils/imageUtils";
+
 export default function ProfileInfo() {
   const [userState, setUserState] = useState(null);
-  const [avatar, setAvatar] = useState("/images/no-image.png");
+  const [avatar, setAvatar] = useState(getDefaultImage());
   const [formData, setFormData] = useState({
     fullname: "",
     phone: "",
@@ -37,11 +40,7 @@ export default function ProfileInfo() {
             phone: data.Phone || "",
             address: data.Address || "",
           });
-          setAvatar(
-            data.AvatarUrl
-              ? `${backendUrl}${data.AvatarUrl}`
-              : "/images/no-image.png"
-          );
+          setAvatar(getAvatarUrl(data.AvatarUrl));
         } else {
           Swal.fire(
             "",
@@ -139,7 +138,7 @@ export default function ProfileInfo() {
         });
 
         if (res.data.data?.avatarUrl)
-          setAvatar(`${backendUrl}${res.data.data.avatarUrl}`);
+          setAvatar(getAvatarUrl(res.data.data.avatarUrl));
         setAvatarFile(null);
 
         // cập nhật userState local luôn
@@ -169,11 +168,7 @@ export default function ProfileInfo() {
       phone: userState.Phone || "",
       address: userState.Address || "",
     });
-    setAvatar(
-      userState.AvatarUrl
-        ? `${backendUrl}${userState.AvatarUrl}`
-        : "/images/no-image.png"
-    );
+    setAvatar(getAvatarUrl(userState.AvatarUrl));
     setAvatarFile(null);
     setErrors({});
   };

@@ -7,7 +7,7 @@
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
-  padding: 20px;
+  padding: -10px;
   position: sticky;
   top: 90px; /* Giữ sticky khi scroll */
   max-height: 70vh; /* Giới hạn cao, tránh cover quá nhiều khi scroll dài */
@@ -69,6 +69,8 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+
+
 }
 
 .product-card:hover {
