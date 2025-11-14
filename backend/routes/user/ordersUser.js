@@ -56,6 +56,11 @@ router.post(
   ordersUserController.placeOrder
 );
 router.post(
+  "/confirm-qr-payment",
+  ordersUserController.authenticateToken,
+  ordersUserController.confirmQRPayment
+);
+router.post(
   "/save-pending",
   ordersUserController.authenticateToken,
   ordersUserController.savePending

@@ -73,6 +73,7 @@ export default function Checkout() {
       }
 
       const data = await res.json();
+      console.log("📡 API RESPONSE:", { url, status: res.status, data }); // ✅ THÊM LOG: Response từ API
       if (!res.ok) throw new Error(data.message || `Lỗi ${res.status}`);
       return data;
     },
@@ -116,11 +117,10 @@ export default function Checkout() {
 
         console.log("📡 Calling API:", url);
         const data = await apiFetch(url);
-        console.log("📦 API response:", data);
-
+        console.log("📦 STORES RESPONSE:", data); // ✅ THÊM LOG: Response stores
         if (data.success) {
           setStores(data.data || []);
-          console.log(`✅ Loaded ${data.data?.length || 0} stores`, data.data);
+          console.log(`🗺️ Filtered stores:`, data.data?.length || 0, "with userCoords:", userCoordinates);
         }
       } catch (err) {
         console.error("LỖI LẤY CỬA HÀNG:", err);
@@ -222,7 +222,7 @@ export default function Checkout() {
                 }
               : null,
             Toppings: (detail.Toppings || []).map((t) => ({
-              ToppingID: t.ToppingID, // ✅ Dùng ToppingID (chữ ID hoa) để đồng nhất
+              ToppingID: t.ToppingID || t.ToppingId, // ✅ Support cả 2 format
               ToppingName: t.ToppingName,
               ToppingPrice: 0, // ✅ Set = 0 vì Price đã bao gồm
             })),
@@ -271,7 +271,9 @@ export default function Checkout() {
         method: "POST",
         body: JSON.stringify({ voucherCode, subtotal }),
       });
+      console.log("🎟️ VOUCHER RESPONSE:", res); // ✅ THÊM LOG: Voucher response
       if (res.success) {
+        console.log("💸 Discount applied:", res.discountAmount); // ✅ THÊM LOG: Discount
         setDiscountAmount(res.discountAmount || 0);
         setSuccessMessage(
           `Áp dụng voucher thành công! Giảm ${(
@@ -428,15 +430,22 @@ export default function Checkout() {
         payload.orderItems = finalOrderItems;
       }
 
-      console.log("Place order payload:", payload);
+      console.log("🚀 PLACE ORDER PAYLOAD FULL:", JSON.stringify(payload, null, 2)); // ✅ THÊM LOG: Payload đầy đủ
+      console.log("🔍 PendingOrderId:", pendingOrderId);
+      console.log("📦 FinalOrderItems:", finalOrderItems);
+      console.log("💰 FinalTotal:", finalTotal);
 
       const data = await apiFetch("/api/orders/place-order", {
         method: "POST",
         body: JSON.stringify(payload),
       });
 
+      console.log("✅ PLACE ORDER RESPONSE:", data); // ✅ THÊM LOG: Response place-order
+      console.log("🔗 VNPAY URL GENERATED:", data.Url);
+      console.log("📊 RESPONSE CODE:", data.Code);
+
       if (data.success && data.Code === 1 && data.Url) {
-        console.log("Redirecting to payment URL:", data.Url);
+        console.log("🚀 REDIRECTING TO VNPAY:", data.Url); // ✅ THÊM LOG: Redirect VNPay
         window.location.href = data.Url;
         return;
       }
@@ -509,7 +518,7 @@ export default function Checkout() {
 
       <h2
         className="checkout-title mb-4 text-center"
-        style={{ marginTop: "-40px" }}
+        style={{ marginTop: "50px" }}
       >
         Thanh toán
       </h2>

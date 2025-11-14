@@ -213,11 +213,12 @@ const getOrders = async (req, res) => {
       ? pendingStatus.PaymentStatusId
       : null;
 
-    // Điều kiện COD hoặc đã thanh toán
+    // Điều kiện COD, QR CODE, hoặc đã thanh toán
     const codOrPaidCondition = {
       [Op.or]: [
         { PaymentMethodId: 2 }, // COD
-        { PaymentStatusId: paidStatusId }, // đã thanh toán
+        { PaymentMethodId: 3 }, // QR CODE (hiển thị cả khi chờ thanh toán)
+        { PaymentStatusId: paidStatusId }, // đã thanh toán (VNPAY)
       ],
     };
 

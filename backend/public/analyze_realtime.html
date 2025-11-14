@@ -191,12 +191,27 @@
       });
 
       // Load initial data
-      socket.on("initLogs", (logs) => {
-        console.log("📦 Received initial logs:", logs);
-        logs.forEach((log) => {
-          processLog(log, false);
-        });
+      socket.on("initLogs", (data) => {
+        console.log("📦 Received initial logs:", data);
+
+        // Process violations (failures)
+        if (data.violations && Array.isArray(data.violations)) {
+          data.violations.forEach((log) => {
+            processLog(log, false); // false = violation
+          });
+        }
+
+        // Process passes (successes)
+        if (data.passes && Array.isArray(data.passes)) {
+          data.passes.forEach((log) => {
+            processLog(log, true); // true = pass
+          });
+        }
+
         updateAllCharts();
+        console.log(
+          `✅ Processed ${passCount} passes, ${failCount} violations`
+        );
       });
 
       // Real-time updates

@@ -36,6 +36,7 @@ export default function CheckoutForm({
   setLoadingShipping,
   setUserCoordinates, // ✅ Nhận từ Checkout.js
   stores = [], // ✅ Nhận stores từ Checkout.js thay vì fetch riêng
+  calculateItemPrice, // ✅ Nhận từ Checkout.js để tính giá QR
 }) {
   const [fullAddress, setFullAddress] = useState(null);
   const [shippingFee, setShippingFee] = useState(10000); // Mặc định 10,000 VNĐ
@@ -92,7 +93,8 @@ export default function CheckoutForm({
         receiverName: user.fullName,
         phone: user.phone,
       },
-      paymentMethodId: payment === "COD" ? 2 : 1,
+      payment, // ✅ Gửi payment để backend phân biệt
+      paymentMethodId: payment === "COD" ? 2 : payment === "QR" ? 3 : 1, // COD=2, QR=3, VNPAY=1
       voucherCode: voucherCode?.trim() || null,
       cuaHangId: selectedCuaHangId,
       orderItems: selectedItems.map((item) => ({
@@ -236,11 +238,15 @@ export default function CheckoutForm({
         </Form.Label>
         <Form.Select
           value={payment}
-          onChange={(e) => setPayment(e.target.value)}
+          onChange={(e) => {
+            setPayment(e.target.value);
+            setError(""); // Clear error
+          }}
           required
         >
           <option value="COD">Thanh toán khi nhận hàng (COD)</option>
           <option value="VNPAY">VNPAY</option>
+          <option value="QR">Thanh toán qua QR Code</option>
         </Form.Select>
       </Form.Group>
 

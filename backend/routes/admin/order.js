@@ -17,4 +17,9 @@ router.post("/:id/status", orderController.updateOrderStatus);
 ===================================================== */
 router.post("/:id/sync-ghn", orderController.syncGHNOrderStatus);
 
+/* =====================================================
+   4️⃣ XÁC NHẬN / TỪ CHỐI ĐƠN HÀNG QR CODE
+===================================================== */
+router.post("/:id/qr-action", orderController.confirmOrRejectQR);
+
 module.exports = router;

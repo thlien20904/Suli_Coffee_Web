@@ -201,7 +201,7 @@
         <div id="status1" class="test-status waiting">
           ⏳ Chưa test - Click nút bên dưới
         </div>
-        <button class="btn" onclick="test1()">🚀 Chạy Test 1</button>
+        <button class="btn" id="btn1">🚀 Chạy Test 1</button>
       </div>
 
       <!-- Test 2: Inline script có nonce đúng (PHẢI chạy) -->
@@ -223,7 +223,7 @@
         <div id="status2" class="test-status waiting">
           ⏳ Chưa test - Click nút bên dưới
         </div>
-        <button class="btn" onclick="test2()">🚀 Chạy Test 2</button>
+        <button class="btn" id="btn2">🚀 Chạy Test 2</button>
       </div>
 
       <!-- Test 3: Inline script có hash đúng (PHẢI chạy) -->
@@ -248,7 +248,7 @@
         <div id="status3" class="test-status waiting">
           ⏳ Chưa test - Click nút bên dưới
         </div>
-        <button class="btn" onclick="test3()">🚀 Chạy Test 3</button>
+        <button class="btn" id="btn3">🚀 Chạy Test 3</button>
       </div>
 
       <!-- Test 4: Inline script sai nonce/hash (PHẢI bị chặn) -->
@@ -272,7 +272,7 @@
         <div id="status4" class="test-status waiting">
           ⏳ Chưa test - Click nút bên dưới
         </div>
-        <button class="btn" onclick="test4()">🚀 Chạy Test 4</button>
+        <button class="btn" id="btn4">🚀 Chạy Test 4</button>
       </div>
 
       <div class="info-box">
@@ -306,6 +306,12 @@
     <script nonce="{{NONCE}}">
       const NONCE = "{{NONCE}}";
       console.log("📝 Current nonce:", NONCE);
+
+      // Attach event listeners (không dùng onclick inline)
+      document.getElementById("btn1").addEventListener("click", test1);
+      document.getElementById("btn2").addEventListener("click", test2);
+      document.getElementById("btn3").addEventListener("click", test3);
+      document.getElementById("btn4").addEventListener("click", test4);
 
       function test1() {
         console.log("\n🧪 TEST 1: Inline script WITHOUT nonce/hash");

@@ -16,6 +16,7 @@ import ProductList from "./pages/user/ProductList";
 import ProductDetail from "./pages/user/ProductDetail";
 import Cart from "./pages/user/Cart";
 import Checkout from "./pages/user/Checkout";
+import QRPayment from "./pages/user/QRPayment";
 import Successful from "./pages/user/successful";
 
 // profile pages
@@ -117,6 +118,14 @@ function App() {
           element={
             <PrivateRoute>
               <Checkout />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="qr-payment"
+          element={
+            <PrivateRoute>
+              <QRPayment />
             </PrivateRoute>
           }
         />

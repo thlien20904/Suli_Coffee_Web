@@ -9,6 +9,7 @@ const {
 } = require("./orders/orderUtils");
 const { formatItem, prepareOrder } = require("./orders/prepareOrder");
 const { placeOrder } = require("./orders/placeOrder");
+const [confirmQRAuth, confirmQRPayment] = require("./orders/confirmQRPayment");
 const { vnpayReturn, reOrder } = require("./orders/vnpayReturn");
 const {
   savePending,
@@ -22,6 +23,7 @@ module.exports = {
   formatItem,
   prepareOrder,
   placeOrder,
+  confirmQRPayment,
   vnpayReturn,
   reOrder,
   savePending,

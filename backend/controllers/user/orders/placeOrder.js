@@ -73,6 +73,7 @@ const placeOrder = async (req, res) => {
       orderItems,
       pendingOrderId,
       paymentMethodId,
+      payment, // ✅ Nhận payment để phân biệt QR vs VNPAY
       voucherCode,
       cuaHangId,
       deliveryAddressId,
@@ -295,7 +296,6 @@ const placeOrder = async (req, res) => {
       defaults: { PaymentStatusName: "Chờ thanh toán" },
       transaction,
     });
-
     // Get payment method name
     const paymentMethod = await PhuongThucThanhToan.findByPk(paymentMethodId, {
       attributes: ["TenPhuongThuc"],
@@ -312,7 +312,7 @@ const placeOrder = async (req, res) => {
         TotalAmount: totalAmount,
         PaymentMethodId: paymentMethodId,
         StatusId: orderStatus.StatusId,
-        PaymentStatusId: pendingPayment.PaymentStatusId,
+        PaymentStatusId: pendingPayment.PaymentStatusId, // Mặc định "Chờ thanh toán"
         DeliveryAddress: deliveryAddress.Address,
         Province: deliveryAddress.Province,
         District: deliveryAddress.District,
@@ -398,6 +398,74 @@ const placeOrder = async (req, res) => {
       }
     }
 
+    // ✅ QR Payment: paymentMethodId = 3 (QR CODE)
+    if (parseInt(paymentMethodId) === 3) {
+      console.log("\n💳 ===== QR CODE PAYMENT - NO GHN ORDER =====");
+      console.log(`Order ID: ${order.OrderId}`);
+      console.log("⏭️ Skipping GHN order creation for QR CODE payment");
+
+      // Clear giỏ hàng
+      if (selectedItems?.length) {
+        await GioHang.destroy({
+          where: { GioHangID: { [Op.in]: selectedItems } },
+          transaction,
+        });
+      }
+
+      // PaymentStatusId = "Chờ thanh toán" (ban đầu)
+      // User sẽ xác nhận đã thanh toán trên trang /qr-payment
+      // OrderStatusId = 1 (Đặt hàng thành công) - Chờ admin xác nhận
+
+      await transaction.commit();
+      console.log("✅ QR CODE order transaction committed (no GHN)\n");
+
+      // Emit real-time notifications (non-blocking)
+      try {
+        const orderData = {
+          orderId: order.OrderId,
+          userId: req.user.id,
+          totalAmount,
+          paymentMethod: paymentMethodName,
+          status: "pending",
+          timestamp: new Date().toISOString(),
+        };
+
+        emitOrderUpdate(req, req.user.id, orderData);
+        emitNewOrderToAdmin(req, orderData);
+        emitUserNotification(req, req.user.id, {
+          type: "order",
+          title: "Đơn hàng mới",
+          message: `Đơn hàng #${order.OrderId} đang chờ thanh toán QR`,
+        });
+        emitAdminNotification(req, {
+          type: "order",
+          title: "Đơn hàng mới",
+          message: `Đơn hàng #${order.OrderId} - Thanh toán QR CODE`,
+          data: orderData,
+        });
+      } catch (emitErr) {
+        console.error(
+          "❌ Real-time emit error (non-critical):",
+          emitErr.message
+        );
+      }
+
+      // Generate QR code URL
+      const qrCodeUrl = `https://img.vietqr.io/image/mbbank-0366413924-compact2.jpg?amount=${Math.round(
+        totalAmount * 1000
+      )}&addInfo=DonHang${order.OrderId}&accountName=SULI COFFEE`;
+
+      return res.json({
+        success: true,
+        message: "Đơn hàng đã được tạo. Vui lòng thanh toán qua QR Code.",
+        paymentMethod: "QR",
+        orderId: order.OrderId,
+        totalPrice: totalAmount,
+        qrCodeUrl,
+      });
+    }
+
+    // COD Payment
     if (parseInt(paymentMethodId) === 2 && selectedItems?.length) {
       await GioHang.destroy({
         where: { GioHangID: { [Op.in]: selectedItems } },
@@ -405,6 +473,7 @@ const placeOrder = async (req, res) => {
       });
     }
 
+    // VNPAY Payment - paymentMethodId = 1
     if (parseInt(paymentMethodId) === 1) {
       // ✅ FIX: Convert IPv6 localhost (::1) sang IPv4 (127.0.0.1)
       let ipAddr =
@@ -514,98 +583,103 @@ const placeOrder = async (req, res) => {
       });
     }
 
-    // ✅ TẠO ĐơN GHN TRƯỚC KHI COMMIT (CRITICAL - phải thành công mới tạo order)
+    // ✅ TẠO ĐƠN GHN CHỈ CHO COD (Skip VNPAY và QR CODE)
     let ghnOrderCode = null;
-    try {
-      console.log("\n🚀 ===== CREATING GHN ORDER (BEFORE COMMIT) =====");
-      console.log("Payment Method:", paymentMethodName);
-      console.log("Delivery Address:", {
-        name: deliveryAddress.ReceiverName,
-        phone: deliveryAddress.Phone,
-        address: deliveryAddress.Address,
-        districtId: deliveryAddress.DistrictId,
-        wardCode: deliveryAddress.WardCode,
-        province: deliveryAddress.Province,
-        district: deliveryAddress.District,
-        ward: deliveryAddress.Ward,
-      });
 
-      const ghnItems = itemsToOrder.map((item, idx) => ({
-        name: `Sản phẩm ${idx + 1}`,
-        quantity: item.Quantity || 1,
-        weight: 500,
-      }));
-      console.log("GHN Items:", ghnItems);
+    // Skip GHN nếu là VNPAY (id=1) hoặc QR CODE (id=3)
+    const shouldCreateGHN = parseInt(paymentMethodId) === 2; // Chỉ COD
 
-      const isCOD =
-        paymentMethodName.toLowerCase().includes("cod") ||
-        paymentMethodName.toLowerCase().includes("tiền mặt") ||
-        paymentMethodName.toLowerCase().includes("tiền mặt khi nhận hàng");
-      const codAmount = isCOD ? totalAmount : 0;
-      console.log("COD Amount:", codAmount, "(isCOD:", isCOD, ")");
+    if (shouldCreateGHN) {
+      try {
+        console.log("\n🚀 ===== CREATING GHN ORDER (BEFORE COMMIT) =====");
+        console.log("Payment Method:", paymentMethodName);
+        console.log("Delivery Address:", {
+          name: deliveryAddress.ReceiverName,
+          phone: deliveryAddress.Phone,
+          address: deliveryAddress.Address,
+          districtId: deliveryAddress.DistrictId,
+          wardCode: deliveryAddress.WardCode,
+          province: deliveryAddress.Province,
+          district: deliveryAddress.District,
+          ward: deliveryAddress.Ward,
+        });
 
-      const toLatitude = deliveryAddress.Latitude
-        ? parseFloat(deliveryAddress.Latitude)
-        : null;
-      const toLongitude = deliveryAddress.Longitude
-        ? parseFloat(deliveryAddress.Longitude)
-        : null;
-      console.log(
-        "Coordinates:",
-        toLatitude && toLongitude
-          ? `${toLatitude}, ${toLongitude}`
-          : "NOT AVAILABLE - GHN will geocode"
-      );
+        const ghnItems = itemsToOrder.map((item, idx) => ({
+          name: `Sản phẩm ${idx + 1}`,
+          quantity: item.Quantity || 1,
+          weight: 500,
+        }));
+        console.log("GHN Items:", ghnItems);
 
-      const ghnResult = await createGHNOrder({
-        clientOrderCode: `ORDER-${order.OrderId}`,
-        toName: deliveryAddress.ReceiverName || "Khách hàng",
-        toPhone: deliveryAddress.Phone || "0366413924",
-        toAddress: deliveryAddress.Address,
-        toWardCode: deliveryAddress.WardCode,
-        toDistrictId: deliveryAddress.DistrictId,
-        toProvinceName: deliveryAddress.Province || "",
-        toDistrictName: deliveryAddress.District || "",
-        toWardName: deliveryAddress.Ward || "",
-        toLatitude,
-        toLongitude,
-        items: ghnItems,
-        codAmount,
-      });
+        const isCOD =
+          paymentMethodName.toLowerCase().includes("cod") ||
+          paymentMethodName.toLowerCase().includes("tiền mặt") ||
+          paymentMethodName.toLowerCase().includes("tiền mặt khi nhận hàng");
+        const codAmount = isCOD ? totalAmount : 0;
+        console.log("COD Amount:", codAmount, "(isCOD:", isCOD, ")");
 
-      ghnOrderCode = ghnResult.ghnOrderCode;
-      console.log(`✅ GHN Order created: ${ghnOrderCode}`);
-      console.log("GHN Result:", ghnResult);
+        const toLatitude = deliveryAddress.Latitude
+          ? parseFloat(deliveryAddress.Latitude)
+          : null;
+        const toLongitude = deliveryAddress.Longitude
+          ? parseFloat(deliveryAddress.Longitude)
+          : null;
+        console.log(
+          "Coordinates:",
+          toLatitude && toLongitude
+            ? `${toLatitude}, ${toLongitude}`
+            : "NOT AVAILABLE - GHN will geocode"
+        );
 
-      // Lưu ClientOrderCode vào DB (vẫn trong transaction)
-      await Orders.update(
-        { ClientOrderCode: `ORDER-${order.OrderId}` },
-        { where: { OrderId: order.OrderId }, transaction }
-      );
-      console.log(`💾 Saved ClientOrderCode: ORDER-${order.OrderId}`);
-      console.log("====================================\n");
-    } catch (ghnErr) {
-      console.error("❌ GHN Order creation FAILED:", ghnErr.message);
+        const ghnResult = await createGHNOrder({
+          clientOrderCode: `ORDER-${order.OrderId}`,
+          toName: deliveryAddress.ReceiverName || "Khách hàng",
+          toPhone: deliveryAddress.Phone || "0366413924",
+          toAddress: deliveryAddress.Address,
+          toWardCode: deliveryAddress.WardCode,
+          toDistrictId: deliveryAddress.DistrictId,
+          toProvinceName: deliveryAddress.Province || "",
+          toDistrictName: deliveryAddress.District || "",
+          toWardName: deliveryAddress.Ward || "",
+          toLatitude,
+          toLongitude,
+          items: ghnItems,
+          codAmount,
+        });
 
-      // ⚠️ ROLLBACK transaction TRƯỚC KHI trả response
-      if (!transaction.finished) {
-        await transaction.rollback();
-        console.log("🔄 Transaction rolled back due to GHN failure");
-      }
+        ghnOrderCode = ghnResult.ghnOrderCode;
+        console.log(`✅ GHN Order created: ${ghnOrderCode}`);
+        console.log("GHN Result:", ghnResult);
 
-      // Kiểm tra lỗi địa chỉ không hợp lệ
-      const errorCode = ghnErr.response?.data?.code || ghnErr.code || "";
-      const errorMsg = ghnErr.response?.data?.message || ghnErr.message || "";
+        // Lưu ClientOrderCode vào DB (vẫn trong transaction)
+        await Orders.update(
+          { ClientOrderCode: `ORDER-${order.OrderId}` },
+          { where: { OrderId: order.OrderId }, transaction }
+        );
+        console.log(`💾 Saved ClientOrderCode: ORDER-${order.OrderId}`);
+        console.log("====================================\n");
+      } catch (ghnErr) {
+        console.error("❌ GHN Order creation FAILED:", ghnErr.message);
 
-      if (
-        errorCode === "TO_ADDRESS_CONVERT_FAIL" ||
-        errorMsg.includes("invalid google status") ||
-        errorMsg.includes("address") ||
-        errorMsg.includes("geocode")
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: `❌ Địa chỉ giao hàng không hợp lệ hoặc không thể xác minh với Giao Hàng Nhanh.
+        // ⚠️ ROLLBACK transaction TRƯỚC KHI trả response
+        if (!transaction.finished) {
+          await transaction.rollback();
+          console.log("🔄 Transaction rolled back due to GHN failure");
+        }
+
+        // Kiểm tra lỗi địa chỉ không hợp lệ
+        const errorCode = ghnErr.response?.data?.code || ghnErr.code || "";
+        const errorMsg = ghnErr.response?.data?.message || ghnErr.message || "";
+
+        if (
+          errorCode === "TO_ADDRESS_CONVERT_FAIL" ||
+          errorMsg.includes("invalid google status") ||
+          errorMsg.includes("address") ||
+          errorMsg.includes("geocode")
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: `❌ Địa chỉ giao hàng không hợp lệ hoặc không thể xác minh với Giao Hàng Nhanh.
 
 📍 Vui lòng kiểm tra lại:
 • Số nhà, tên đường phải chính xác
@@ -613,21 +687,25 @@ const placeOrder = async (req, res) => {
 • Địa chỉ phải tồn tại thực tế trên bản đồ
 
 💡 Gợi ý: Thử nhập địa chỉ chi tiết hơn hoặc chọn địa chỉ khác.`,
-          errorCode: "INVALID_ADDRESS",
+            errorCode: "INVALID_ADDRESS",
+            ghnError: errorMsg,
+          });
+        }
+
+        // Các lỗi GHN khác
+        return res.status(400).json({
+          success: false,
+          message: `❌ Không thể tạo đơn giao hàng: ${errorMsg}`,
+          errorCode: "GHN_ERROR",
           ghnError: errorMsg,
         });
       }
-
-      // Các lỗi GHN khác
-      return res.status(400).json({
-        success: false,
-        message: `❌ Không thể tạo đơn giao hàng: ${errorMsg}`,
-        errorCode: "GHN_ERROR",
-        ghnError: errorMsg,
-      });
+    } else {
+      // VNPAY và QR CODE không cần GHN
+      console.log("⏭️ Skipping GHN order creation (VNPAY/QR CODE)");
     }
 
-    // ✅ Commit transaction SAU KHI GHN thành công
+    // ✅ Commit transaction SAU KHI GHN thành công (hoặc skip GHN)
     await transaction.commit();
     console.log("✅ Transaction committed successfully");
 

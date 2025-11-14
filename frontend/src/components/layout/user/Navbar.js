@@ -197,11 +197,14 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
                 Cửa hàng
               </Link>
             </li>
-            <li>
-              <a href="/csp" target="_self">
-                CSP Demo
-              </a>
-            </li>
+            {/* Chỉ hiện CSP Demo khi truy cập từ localhost:5000 (backend) */}
+            {window.location.port === "5000" && (
+              <li>
+                <a href="/csp" target="_self">
+                  CSP Demo
+                </a>
+              </li>
+            )}
           </ul>
         </nav>
 

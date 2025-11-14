@@ -10,6 +10,7 @@ export default function OrderSummary({
   discountAmount,
   totalAfterDiscount,
   apiFetch,
+  isProcessing = false, // ✅ Nhận từ Checkout.js
 }) {
   const [loadingItemIndex, setLoadingItemIndex] = useState(null);
 
@@ -45,7 +46,37 @@ export default function OrderSummary({
   );
 
   return (
-    <div className="checkout-box p-3 shadow-sm">
+    <div
+      className="checkout-box p-3 shadow-sm"
+      style={{ position: "relative" }}
+    >
+      {/* Loading Overlay */}
+      {isProcessing && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(255, 255, 255, 0.9)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10,
+            borderRadius: "8px",
+          }}
+        >
+          <Spinner
+            animation="border"
+            variant="success"
+            style={{ width: "3rem", height: "3rem" }}
+          />
+          <p className="mt-3 fw-bold text-success">Đang xử lý đơn hàng...</p>
+        </div>
+      )}
+
       <h4 className="mb-3">Đơn hàng</h4>
       <Table bordered hover responsive className="align-middle text-center">
         <thead className="table-dark">

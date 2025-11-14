@@ -628,9 +628,14 @@ VALUES
     (N'COD');
 GO
 
+INSERT INTO PhuongThucThanhToan (TenPhuongThuc)
+VALUES
+    (N'QR CODE');
+GO
+
 select *from phuongthucthanhtoan
 select *from PaymentStatus
-
+select *from OrderStatus
 INSERT INTO OrderStatus (StatusName)
 VALUES
     (N'Đặt hàng thành công'),

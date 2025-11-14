@@ -14,6 +14,8 @@ const models = initModels(sequelize);
 const bcrypt = require("bcryptjs");
 const { Users } = models;
 const createCSPMiddleware = require("./cspMiddleware");
+const createClickjackingMiddleware = require("./clickjackingMiddleware");
+const { securityHeaders } = require("./securityHeaders"); // 🛡️ Import security headers
 const frontendBuildPath = path.join(__dirname, "../frontend/build");
 const http = require("http");
 const socketIO = require("socket.io");
@@ -63,8 +65,40 @@ app.use(express.json());
 app.use(passport.initialize());
 app.use(express.urlencoded({ extended: true }));
 
+// 🛡️ SECURITY PROTECTION - Áp dụng cho TOÀN BỘ DỰ ÁN
+// Middleware này bảo vệ mọi route với:
+// 1. CSP chặn inline JS (chỉ cho phép nonce/hash)
+// 2. Clickjacking Protection (X-Frame-Options + frame-ancestors)
+// 3. Các security headers bổ sung (X-Content-Type-Options, X-XSS-Protection, etc.)
+app.use((req, res, next) => {
+  // Skip demo routes (để demo có thể tự set headers riêng)
+  if (
+    req.path.startsWith("/clickjacking") ||
+    req.path.startsWith("/csp-test") ||
+    req.path.startsWith("/csp") ||
+    req.path.startsWith("/report-log") ||
+    req.path.startsWith("/analyze") || // Skip analyze & analyze-realtime
+    req.path.startsWith("/blocked") ||
+    req.path.startsWith("/hash") ||
+    req.path.startsWith("/nonce")
+  ) {
+    return next();
+  }
+
+  // Áp dụng security headers cho tất cả routes khác
+  return securityHeaders({
+    frameAncestors: "'self'", // Chỉ cho phép same-origin (SAMEORIGIN)
+    enableCSP: true,
+    enableClickjackingProtection: true,
+  })(req, res, next);
+});
+
+// 🛡️ Clickjacking Protection Demo Routes (có headers riêng cho demo)
+app.use(createClickjackingMiddleware(path.join(__dirname, "public")));
+
 // ✅ CSP middleware serve frontend build (đã có express.static bên trong)
 app.use(createCSPMiddleware(frontendBuildPath, { io }));
+
 // Request logger
 app.use((req, res, next) => {
   try {

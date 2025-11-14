@@ -378,3 +378,104 @@ exports.syncGHNOrderStatus = async (req, res) => {
     });
   }
 };
+
+/* =====================================================
+   5️⃣ XÁC NHẬN / TỪ CHỐI ĐƠN HÀNG QR CODE
+   ===================================================== */
+exports.confirmOrRejectQR = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body; // "confirm" hoặc "reject"
+
+    if (!id || !action) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu dữ liệu!",
+      });
+    }
+
+    const orderId = parseInt(id);
+
+    // Tìm đơn hàng
+    const order = await Orders.findByPk(orderId, {
+      include: [
+        { model: PaymentStatus, as: "PaymentStatus" },
+        { model: OrderStatus, as: "OrderStatus" },
+        { model: PhuongThucThanhToan, as: "PaymentMethod" },
+      ],
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng!",
+      });
+    }
+
+    // Kiểm tra phương thức thanh toán phải là QR CODE (id = 3)
+    if (order.PaymentMethodId !== 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Đơn hàng này không phải thanh toán QR CODE!",
+      });
+    }
+
+    // Kiểm tra trạng thái đơn hàng phải là "Đặt hàng thành công" (id = 1)
+    if (order.StatusId !== 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Đơn hàng đã được xử lý rồi!",
+      });
+    }
+
+    let newStatusId;
+    let message;
+
+    if (action === "confirm") {
+      // Xác nhận → Chuyển sang "Đang chuẩn bị đơn hàng" (id = 2)
+      newStatusId = 2;
+      message = "Đơn hàng QR CODE đã được xác nhận và chuyển sang chuẩn bị";
+    } else if (action === "reject") {
+      // Từ chối → Chuyển sang "Đã hủy" (id = 5)
+      newStatusId = 5;
+      message = "Đơn hàng QR CODE đã bị từ chối";
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Action không hợp lệ! (confirm hoặc reject)",
+      });
+    }
+
+    // Cập nhật trạng thái
+    await order.update({ StatusId: newStatusId });
+
+    // Emit real-time notification
+    const newStatus = await OrderStatus.findByPk(newStatusId);
+    emitOrderStatusChange(req, order.UserId, {
+      orderId: order.OrderId,
+      status: newStatus.StatusName,
+      statusId: newStatus.StatusId,
+      message: `Đơn hàng QR CODE - ${message}`,
+    });
+
+    emitUserNotification(req, order.UserId, {
+      type: "order-qr-status",
+      title:
+        action === "confirm" ? "Đơn hàng được xác nhận" : "Đơn hàng bị từ chối",
+      message: `Đơn hàng #${order.OrderId} - ${newStatus.StatusName}`,
+    });
+
+    res.json({
+      success: true,
+      message,
+      orderId: order.OrderId,
+      newStatus: newStatus.StatusName,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi xác nhận/từ chối QR:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Lỗi server",
+    });
+  }
+};
