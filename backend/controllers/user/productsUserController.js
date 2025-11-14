@@ -32,7 +32,7 @@ const sortToOrderBy = (sort) => {
       return [
         [
           literal(
-            "ISNULL([Food].[DiscountPrice], [Food].[Price] * (1 - ISNULL([Food].[Discount], 0) / 100.0))"
+            'COALESCE("Food"."DiscountPrice", "Food"."Price" * (1 - COALESCE("Food"."Discount",0)/100.0))'
           ),
           "ASC",
         ],
@@ -42,7 +42,7 @@ const sortToOrderBy = (sort) => {
       return [
         [
           literal(
-            "ISNULL([Food].[DiscountPrice], [Food].[Price] * (1 - ISNULL([Food].[Discount], 0) / 100.0))"
+            'COALESCE("Food"."DiscountPrice", "Food"."Price" * (1 - COALESCE("Food"."Discount",0)/100.0))'
           ),
           "DESC",
         ],
@@ -55,6 +55,10 @@ const sortToOrderBy = (sort) => {
   }
 };
 
+
+// =========================
+// 📌 LẤY DANH SÁCH SẢN PHẨM
+// =========================
 // =========================
 // 📌 LẤY DANH SÁCH SẢN PHẨM
 // =========================
@@ -64,7 +68,7 @@ exports.getProducts = async (req, res) => {
     const limit = Math.max(parseInt(req.query.limit || "10", 10), 1);
     const offset = (page - 1) * limit;
     const keyword = (req.query.keyword || "").trim();
-    const category = (req.query.category || "").trim(); // 'all', 'coffee', etc.
+    const category = (req.query.category || "").trim();
     const sort = (req.query.sort || "").trim();
     const minPrice = parseFloat(req.query.minPrice) || null;
     const maxPrice = parseFloat(req.query.maxPrice) || null;
@@ -75,23 +79,21 @@ exports.getProducts = async (req, res) => {
     // 🔹 Filter keyword
     if (keyword) {
       where[Op.or] = [
-        { FoodName: { [Op.like]: `%${keyword}%` } },
-        { Description: { [Op.like]: `%${keyword}%` } },
+        { FoodName: { [Op.iLike]: `%${keyword}%` } },
+        { Description: { [Op.iLike]: `%${keyword}%` } },
       ];
     }
 
     // 🔹 Filter category
-    const catLike = mapCategoryToLike(category); // giữ nguyên map từ frontend
-    if (catLike) {
-      categoryWhere.CategoryName = { [Op.like]: catLike };
-    }
+    const catLike = mapCategoryToLike(category);
+    if (catLike) categoryWhere.CategoryName = { [Op.iLike]: catLike };
 
     // 🔹 Filter min/max price
     if (minPrice !== null && !isNaN(minPrice)) {
       where[Op.and] = where[Op.and] || [];
       where[Op.and].push(
         literal(
-          `ISNULL([Food].[DiscountPrice], [Food].[Price] * (1 - ISNULL([Food].[Discount], 0)/100.0)) >= ${minPrice}`
+          `COALESCE("Food"."DiscountPrice", "Food"."Price" * (1 - COALESCE("Food"."Discount",0)/100.0)) >= ${minPrice}`
         )
       );
     }
@@ -99,7 +101,7 @@ exports.getProducts = async (req, res) => {
       where[Op.and] = where[Op.and] || [];
       where[Op.and].push(
         literal(
-          `ISNULL([Food].[DiscountPrice], [Food].[Price] * (1 - ISNULL([Food].[Discount], 0)/100.0)) <= ${maxPrice}`
+          `COALESCE("Food"."DiscountPrice", "Food"."Price" * (1 - COALESCE("Food"."Discount",0)/100.0)) <= ${maxPrice}`
         )
       );
     }
@@ -118,7 +120,7 @@ exports.getProducts = async (req, res) => {
         "Discount",
         [
           literal(
-            "ISNULL([Food].[DiscountPrice], [Food].[Price] * (1 - ISNULL([Food].[Discount], 0)/100.0))"
+            'COALESCE("Food"."DiscountPrice", "Food"."Price" * (1 - COALESCE("Food"."Discount",0)/100.0))'
           ),
           "DiscountPrice",
         ],
@@ -134,7 +136,7 @@ exports.getProducts = async (req, res) => {
           as: "Category",
           attributes: ["CategoryId", "CategoryName"],
           where: category !== "all" ? categoryWhere : undefined,
-          required: category !== "all", // chỉ INNER JOIN nếu chọn category
+          required: category !== "all",
         },
       ],
     });
@@ -210,7 +212,7 @@ exports.getProductDetail = async (req, res) => {
         "Discount",
         [
           literal(
-            "ISNULL([Food].[DiscountPrice], [Food].[Price] * (1 - ISNULL([Food].[Discount], 0) / 100.0))"
+            'COALESCE("Food"."DiscountPrice", "Food"."Price" * (1 - COALESCE("Food"."Discount",0)/100.0))'
           ),
           "DiscountPrice",
         ],
@@ -243,34 +245,33 @@ exports.getProductDetail = async (req, res) => {
       order: [["ToppingName", "ASC"]],
     });
 
-    // Lấy sản phẩm liên quan (cùng category, khác ID)
+    // Lấy sản phẩm liên quan
     let related = [];
     const categoryId = product.Category?.CategoryId || product.CategoryId;
 
     if (categoryId) {
-      console.log(
-        `🔍 Tìm sản phẩm liên quan cho CategoryId: ${categoryId}, loại trừ FoodId: ${id}`
-      );
-
       related = await Food.findAll({
         where: {
           CategoryId: categoryId,
           FoodId: { [Op.ne]: id },
-          Status: true, // Chỉ lấy sản phẩm đang hoạt động
+          Status: true,
         },
         limit: 6,
-        order: [["FoodId", "DESC"]], // Lấy sản phẩm mới nhất
+        order: [["FoodId", "DESC"]],
         attributes: [
           "FoodId",
           "FoodName",
           "Price",
           "Discount",
-          "DiscountPrice",
+          [
+            literal(
+              'COALESCE("Food"."DiscountPrice", "Food"."Price" * (1 - COALESCE("Food"."Discount",0)/100.0))'
+            ),
+            "DiscountPrice",
+          ],
           "ImageURL",
         ],
       });
-
-      console.log(`✅ Tìm thấy ${related.length} sản phẩm liên quan`);
     }
 
     const formattedProduct = {
@@ -291,10 +292,7 @@ exports.getProductDetail = async (req, res) => {
       FoodId: r.FoodId,
       FoodName: r.FoodName,
       Price: parseFloat(r.Price),
-      DiscountPrice: r.DiscountPrice
-        ? parseFloat(r.DiscountPrice)
-        : parseFloat(r.Price) *
-          (1 - (r.Discount ? parseFloat(r.Discount) / 100 : 0)),
+      DiscountPrice: parseFloat(r.dataValues.DiscountPrice),
       ImageURL: r.ImageURL || "/images/no-image.png",
     }));
 

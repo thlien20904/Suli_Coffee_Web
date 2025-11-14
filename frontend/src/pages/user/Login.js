@@ -69,10 +69,21 @@ function Login() {
     const params = new URLSearchParams(location.search);
     const token = params.get("token");
     const role = params.get("role");
+    const error = params.get("error");
+
+    console.log("[Frontend] URL params:", { token: !!token, role, error });
+
+    if (error) {
+      console.error("[Frontend] Google OAuth error:", error);
+      setServerErr(`Đăng nhập Google thất bại: ${error}`);
+      return;
+    }
 
     if (token && role) {
+      console.log("[Frontend] Processing Google OAuth token...");
       try {
         const decoded = jwtDecode(token);
+        console.log("[Frontend] Decoded token:", decoded);
         dispatch(
           login({
             token,
@@ -84,10 +95,14 @@ function Login() {
           })
         );
         localStorage.setItem("token", token);
+        console.log(
+          "[Frontend] Login successful, navigating to:",
+          role === "admin" ? "/admin/dashboard" : "/"
+        );
         navigate(role === "admin" ? "/admin/dashboard" : "/");
       } catch (err) {
-        console.error("Google/Facebook login decode failed:", err);
-        setServerErr("Đăng nhập thất bại");
+        console.error("[Frontend] Google/Facebook login decode failed:", err);
+        setServerErr("Đăng nhập thất bại: Token không hợp lệ");
       }
     }
   }, [location, dispatch, navigate]);
@@ -285,6 +300,9 @@ function Login() {
             className="btn-social btn-google"
             as="a"
             href="http://localhost:5000/auth/google"
+            onClick={() =>
+              console.log("[Frontend] Redirecting to Google OAuth...")
+            }
           >
             <BsGoogle className="social-icon" /> Connect with Google
           </Button>

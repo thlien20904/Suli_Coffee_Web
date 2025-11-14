@@ -275,7 +275,7 @@ function createCSPMiddleware(frontendBuildPath, options = {}) {
   );
 
   /* ---------------- Catch-all route (React) với nonce per request ---------------- */
-  router.get(/^(?!\/api|\/images).*$/, async (req, res, next) => {
+  router.get(/^(?!\/api|\/images|\/auth).*$/, async (req, res, next) => {
     try {
       const nonce = generateNonce();
 
@@ -286,11 +286,12 @@ function createCSPMiddleware(frontendBuildPath, options = {}) {
 
         "style-src 'self' https: 'unsafe-inline'", // ✅ Cho phép inline styles
         "img-src * data: blob:", // cho phép ảnh backend + blob/data
-        `connect-src 'self' ws://localhost:5000`, // cho Socket.IO
+        `connect-src 'self' ws://localhost:5000 https://accounts.google.com https://*.googleapis.com`, // ✅ Cho phép Google OAuth
         "font-src 'self' https: data:",
         "object-src 'none'",
         "frame-ancestors 'self'",
         "base-uri 'self'",
+        "form-action 'self' https://accounts.google.com", // ✅ Cho phép submit form tới Google
         "upgrade-insecure-requests",
         `report-uri ${HOST}/csp-report`,
       ].join("; ");

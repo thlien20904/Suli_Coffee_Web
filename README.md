@@ -21,18 +21,33 @@ Hệ thống cho phép **khách hàng** đặt đồ uống, theo dõi đơn hà
 - Redux (quản lý state)
 - CSS Modules
 - Axios (gọi API)
+- Socket.IO Client (real-time updates)
 
 ### ⚙️ Backend
 
 - Node.js + Express.js
-- Sequelize ORM (kết nối SQL Server)
+- Sequelize ORM (PostgreSQL/Supabase)
 - JWT (xác thực người dùng)
+- Passport.js (OAuth Google)
 - Multer (upload hình ảnh)
 - Bcrypt (mã hóa mật khẩu)
+- Socket.IO (real-time communication)
+- Content Security Policy (CSP) - bảo mật
+- VNPay API (thanh toán)
+- Giao Hàng Nhanh API (shipping)
 
 ### 🗄️ Database
 
-- Microsoft SQL Server
+- PostgreSQL (Supabase Cloud)
+- Redis (session storage)
+
+### 🔐 Bảo mật
+
+- Content Security Policy (CSP)
+- Clickjacking Protection
+- CORS Configuration
+- Rate Limiting
+- Security Headers
 
 ## 3. Cấu trúc thư mục
 
@@ -95,12 +110,36 @@ cd Suli_Coffee_Web
 ### 5.3 Cấu hình môi trường
 
 Tạo file `.env` trong thư mục `backend/` với nội dung:
-DB_NAME=WebAppDB
-DB_USER=sa
-DB_PASSWORD=123456
-DB_HOST=localhost
-DB_PORT=1433
-JWT_SECRET=your_jwt_secret
+
+```env
+# Database (PostgreSQL/Supabase)
+DB_NAME=postgres
+DB_USER=postgres.your_project_id
+DB_PASSWORD=your_password
+DB_HOST=aws-1-ap-southeast-2.pooler.supabase.com
+DB_PORT=5432
+DB_SSL=true
+
+# Authentication
+JWT_SECRET=your_jwt_secret_key
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Payment Gateway
+VNPAY_TMN_CODE=your_vnpay_tmn_code
+VNPAY_HASH_SECRET=your_vnpay_hash_secret
+VNPAY_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+VNPAY_RETURN_URL=http://localhost:5000/api/user/orders/vnpay-return
+
+# Shipping Service
+GHN_TOKEN=your_ghn_token
+GHN_SHOP_ID=your_ghn_shop_id
+GHN_BASE_URL=https://dev-online-gateway.ghn.vn
+
+# Server Configuration
+PORT=5000
+FRONTEND_URL=http://localhost:3000
+```
 
 ### 5.4 Cài đặt dependencies
 
@@ -140,17 +179,70 @@ npm start
 
 ### 👤 Người dùng
 
-- Đăng ký / Đăng nhập
-- Xem menu xem cửa hàng và đặt đồ uống
-- Quản lý giỏ hàng
-- Theo dõi đơn hàng
-- Cập nhật thông tin cá nhân, nhận voucher
+- **Xác thực đa dạng:** Đăng ký/đăng nhập thông thường, OAuth Google
+- **Mua sắm thông minh:** Xem menu, đặt đồ uống với size và topping
+- **Giỏ hàng real-time:** Quản lý giỏ hàng với cập nhật tức thì
+- **Thanh toán đa kênh:** VNPay QR Code, COD, chuyển khoản
+- **Theo dõi đơn hàng:** Real-time updates, tích hợp Giao Hàng Nhanh
+- **Quản lý tài khoản:** Cập nhật thông tin, địa chỉ giao hàng, lịch sử đơn hàng
+- **Voucher & Khuyến mãi:** Áp dụng voucher, theo dõi ưu đãi
+- **Thông báo real-time:** Cập nhật trạng thái đơn hàng tức thì
 
 ### 🧑‍💼 Quản trị viên (Admin)
 
-- Quản lý sản phẩm, nguyên liệu, phương thức thanh toán (CRUD)
-- Quản lý đơn hàng, nhân viên, người dùng, voucher
-- Thống kê và báo cáo doanh thu
+- **Dashboard tổng quan:** Thống kê doanh thu, đơn hàng, analytics real-time
+- **Quản lý sản phẩm:** CRUD đồ uống, size, topping, nguyên liệu
+- **Xử lý đơn hàng:** Xác nhận đơn, cập nhật trạng thái, tích hợp GHN
+- **Quản lý người dùng:** Thông tin khách hàng, lịch sử mua hàng
+- **Quản lý nhân viên:** Phân quyền, theo dõi hoạt động
+- **Hệ thống voucher:** Tạo, chỉnh sửa voucher và chương trình khuyến mãi
+- **Báo cáo chi tiết:** Doanh thu, sản phẩm bán chạy, khách hàng VIP
+- **Bảo mật nâng cao:** Content Security Policy, monitoring violations
+
+### 🚀 Tính năng nổi bật
+
+#### 💳 Hệ thống thanh toán VNPay
+
+- Thanh toán QR Code an toàn
+- Xử lý callback tự động
+- Verification chữ ký điện tử
+- Support multiple payment methods
+
+#### 🚚 Tích hợp Giao Hàng Nhanh (GHN)
+
+- Tự động tạo đơn vận chuyển
+- Theo dõi trạng thái giao hàng real-time
+- Tính phí vận chuyển tự động
+- Đồng bộ trạng thái delivery
+
+#### 🔐 OAuth Google Authentication
+
+- Đăng nhập nhanh với tài khoản Google
+- Tự động sync thông tin profile
+- Secure token management
+- CSP compliance cho OAuth flows
+
+#### ⚡ Real-time Updates
+
+- Socket.IO integration
+- Live order status updates
+- Instant notifications
+- Admin dashboard real-time
+
+#### 🛡️ Bảo mật cao cấp
+
+- Content Security Policy (CSP)
+- Clickjacking protection
+- XSS prevention
+- CSRF protection
+- Secure headers middleware
+
+#### 📱 Responsive Design
+
+- Mobile-first approach
+- Progressive Web App ready
+- Touch-friendly interface
+- Cross-browser compatibility
 
 ## 8. Hình ảnh minh họa
 
@@ -168,13 +260,120 @@ npm start
 ![Quản lý đơn hàng admin ](./images/order_admin.jpg)
 ![Quản lý Voucher admin](./images/voucher_admin.jpg)
 
-## 📎 Link nộp bài
+### 👤 DEMO CSP
 
-- 🔗 Source Code + Database (GitHub Public):
-  [https://github.com/dieuthulien/QuanLyQuanCafe](https://github.com/dieuthuylien/QuanLyQuanCafe)
+![Sản phẩm user ](./images/1.png)
+![chi tiết Sản phẩm user ](./images/2.png)
+![Quản lý đơn hàng user ](./images/3.png)
 
-- 🎥 Video Demo (YouTube – Không công khai):
-  [https://youtu.be/](https://youtu.be/ZksVXJf6EvM)
+## 🛡️ Demo Content Security Policy (CSP)
+
+Hệ thống SuLi Coffee tích hợp CSP để bảo vệ khỏi XSS và Clickjacking attacks.
+
+### 📋 Test CSP Security
+
+1. **Truy cập trang test:** `http://localhost:5000/csp_test.html`
+2. **Mở Developer Tools (F12)**
+3. **Chạy các test cases:**
+   - ❌ Inline Script Attack (bị chặn)
+   - ✅ Nonce Script (được phép)
+   - ❌ External Malicious Resource (bị chặn)
+   - 🛡️ Clickjacking Protection
+
+### 🔧 CSP Configuration
+
+```javascript
+// CSP Directives được áp dụng:
+'default-src': ["'self'"],
+'script-src': ["'self'", "'nonce-xxx'", "https://accounts.google.com"],
+'frame-ancestors': ["'none'"], // Chống Clickjacking
+'connect-src': ["'self'", "https://www.googleapis.com"],
+'form-action': ["'self'", "https://accounts.google.com"]
+```
+
+**📖 Chi tiết:** Xem file `readmedemoCSP.md` để được hướng dẫn từng bước
+
+---
+
+## 🔧 Technical Architecture
+
+### 🏗️ System Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   React Client  │    │  Express API    │    │   PostgreSQL    │
+│   (Frontend)    │◄──►│   (Backend)     │◄──►│   (Supabase)    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │              ┌─────────────────┐              │
+         │              │   Socket.IO     │              │
+         └──────────────►│  (Real-time)    │◄─────────────┘
+                        └─────────────────┘
+                                 │
+                    ┌─────────────────────────────┐
+                    │      External APIs          │
+                    │  ┌─────────────────────┐   │
+                    │  │     VNPay API       │   │
+                    │  │  (Payment Gateway)  │   │
+                    │  └─────────────────────┘   │
+                    │  ┌─────────────────────┐   │
+                    │  │      GHN API        │   │
+                    │  │   (Shipping)        │   │
+                    │  └─────────────────────┘   │
+                    │  ┌─────────────────────┐   │
+                    │  │    Google OAuth     │   │
+                    │  │  (Authentication)   │   │
+                    │  └─────────────────────┘   │
+                    └─────────────────────────────┘
+```
+
+### 🔄 Data Flow
+
+1. **User Authentication Flow**
+
+   ```
+   User → Google OAuth → JWT Token → Authenticated Requests
+   ```
+
+2. **Order Processing Flow**
+
+   ```
+   Cart → Checkout → VNPay → Payment Verification → Order Created → GHN Shipping
+   ```
+
+3. **Real-time Updates Flow**
+   ```
+   Admin Action → Database Update → Socket Emit → User Notification
+   ```
+
+### 📊 Database Schema Overview
+
+```sql
+-- Key Tables
+Users (Id, FullName, Email, Username, Avatar, GoogleId)
+Orders (OrderId, UserId, TotalAmount, StatusId, PaymentStatusId)
+OrderDetails (OrderDetailId, OrderId, FoodId, Quantity, Price)
+Food (FoodId, FoodName, Price, CategoryId, ImageUrl)
+ShippingOrders (ShippingOrderId, OrderId, GHNOrderCode, Status)
+```
+
+---
+
+## 📎 Deployment & Links
+
+### 🚀 Production Deployment
+
+- **Frontend:** Vercel/Netlify deployment ready
+- **Backend:** Heroku/Railway compatible
+- **Database:** Supabase PostgreSQL (cloud)
+- **CDN:** Cloudinary for image storage
+
+### 📎 Links
+
+- 🔗 **Source Code:** [GitHub Repository](https://github.com/thlien20904/Suli_Coffee_Web)
+- 🎥 **Video Demo:** [YouTube Demo](https://youtu.be/demo-link)
+- 📖 **CSP Security Demo:** [CSP Documentation](./readmedemoCSP.md)
+- 🏆 **Live Demo:** [SuLi Coffee Web App](https://suli-coffee.vercel.app)
 
 ## hi
 

@@ -34,20 +34,21 @@ exports.getHome = async (req, res) => {
 
     // 3. Doanh thu theo tháng (năm hiện tại)
     const currentYear = new Date().getFullYear();
-    const monthlySales = await Orders.findAll({
-      attributes: [
-        [Sequelize.fn("MONTH", Sequelize.col("OrderDate")), "Month"],
-        [Sequelize.fn("SUM", Sequelize.col("TotalAmount")), "TotalRevenue"],
-      ],
-      where: {
-        OrderDate: {
-          [Op.gte]: `${currentYear}-01-01`,
-          [Op.lte]: `${currentYear}-12-31`,
-        },
-      },
-      group: [Sequelize.fn("MONTH", Sequelize.col("OrderDate"))],
-      order: [[Sequelize.fn("MONTH", Sequelize.col("OrderDate")), "ASC"]],
-    });
+const monthlySales = await Orders.findAll({
+  attributes: [
+    [Sequelize.literal(`EXTRACT(MONTH FROM "OrderDate")`), "Month"],
+    [Sequelize.fn("SUM", Sequelize.col("TotalAmount")), "TotalRevenue"],
+  ],
+  where: {
+    OrderDate: {
+      [Op.gte]: `${currentYear}-01-01`,
+      [Op.lte]: `${currentYear}-12-31`,
+    },
+  },
+  group: [Sequelize.literal(`EXTRACT(MONTH FROM "OrderDate")`)],
+  order: [[Sequelize.literal(`EXTRACT(MONTH FROM "OrderDate")`), "ASC"]],
+});
+
 
     const monthlySalesArray = Array.from({ length: 12 }, (_, i) => {
       const found = monthlySales.find((r) => r.dataValues.Month === i + 1);
@@ -99,19 +100,20 @@ exports.getHome = async (req, res) => {
     }));
 
     // 6. Top Address (GROUP BY Address in Users) - Raw SQL fix for MSSQL
-    const topAddressesRaw = await sequelize.query(
-      `
-  SELECT TOP 5 
-    ISNULL(u.Address, 'Unknown') AS Address,
-    COUNT(o.OrderId) AS OrderCount
-  FROM dbo.Users u
-  LEFT JOIN dbo.Orders o ON u.Id = o.UserId
-  WHERE u.Address IS NOT NULL
-  GROUP BY u.Address
-  ORDER BY OrderCount DESC;
-`,
-      { type: Sequelize.QueryTypes.SELECT }
-    );
+const topAddressesRaw = await sequelize.query(
+  `
+  SELECT COALESCE(u."Address", 'Unknown') AS "Address",
+         COUNT(o."OrderId") AS "OrderCount"
+  FROM "Users" u
+  LEFT JOIN "Orders" o ON u."Id" = o."UserId"
+  WHERE u."Address" IS NOT NULL
+  GROUP BY u."Address"
+  ORDER BY "OrderCount" DESC
+  LIMIT 5;
+  `,
+  { type: Sequelize.QueryTypes.SELECT }
+);
+
 
     const topAddressesProcessed = topAddressesRaw.map((item) => ({
       Address: item.Address,

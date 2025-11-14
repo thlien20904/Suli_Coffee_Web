@@ -310,7 +310,9 @@ exports.getOrderById = async (req, res) => {
       FoodName: d.Food.FoodName,
       ImageURL: d.Food.ImageURL,
       Price: parseFloat(d.Price),
-      DiscountPrice: d.Food.DiscountPrice ? parseFloat(d.Food.DiscountPrice) : null,
+      DiscountPrice: d.Food.DiscountPrice
+        ? parseFloat(d.Food.DiscountPrice)
+        : null,
       Size: d.Size
         ? {
             SizeID: d.Size.SizeID,
@@ -331,7 +333,9 @@ exports.getOrderById = async (req, res) => {
     const formattedOrder = {
       OrderId: order.OrderId,
       OrderDate: order.OrderDate,
-      TotalAmount: parseFloat(order.TotalAmount) || items.reduce((s, it) => s + (it.TotalPrice || 0), 0),
+      TotalAmount:
+        parseFloat(order.TotalAmount) ||
+        items.reduce((s, it) => s + (it.TotalPrice || 0), 0),
       Status: order.Status?.StatusName || null,
       PaymentStatus: order.PaymentStatus?.PaymentStatusName || null,
       PaymentMethod: order.PaymentMethod?.TenPhuongThuc || null,
@@ -375,11 +379,8 @@ exports.autoCancelPendingOrders = async () => {
         where: {
           StatusId: pendingStatus.StatusId,
           OrderDate: {
-            [Op.lt]: sequelize.fn(
-              "DATEADD",
-              sequelize.literal("minute"),
-              timeLimit,
-              sequelize.fn("getdate")
+            [Op.lt]: sequelize.literal(
+              `NOW() + interval '${timeLimit} minutes'`
             ),
           },
         },

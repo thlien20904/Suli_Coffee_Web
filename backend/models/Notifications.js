@@ -34,7 +34,6 @@ module.exports = function (sequelize, DataTypes) {
     {
       sequelize,
       tableName: "Notifications",
-      schema: "dbo",
       timestamps: false,
       indexes: [
         {

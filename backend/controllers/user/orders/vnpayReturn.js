@@ -29,18 +29,63 @@ const vnpay = new VNPay({
 });
 
 async function getPaymentStatusId(name) {
-  const [record] = await PaymentStatus.findOrCreate({
-    where: { PaymentStatusName: name },
-    defaults: { PaymentStatusName: name },
-  });
-  return record.PaymentStatusId;
+  try {
+    const [record] = await PaymentStatus.findOrCreate({
+      where: { PaymentStatusName: name },
+      defaults: { PaymentStatusName: name },
+    });
+    console.log(
+      `[getPaymentStatusId] Found/Created status "${name}" with ID: ${record.PaymentStatusId}`
+    );
+    return record.PaymentStatusId;
+  } catch (err) {
+    console.error(`[getPaymentStatusId] Error for "${name}":`, err);
+    throw err;
+  }
 }
 
 async function getOrderStatusId(name) {
-  const record = await OrderStatus.findOne({
-    where: { StatusName: name },
-  });
-  return record?.StatusId || null;
+  try {
+    // Thử tìm với tên chính xác trước
+    let record = await OrderStatus.findOne({
+      where: { StatusName: name },
+    });
+
+    // Nếu không tìm thấy, thử với các tên tương tự
+    if (!record && name === "Đặt hàng thành công") {
+      const alternatives = ["Chờ xác nhận", "Pending", "pending", "confirmed"];
+      for (const alt of alternatives) {
+        record = await OrderStatus.findOne({
+          where: { StatusName: alt },
+        });
+        if (record) {
+          console.log(
+            `[getOrderStatusId] Used alternative "${alt}" instead of "${name}"`
+          );
+          break;
+        }
+      }
+    }
+
+    // Nếu vẫn không tìm thấy, lấy status đầu tiên
+    if (!record) {
+      record = await OrderStatus.findOne({ order: [["StatusId", "ASC"]] });
+      if (record) {
+        console.warn(
+          `[getOrderStatusId] "${name}" not found, using first available status: ${record.StatusName}`
+        );
+      }
+    }
+
+    const statusId = record?.StatusId || null;
+    console.log(
+      `[getOrderStatusId] Found status "${name}" with ID: ${statusId}`
+    );
+    return statusId;
+  } catch (err) {
+    console.error(`[getOrderStatusId] Error for "${name}":`, err);
+    throw err;
+  }
 }
 
 const vnpayReturn = async (req, res) => {
@@ -49,13 +94,18 @@ const vnpayReturn = async (req, res) => {
     const { vnp_TxnRef, vnp_TransactionStatus, vnp_Amount } = req.query;
     const orderId = parseInt(vnp_TxnRef); // vnp_TxnRef là orderId
 
+    console.log(
+      `[VNPay Return] Processing order ${orderId}, status: ${vnp_TransactionStatus}`
+    );
+
     let verify;
     try {
       verify = vnpay.verifyReturnUrl(req.query);
     } catch (err) {
       console.error("VNPay verify error:", err);
+      const failedStatusId = await getPaymentStatusId("Thanh toán thất bại");
       await Orders.update(
-        { PaymentStatusId: await getPaymentStatusId("Thanh toán thất bại") },
+        { PaymentStatusId: failedStatusId },
         { where: { OrderId: orderId }, transaction }
       );
       await transaction.commit();
@@ -66,36 +116,125 @@ const vnpayReturn = async (req, res) => {
     }
 
     if (!verify.isSuccess || vnp_TransactionStatus !== "00") {
+      console.log(`[VNPay Return] Payment failed for order ${orderId}`);
+      const failedStatusId = await getPaymentStatusId("Thanh toán thất bại");
       await Orders.update(
-        { PaymentStatusId: await getPaymentStatusId("Thanh toán thất bại") },
+        { PaymentStatusId: failedStatusId },
         { where: { OrderId: orderId }, transaction }
       );
       await transaction.commit();
       return res.json({ success: false, message: "Thanh toán thất bại!" });
     }
 
-    // Thanh toán thành công
-    const orderStatusId = await getOrderStatusId("Đặt hàng thành công");
-    await Orders.update(
-      {
-        PaymentStatusId: await getPaymentStatusId("Đã thanh toán"),
-        StatusId: orderStatusId,
-      },
-      { where: { OrderId: orderId }, transaction }
+    // Thanh toán thành công - Get IDs trước khi update
+    console.log(
+      `[VNPay Return] Payment successful for order ${orderId}, getting status IDs...`
     );
 
-    await ShippingOrders.update(
-      { Status: "ready" },
-      { where: { OrderId: orderId }, transaction }
+    const [paidStatusId, orderStatusId] = await Promise.all([
+      getPaymentStatusId("Đã thanh toán"),
+      getOrderStatusId("Đặt hàng thành công"),
+    ]);
+
+    console.log(
+      `[VNPay Return] Status IDs - Payment: ${paidStatusId}, Order: ${orderStatusId}`
     );
 
-    // Xóa giỏ hàng
-    const order = await Orders.findByPk(orderId, { transaction });
-    if (order?.UserId) {
-      await GioHang.destroy({ where: { Id: order.UserId }, transaction });
+    // Validate status IDs before update
+    if (!paidStatusId) {
+      throw new Error("Failed to get PaymentStatusId for 'Đã thanh toán'");
+    }
+    if (!orderStatusId) {
+      throw new Error("Failed to get OrderStatusId for 'Đặt hàng thành công'");
     }
 
+    // Check if order exists before update
+    const existingOrder = await Orders.findByPk(orderId, { transaction });
+    if (!existingOrder) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+    console.log(
+      `[VNPay Return] Found order ${orderId}, current status: ${existingOrder.StatusId}, payment: ${existingOrder.PaymentStatusId}`
+    );
+
+    // Update Orders with explicit try-catch - only if values are different
+    const updateFields = {};
+    if (existingOrder.PaymentStatusId !== paidStatusId) {
+      updateFields.PaymentStatusId = paidStatusId;
+    }
+    if (existingOrder.StatusId !== orderStatusId) {
+      updateFields.StatusId = orderStatusId;
+    }
+
+    if (Object.keys(updateFields).length > 0) {
+      try {
+        const [affectedRows] = await Orders.update(updateFields, {
+          where: { OrderId: orderId },
+          transaction,
+        });
+        console.log(
+          `[VNPay Return] Orders.update affected ${affectedRows} rows with fields:`,
+          updateFields
+        );
+      } catch (updateErr) {
+        console.error(`[VNPay Return] Orders.update failed:`, updateErr);
+        await transaction.rollback();
+        throw updateErr;
+      }
+    } else {
+      console.log(
+        `[VNPay Return] Orders already has correct status, skipping update`
+      );
+    }
+
+    // Xóa giỏ hàng trước khi commit
+    const order = await Orders.findByPk(orderId, { transaction });
+    if (order?.UserId) {
+      try {
+        await GioHang.destroy({ where: { Id: order.UserId }, transaction });
+        console.log(`[VNPay Return] Cart cleared for user ${order.UserId}`);
+      } catch (cartErr) {
+        console.error(`[VNPay Return] Failed to clear cart:`, cartErr);
+        // Don't fail the entire payment for cart clearing issue
+      }
+    }
+
+    // Commit the main transaction first
     await transaction.commit();
+    console.log(
+      `[VNPay Return] Main transaction committed successfully for order ${orderId}`
+    );
+
+    // Handle ShippingOrders separately (outside transaction)
+    try {
+      const existingShipping = await ShippingOrders.findOne({
+        where: { OrderId: orderId },
+      });
+
+      if (existingShipping && existingShipping.Status !== "ready") {
+        const [affectedShipping] = await ShippingOrders.update(
+          { Status: "ready" },
+          { where: { OrderId: orderId } }
+        );
+        console.log(
+          `[VNPay Return] ShippingOrders.update affected ${affectedShipping} rows`
+        );
+      } else if (existingShipping) {
+        console.log(
+          `[VNPay Return] ShippingOrder already has status 'ready', skipping update`
+        );
+      } else {
+        console.warn(
+          `[VNPay Return] No ShippingOrder found for OrderId ${orderId}`
+        );
+      }
+    } catch (shippingErr) {
+      console.error(
+        `[VNPay Return] ShippingOrders.update failed (non-critical):`,
+        shippingErr
+      );
+      // Don't throw - this is not critical for payment completion
+    }
 
     // ✅ Tạo đơn GHN sau khi thanh toán thành công (non-blocking)
     try {

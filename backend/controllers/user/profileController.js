@@ -500,7 +500,7 @@ const getVouchers = async (req, res) => {
     const vouchers = await Vouchers.findAll({
       where: {
         IsActive: true,
-        ExpiryDate: { [Op.gt]: sequelize.fn("getdate") },
+        ExpiryDate: { [Op.gt]: Sequelize.fn("NOW") },
       },
       attributes: [
         "VoucherId",
@@ -540,7 +540,7 @@ const receiveVoucher = async (req, res) => {
       where: {
         VoucherId: voucherId,
         IsActive: true,
-        ExpiryDate: { [Op.gt]: sequelize.fn("getdate") },
+        ExpiryDate: { [Op.gt]: Sequelize.fn("NOW") },
       },
     });
 
@@ -648,7 +648,7 @@ const applyVoucher = async (req, res) => {
       where: {
         Code: voucherCode,
         IsActive: true,
-        ExpiryDate: { [Op.gt]: sequelize.fn("getdate") },
+        ExpiryDate: { [Op.gt]: Sequelize.fn("NOW") },
       },
     });
 

@@ -42,7 +42,7 @@ const socketManager = initializeSocketIO(io);
 app.set("socketManager", socketManager);
 
 // Database helper (mssql)
-const { poolPromise } = require("./db");
+const sql = require("./db"); // hoặc import sql from './db.js' nếu dùng ES module
 
 dotenv.config();
 
@@ -193,13 +193,22 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        console.log("[Google OAuth Strategy] Profile received:", profile);
         const email = profile.emails[0].value;
         const username = profile.displayName;
         const avatar = profile.photos?.[0]?.value || null;
 
+        console.log("[Google OAuth Strategy] Extracted data:", {
+          email,
+          username,
+          avatar,
+        });
+
         let user = await Users.findOne({ where: { Email: email } });
+        console.log("[Google OAuth Strategy] Existing user found:", !!user);
 
         if (!user) {
+          console.log("[Google OAuth Strategy] Creating new user...");
           user = await Users.create({
             Username: username,
             Email: email,
@@ -207,16 +216,23 @@ passport.use(
             Role: "User",
             AvatarUrl: avatar,
           });
+          console.log(
+            "[Google OAuth Strategy] New user created:",
+            user.toJSON()
+          );
         } else {
+          console.log("[Google OAuth Strategy] Updating existing user...");
           await Users.update(
             { Username: username, AvatarUrl: avatar },
             { where: { Email: email } }
           );
           user = await Users.findOne({ where: { Email: email } });
+          console.log("[Google OAuth Strategy] User updated:", user.toJSON());
         }
 
         return done(null, user.toJSON());
       } catch (err) {
+        console.error("[Google OAuth Strategy] Error:", err);
         return done(err, null);
       }
     }
@@ -292,8 +308,9 @@ app.use("/api/webhooks", webhooksRouter);
 /* ---------------- CONNECT DB ---------------- */
 const connectDB = async () => {
   try {
-    await poolPromise;
-    console.log("✅ Connected to SQL Server");
+    // Test PostgreSQL connection
+    await sql`SELECT 1`;
+    console.log("✅ Connected to PostgreSQL");
   } catch (err) {
     console.error("❌ Database connection failed:", err);
   }
@@ -303,6 +320,10 @@ connectDB();
 /* ---------------- GOOGLE OAUTH ROUTES ---------------- */
 app.get(
   "/auth/google",
+  (req, res, next) => {
+    console.log("[Google OAuth] Initiating Google authentication...");
+    next();
+  },
   passport.authenticate("google", {
     scope: ["profile", "email"],
     session: false,
@@ -312,25 +333,43 @@ app.get(
 
 app.get(
   "/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/", session: false }),
+  passport.authenticate("google", {
+    failureRedirect: "http://localhost:3000/login?error=auth_failed",
+    session: false,
+  }),
   (req, res) => {
-    const token = jwt.sign(
-      {
-        id: req.user.Id,
-        role: (req.user.Role || "user").toLowerCase(),
-        username: req.user.Username,
-        email: req.user.Email,
-        avatar: req.user.AvatarUrl || null,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    try {
+      console.log("[Google OAuth Callback] User data:", req.user);
 
-    res.redirect(
-      `http://localhost:3000/login?token=${token}&role=${(
-        req.user.Role || "user"
-      ).toLowerCase()}&avatar=${encodeURIComponent(req.user.AvatarUrl || "")}`
-    );
+      if (!req.user) {
+        console.error("[Google OAuth Callback] No user data received!");
+        return res.redirect("http://localhost:3000/login?error=no_user_data");
+      }
+
+      const token = jwt.sign(
+        {
+          id: req.user.Id,
+          role: (req.user.Role || "user").toLowerCase(),
+          username: req.user.Username,
+          email: req.user.Email,
+          avatar: req.user.AvatarUrl || null,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      console.log(
+        "[Google OAuth Callback] JWT created, redirecting to frontend..."
+      );
+      res.redirect(
+        `http://localhost:3000/login?token=${token}&role=${(
+          req.user.Role || "user"
+        ).toLowerCase()}&avatar=${encodeURIComponent(req.user.AvatarUrl || "")}`
+      );
+    } catch (err) {
+      console.error("[Google OAuth Callback] Error:", err);
+      res.redirect("http://localhost:3000/login?error=callback_error");
+    }
   }
 );
 
@@ -346,17 +385,13 @@ app.get("/api/current_user", async (req, res) => {
     jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
       if (err) return res.json(null);
 
-      const pool = await poolPromise;
-      const user = await pool
-        .request()
-        .input("UserID", decoded.id)
-        .query(
-          "SELECT UserID, Username, Email, Role, AvatarURL FROM Users WHERE UserID = @UserID"
-        );
-      if (user.recordset.length === 0) return res.json(null);
+      // PostgreSQL query
+      const user =
+        await sql`SELECT "Id", "Username", "Email", "Role", "AvatarUrl" FROM "Users" WHERE "Id" = ${decoded.id}`;
+      if (!user || user.length === 0) return res.json(null);
       res.json({
-        ...user.recordset[0],
-        role: (user.recordset[0].Role || "user").toLowerCase(),
+        ...user[0],
+        role: (user[0].Role || "user").toLowerCase(),
         avatar: decoded.avatar || null,
       });
     });
