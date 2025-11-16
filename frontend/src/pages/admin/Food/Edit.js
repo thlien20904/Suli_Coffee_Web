@@ -3,6 +3,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { FaSave, FaTimes } from "react-icons/fa";
 import { useParams } from "react-router-dom"; // ✅ Thêm useParams
+import { buildApiUrl } from "../../../utils/apiConfig";
 import "../../../styles/components/admin/AddFood.css";
 
 const FormField = ({ label, error, children }) => (
@@ -42,9 +43,9 @@ const EditFood = () => {
         }
 
         const [catRes, ingRes, foodRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/admin/categories"),
-          axios.get("http://localhost:5000/api/admin/ingredients"),
-          axios.get(`http://localhost:5000/api/admin/foods/${id}`, {
+          axios.get(buildApiUrl("/api/admin/categories")),
+          axios.get(buildApiUrl("/api/admin/ingredients")),
+          axios.get(buildApiUrl(`/api/admin/foods/${id}`), {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
@@ -59,7 +60,9 @@ const EditFood = () => {
           FoodName: foodData.FoodName,
           CategoryId: foodData.CategoryId || "",
           Ingredients: (foodData.Ingredients || []).map((i) => i.IngredientId),
-          Price: foodData.Price || "",
+          Price: foodData.Price
+            ? parseInt(foodData.Price).toLocaleString("vi-VN")
+            : "",
           Discount: foodData.Discount || 0,
           Stock: foodData.Stock || "",
           Description: foodData.Description || "",
@@ -118,7 +121,19 @@ const EditFood = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const newForm = { ...form, [name]: value };
+    let processedValue = value;
+
+    // Xử lý format tiền cho Price
+    if (name === "Price") {
+      const numericValue = value.replace(/[^0-9]/g, "");
+      if (numericValue) {
+        processedValue = parseInt(numericValue).toLocaleString("vi-VN");
+      } else {
+        processedValue = "";
+      }
+    }
+
+    const newForm = { ...form, [name]: processedValue };
     setForm(newForm);
 
     if (name === "Stock") {
@@ -179,16 +194,21 @@ const EditFood = () => {
 
     const formData = new FormData();
     Object.keys(form).forEach((key) => {
+      let value = form[key];
+      // Chuyển Price về số trước khi gửi
+      if (key === "Price") {
+        value = parseInt(value.replace(/[^0-9]/g, "")) || 0;
+      }
       formData.append(
         key,
-        key === "Ingredients" ? JSON.stringify(form[key]) : form[key]
+        key === "Ingredients" ? JSON.stringify(form[key]) : value
       );
     });
     if (imageFile) formData.append("ImageFile", imageFile);
 
     try {
       const res = await axios.post(
-        `http://localhost:5000/api/admin/foods/edit/${id}`,
+        buildApiUrl(`/api/admin/foods/edit/${id}`),
         formData,
         {
           headers: {
@@ -250,7 +270,7 @@ const EditFood = () => {
   // ================= FIELDS CONFIG =================
   const fields = [
     { name: "FoodName", label: "Tên món", type: "text" },
-    { name: "Price", label: "Giá", type: "number", min: 1 },
+    { name: "Price", label: "Giá", type: "text" },
     {
       name: "Discount",
       label: "Giảm giá (%)",

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { buildApiUrl } from "../../../utils/apiConfig";
 import Swal from "sweetalert2";
 import "../../../styles/pages/Vouchers.css";
 
@@ -24,10 +25,10 @@ export default function VoucherTab() {
     try {
       setLoading(true);
       const [resAvailable, resMy] = await Promise.all([
-        axios.get("http://localhost:5000/api/profile/vouchers", {
+        axios.get(buildApiUrl("/api/profile/vouchers"), {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get("http://localhost:5000/api/profile/vouchers/my", {
+        axios.get(buildApiUrl("/api/profile/vouchers/my"), {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -58,7 +59,7 @@ export default function VoucherTab() {
   const claimVoucher = async (voucherId) => {
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/profile/vouchers/receive",
+        buildApiUrl("/api/profile/vouchers/receive"),
         { voucherId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -99,11 +100,12 @@ export default function VoucherTab() {
         <p>{v.Description}</p>
         <p>
           <strong>Điều kiện:</strong> Đơn tối thiểu{" "}
-          {v.MinOrderAmount?.toLocaleString()}đ
+          {Math.round(v.MinOrderAmount || 0).toLocaleString("vi-VN")}₫
         </p>
         {v.DiscountAmount && (
           <p>
-            <strong>Giảm:</strong> {v.DiscountAmount.toLocaleString()}đ
+            <strong>Giảm:</strong>{" "}
+            {Math.round(v.DiscountAmount).toLocaleString("vi-VN")}₫
           </p>
         )}
         {v.DiscountPercentage && (

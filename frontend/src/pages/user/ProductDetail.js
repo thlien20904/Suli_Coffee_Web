@@ -5,9 +5,13 @@ import { Row, Col, Button, Spinner, Alert, Form } from "react-bootstrap";
 import { useDispatch } from "react-redux";
 import { setCartCount } from "../../redux/userSlice";
 import { getImageUrl, getDefaultImage } from "../../utils/imageUtils";
+import {
+  API_BASE_URL,
+  API_ENDPOINTS,
+  buildApiUrl,
+} from "../../utils/apiConfig";
 import "../../styles/pages/ProductDetail.css";
 
-const API = "http://localhost:5000";
 const PLACEHOLDER = "/placeholder.jpg";
 
 const fmtVND = (n) =>
@@ -41,7 +45,7 @@ export default function ProductDetail() {
     const fetchProduct = async () => {
       setLoading(true);
       try {
-        const { data } = await axios.get(`${API}/api/products/${id}`);
+        const { data } = await axios.get(buildApiUrl(`/api/products/${id}`));
         if (data.success) {
           const pdata = data.data; // data.data mới chứa product, sizes, toppings, related
           setProduct(pdata.product);
@@ -93,7 +97,7 @@ export default function ProductDetail() {
     };
 
     try {
-      const res = await axios.post(`${API}/api/cart/add`, payload, {
+      const res = await axios.post(buildApiUrl("/api/cart/add"), payload, {
         // Gửi token qua header Authorization
         headers: {
           Authorization: `Bearer ${token}`,
@@ -102,7 +106,7 @@ export default function ProductDetail() {
 
       if (res.data.success) {
         // Cập nhật số lượng giỏ hàng
-        const cartRes = await axios.get(`${API}/api/cart`, {
+        const cartRes = await axios.get(buildApiUrl("/api/cart"), {
           // Gửi token qua header Authorization
           headers: {
             Authorization: `Bearer ${token}`,

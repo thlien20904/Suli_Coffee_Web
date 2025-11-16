@@ -3,6 +3,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { Link, useNavigate } from "react-router-dom";
+import { buildApiUrl } from "../../../utils/apiConfig";
 
 import "../../../styles/components/admin/Food.css"; // Dùng lại style table chung
 
@@ -16,7 +17,7 @@ const Staff = () => {
   // ================== Fetch danh sách staff ==================
   const fetchData = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/admin/staff", {
+      const res = await axios.get(buildApiUrl("/api/admin/staff"), {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       setStaffs(res.data.data || []);
@@ -45,7 +46,7 @@ const Staff = () => {
           setLoadingId(id);
 
           const res = await axios.post(
-            "http://localhost:5000/api/admin/staff/delete",
+            buildApiUrl("/api/admin/staff/delete"),
             { id },
             {
               headers: {

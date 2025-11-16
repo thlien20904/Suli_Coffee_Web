@@ -10,7 +10,7 @@ import {
   setUnreadCount,
   updateUser,
 } from "../../../redux/userSlice";
-import { getAvatarUrl } from "../../../utils/imageUtils";
+import { API_BASE_URL, buildApiUrl } from "../../../utils/apiConfig";
 import "../../../styles/components/Navbar.css";
 
 export default function Navbar({ brandText = "SuLi Coffee" }) {
@@ -31,12 +31,9 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
     const fetchAvatar = async () => {
       try {
         if (!isAuthenticated) return;
-        const res = await axios.get(
-          "http://localhost:5000/api/profile/avatar",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const res = await axios.get(buildApiUrl("/api/profile/avatar"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         if (res.data?.success && res.data.data) {
           // backend may return either a string (AvatarURL) or an object { avatarUrl: ... }
@@ -50,7 +47,10 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
           }
 
           if (avatarPath) {
-            dispatch(updateUser({ avatar: getAvatarUrl(avatarPath) }));
+            const fullUrl = avatarPath.startsWith("http")
+              ? avatarPath
+              : `${API_BASE_URL}${avatarPath}`;
+            dispatch(updateUser({ avatar: fullUrl }));
           }
         }
       } catch (err) {
@@ -70,7 +70,7 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
           dispatch(setCartCount(0));
           return;
         }
-        const res = await axios.get("http://localhost:5000/api/cart", {
+        const res = await axios.get(buildApiUrl("/api/cart"), {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.data && res.data.cart) {
@@ -98,10 +98,9 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
           return;
         }
 
-        const res = await axios.get(
-          "http://localhost:5000/api/profile/notifications",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await axios.get(buildApiUrl("/api/profile/notifications"), {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         if (res.data?.success && res.data.notifications) {
           const unread = res.data.notifications.filter((n) => !n.IsRead).length;
@@ -195,11 +194,16 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
                 Cửa hàng
               </Link>
             </li>
-            {/* Chỉ hiện CSP Demo khi truy cập từ localhost:5000 (backend) */}
+            {/* <li>
+              <Link to="/csp-demo" className="nav-link">
+                CSP Demo
+              </Link>
+            </li> */}
+            {/* Chỉ hiện Backend CSP Demo khi truy cập từ localhost:5000 (backend) */}
             {window.location.port === "5000" && (
               <li>
                 <a href="/csp" target="_self">
-                  CSP Demo
+                  Backend CSP
                 </a>
               </li>
             )}
@@ -233,10 +237,9 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
           {/* 👤 Avatar */}
           <div
             className="avatar-container"
-            onClick={() => setMenuVisible(!menuVisible)}
             onMouseEnter={() => setMenuVisible(true)}
             onMouseLeave={() => {
-              setTimeout(() => setMenuVisible(false), 300);
+              setTimeout(() => setMenuVisible(false), 200);
             }}
           >
             {renderUserAvatar()}
@@ -244,9 +247,7 @@ export default function Navbar({ brandText = "SuLi Coffee" }) {
             <div
               className={`avatar-dropdown ${menuVisible ? "show" : ""}`}
               onMouseEnter={() => setMenuVisible(true)}
-              onMouseLeave={() => {
-                setTimeout(() => setMenuVisible(false), 300);
-              }}
+              onMouseLeave={() => setMenuVisible(false)}
             >
               {isAuthenticated ? (
                 <>

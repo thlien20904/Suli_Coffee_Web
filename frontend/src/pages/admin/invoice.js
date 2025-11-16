@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { buildApiUrl } from "../../utils/apiConfig";
 import Swal from "sweetalert2";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "../../styles/components/admin/Invoice.css";
@@ -20,7 +21,7 @@ const Invoice = () => {
   // 🔹 Lấy danh sách hóa đơn
   const fetchData = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/admin/invoice", {
+      const res = await axios.get(buildApiUrl("/api/admin/invoice"), {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         params: { limit: 1000 },
       });
@@ -89,15 +90,9 @@ const Invoice = () => {
   // 🔹 Xem chi tiết
   const viewDetail = async (id) => {
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/admin/invoice/${id}`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
-      );
-
-      // Kiểm tra dữ liệu
-      console.log("📦 Chi tiết hóa đơn:", res.data);
+      const res = await axios.get(buildApiUrl(`/api/admin/invoice/${id}`), {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
 
       setDetails(res.data.details || []);
       setCurrentInvoice(res.data.invoice || null);
@@ -170,7 +165,12 @@ const Invoice = () => {
                 <td>{new Date(item.OrderDate).toLocaleString()}</td>
                 <td>{item.PaymentMethod?.TenPhuongThuc || "N/A"}</td>
                 <td>{item.Status?.StatusName || "N/A"}</td>
-                <td>{(item.TotalAmount || 0).toLocaleString()} đ</td>
+
+                {/* 🔥 FIX TIỀN */}
+                <td>
+                  {Math.round(item.TotalAmount || 0).toLocaleString("vi-VN")} ₫
+                </td>
+
                 <td>
                   <button
                     className="btn-green"
@@ -179,7 +179,7 @@ const Invoice = () => {
                     <i className="fas fa-eye"></i> Xem chi tiết
                   </button>
                 </td>
-              </tr> // ✅ FIX: Một dòng duy nhất, không newline giữa <td>
+              </tr>
             ))
           ) : (
             <tr>
@@ -272,11 +272,18 @@ const Invoice = () => {
                           : ""}
                       </td>
                       <td>{d.Quantity}</td>
-                      <td>{(d.Price || 0).toLocaleString()}</td>
+
+                      {/* 🔥 FIX TIỀN */}
                       <td>
-                        {((d.Quantity || 0) * (d.Price || 0)).toLocaleString()}
+                        {Math.round(d.Price || 0).toLocaleString("vi-VN")} ₫
                       </td>
-                    </tr> // ✅ FIX: Một dòng cho <tr> details, không newline
+                      <td>
+                        {((d.Quantity || 0) * (d.Price || 0)).toLocaleString(
+                          "vi-VN"
+                        )}{" "}
+                        ₫
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -286,20 +293,31 @@ const Invoice = () => {
                   <b>Tổng số lượng:</b>{" "}
                   {details.reduce((sum, d) => sum + (d.Quantity || 0), 0)}
                 </p>
+
+                {/* 🔥 FIX TIỀN */}
                 <p>
                   <b>Thành tiền:</b>{" "}
-                  {(currentInvoice?.TotalAmount || 0).toLocaleString()} đ
+                  {Math.round(currentInvoice?.TotalAmount || 0).toLocaleString(
+                    "vi-VN"
+                  )}{" "}
+                  ₫
                 </p>
                 <p>
                   <b>Thanh toán:</b>{" "}
-                  {(currentInvoice?.TotalAmount || 0).toLocaleString()} đ
+                  {Math.round(currentInvoice?.TotalAmount || 0).toLocaleString(
+                    "vi-VN"
+                  )}{" "}
+                  ₫
                 </p>
                 <p>
                   <b>Tiền khách đưa:</b>{" "}
-                  {(currentInvoice?.TotalAmount || 0).toLocaleString()} đ
+                  {Math.round(currentInvoice?.TotalAmount || 0).toLocaleString(
+                    "vi-VN"
+                  )}{" "}
+                  ₫
                 </p>
                 <p>
-                  <b>Tiền thừa:</b> 0 đ
+                  <b>Tiền thừa:</b> 0 ₫
                 </p>
               </div>
 

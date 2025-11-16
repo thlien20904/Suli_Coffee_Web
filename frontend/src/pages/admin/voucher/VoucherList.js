@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { buildApiUrl } from "../../../utils/apiConfig";
 import Swal from "sweetalert2";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "../../../styles/components/admin/Voucher.css";
@@ -25,15 +26,28 @@ const VoucherList = () => {
   const [errors, setErrors] = useState({});
 
   const [currentPage, setCurrentPage] = useState(1);
+
+  // ===================== FORMAT CURRENCY =====================
+  const formatCurrency = (value) => {
+    if (!value) return "";
+    return Math.round(value).toLocaleString("vi-VN");
+  };
+
+  const parseCurrency = (value) => {
+    if (!value) return "";
+    return value.toString().replace(/[.,]/g, "");
+  };
   const itemsPerPage = 5;
 
-  const API_URL = "http://localhost:5000/api/admin/voucher";
+  const API_URL = buildApiUrl("/api/admin/voucher");
 
   // ===================== FETCH =====================
   const fetchVouchers = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(API_URL);
+      const res = await axios.get(API_URL, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
       setVouchers(res.data.data || []);
       setFiltered(res.data.data || []);
     } catch (err) {
@@ -73,9 +87,9 @@ const VoucherList = () => {
       setForm({
         Code: voucher.Code,
         Description: voucher.Description,
-        DiscountAmount: voucher.DiscountAmount || "",
+        DiscountAmount: formatCurrency(voucher.DiscountAmount) || "",
         DiscountPercentage: voucher.DiscountPercentage || "",
-        MinOrderAmount: voucher.MinOrderAmount || "",
+        MinOrderAmount: formatCurrency(voucher.MinOrderAmount) || "",
         ExpiryDate: voucher.ExpiryDate?.split(" ")[0] || "", // Chỉ lấy YYYY-MM-DD
         MaxUsage: voucher.MaxUsage || "",
         IsActive: voucher.IsActive,
@@ -146,10 +160,24 @@ const VoucherList = () => {
   // ===================== HANDLERS =====================
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm({
-      ...form,
-      [name]: type === "checkbox" ? checked : value,
-    });
+
+    if (name === "DiscountAmount" || name === "MinOrderAmount") {
+      // Chỉ cho phép số và format hiển thị
+      const numericValue = value.replace(/[^0-9]/g, "");
+      const formattedValue = numericValue
+        ? Math.round(parseInt(numericValue)).toLocaleString("vi-VN")
+        : "";
+
+      setForm({
+        ...form,
+        [name]: formattedValue,
+      });
+    } else {
+      setForm({
+        ...form,
+        [name]: type === "checkbox" ? checked : value,
+      });
+    }
   };
 
   const handleBlur = (e) => {
@@ -167,14 +195,32 @@ const VoucherList = () => {
     }
 
     try {
+      // Parse currency values back to numbers
+      const formData = {
+        ...form,
+        DiscountAmount: form.DiscountAmount
+          ? parseCurrency(form.DiscountAmount)
+          : "",
+        MinOrderAmount: form.MinOrderAmount
+          ? parseCurrency(form.MinOrderAmount)
+          : "",
+      };
+
       let res;
       if (editingVoucher) {
         res = await axios.post(
           `${API_URL}/edit/${editingVoucher.VoucherId}`,
-          form
+          formData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
         );
       } else {
-        res = await axios.post(`${API_URL}/add`, form);
+        res = await axios.post(`${API_URL}/add`, formData, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
       }
 
       // THÀNH CÔNG → success: true
@@ -227,7 +273,13 @@ const VoucherList = () => {
     if (!confirm.isConfirmed) return;
 
     try {
-      const res = await axios.put(`${API_URL}/toggle/${voucher.VoucherId}`);
+      const res = await axios.put(
+        `${API_URL}/toggle/${voucher.VoucherId}`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
       if (res.data.success) {
         Swal.fire({
           icon: "success",
@@ -258,9 +310,15 @@ const VoucherList = () => {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await axios.post(`${API_URL}/delete`, {
-        id: voucher.VoucherId,
-      });
+      const res = await axios.post(
+        `${API_URL}/delete`,
+        {
+          id: voucher.VoucherId,
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
 
       if (res.data.success) {
         Swal.fire({
@@ -329,14 +387,17 @@ const VoucherList = () => {
                 <td>{v.Description}</td>
                 <td>
                   {v.DiscountAmount
-                    ? `${v.DiscountAmount.toLocaleString("vi-VN")} ₫`
+                    ? `${Math.round(v.DiscountAmount).toLocaleString(
+                        "vi-VN"
+                      )} ₫`
                     : v.DiscountPercentage
                     ? `${v.DiscountPercentage}%`
                     : "—"}
                 </td>
                 <td>
                   {v.MinOrderAmount
-                    ? v.MinOrderAmount.toLocaleString("vi-VN") + " ₫"
+                    ? Math.round(v.MinOrderAmount).toLocaleString("vi-VN") +
+                      " ₫"
                     : "—"}
                 </td>
                 <td>
@@ -441,7 +502,8 @@ const VoucherList = () => {
                 <label>Giảm (VNĐ)</label>
                 <input
                   name="DiscountAmount"
-                  type="number"
+                  type="text"
+                  placeholder="VD: 10.000"
                   value={form.DiscountAmount}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -473,7 +535,8 @@ const VoucherList = () => {
                 <label>Đơn tối thiểu *</label>
                 <input
                   name="MinOrderAmount"
-                  type="number"
+                  type="text"
+                  placeholder="VD: 50.000"
                   value={form.MinOrderAmount}
                   onChange={handleChange}
                   onBlur={handleBlur}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { buildApiUrl } from "../../utils/apiConfig";
 import Swal from "sweetalert2";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "../../styles/components/admin/users.css";
@@ -16,12 +17,25 @@ const UserList = () => {
   // Fetch danh sách users
   const fetchData = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/admin/users", {
+      const res = await axios.get(buildApiUrl("/api/admin/users"), {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-      setUsers(res.data.data || []);
+      let fetchedUsers = res.data.data || [];
+
+      // ✅ THÊM: Optional frontend filter (backup nếu backend fail) – Exclude Role="admin"
+      fetchedUsers = fetchedUsers.filter(
+        (u) => u.Role !== "admin" && u.Role !== "Admin"
+      );
+
+      console.log(
+        "🔍 Fetched & filtered users:",
+        fetchedUsers.map((u) => ({ Id: u.Id, Role: u.Role }))
+      ); // Debug
+
+      setUsers(fetchedUsers);
     } catch (err) {
       console.error("❌ Lỗi khi fetch users:", err);
+      Swal.fire("Lỗi", "Không thể tải danh sách users", "error");
     }
   };
 
@@ -46,9 +60,9 @@ const UserList = () => {
         try {
           setLoadingId(id);
 
-          const url = `http://localhost:5000/api/admin/users/${id}/${
-            isBanned ? "unban" : "ban"
-          }`;
+          // ✅ FIX: Sửa URL – Dùng isBanned thay action (undefined)
+          const endpoint = isBanned ? "unban" : "ban";
+          const url = buildApiUrl(`/api/admin/users/${id}/${endpoint}`);
 
           const res = await axios.patch(url, null, {
             headers: {
@@ -77,12 +91,13 @@ const UserList = () => {
             });
           }
         } catch (err) {
+          console.error("❌ Lỗi toggle ban:", err);
           Swal.fire({
             icon: "error",
             title: "",
-            text: "Không thể kết nối server",
+            text: err.response?.data?.message || "Không thể kết nối server",
             confirmButtonText: "OK",
-            timer: 1000,
+            timer: 1500,
             timerProgressBar: true,
           });
         } finally {
