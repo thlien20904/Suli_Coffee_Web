@@ -91,7 +91,7 @@ const authenticate = (req, res, next) => {
 };
 
 // =========================
-// 📌 LẤY THÔNG TIN TÀI KHOẢN (Giữ nguyên)
+// 📌 LẤY THÔNG TIN TÀI KHOẢN (SỬA: Thêm Province, District, Ward vào attributes)
 // =========================
 const getProfile = async (req, res) => {
   try {
@@ -106,6 +106,9 @@ const getProfile = async (req, res) => {
         "FullName",
         "Phone",
         "Address",
+        "Province", // ✅ THÊM: Lấy Province
+        "District", // ✅ THÊM: Lấy District
+        "Ward", // ✅ THÊM: Lấy Ward
         "Role",
         "AvatarUrl",
         "CreatedDate",
@@ -130,15 +133,15 @@ const getProfile = async (req, res) => {
 };
 
 // =========================
-// 📌 CẬP NHẬT THÔNG TIN USER (Giữ nguyên)
+// 📌 CẬP NHẬT THÔNG TIN USER (SỬA: Thêm Province, District, Ward; Validate optional cho address fields)
 // =========================
 const updateProfile = async (req, res) => {
   try {
-    const { id, FullName, Phone, Address } = req.body;
+    const { id, FullName, Phone, Address, Province, District, Ward } = req.body; // ✅ THÊM: Parse Province, District, Ward từ FormData
     const file = req.file;
 
     if (req.user.id !== parseInt(id) && req.user.role !== "admin") {
-      if (file && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      // Xóa file nếu có lỗi quyền (vì dùng memoryStorage, không cần unlink local)
       return res
         .status(403)
         .json({ success: false, message: "Bạn không có quyền chỉnh sửa!" });
@@ -146,20 +149,26 @@ const updateProfile = async (req, res) => {
 
     const user = await Users.findByPk(id);
     if (!user) {
-      if (file && fs.existsSync(file.path)) fs.unlinkSync(file.path);
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy người dùng!" });
     }
 
-    // Validate input
+    // Validate input (Address/Province/District/Ward optional, chỉ check nếu có)
     const errors = {};
     if (!FullName || FullName.trim().length < 3)
       errors.FullName = "FullName phải ≥ 3 ký tự";
     if (!Phone || !/^(0[3|5|7|8|9])[0-9]{8,9}$/.test(Phone.trim()))
       errors.Phone = "Số điện thoại không hợp lệ (9-10 số)";
-    if (!Address || Address.trim().length === 0)
-      errors.Address = "Address không được để trống";
+    // Address optional, nhưng nếu có thì check length
+    if (Address && (!Address.trim() || Address.trim().length < 5))
+      errors.Address = "Địa chỉ chi tiết phải ≥ 5 ký tự";
+    // Province/District/Ward optional, check nếu có thì không rỗng
+    if (Province && !Province.trim())
+      errors.Province = "Tỉnh/thành không hợp lệ";
+    if (District && !District.trim())
+      errors.District = "Quận/huyện không hợp lệ";
+    if (Ward && !Ward.trim()) errors.Ward = "Phường/xã không hợp lệ";
 
     if (Object.keys(errors).length > 0) {
       return res
@@ -196,18 +205,33 @@ const updateProfile = async (req, res) => {
       }
     }
 
-    // Update instance
+    // Update instance (thêm Province, District, Ward)
     user.FullName = FullName.trim();
     user.Phone = Phone.trim();
-    user.Address = Address.trim();
+    user.Address = Address ? Address.trim() : user.Address; // Giữ cũ nếu không gửi
+    user.Province = Province ? Province.trim() : user.Province; // ✅ THÊM: Update Province (optional)
+    user.District = District ? District.trim() : user.District; // ✅ THÊM: Update District (optional)
+    user.Ward = Ward ? Ward.trim() : user.Ward; // ✅ THÊM: Update Ward (optional)
     user.AvatarUrl = avatarUrl;
 
     await user.save();
 
+    // Log cập nhật để debug
+    console.log("✅ UPDATED USER:", {
+      Id: user.Id,
+      FullName: user.FullName,
+      Phone: user.Phone,
+      Address: user.Address,
+      Province: user.Province,
+      District: user.District,
+      Ward: user.Ward,
+      AvatarUrl: user.AvatarUrl,
+    });
+
     res.json({
       success: true,
       message: "Cập nhật thành công!",
-      data: { avatarUrl },
+      data: { avatarUrl: avatarUrl !== user.AvatarUrl ? avatarUrl : undefined }, // Chỉ trả nếu thay đổi
     });
   } catch (err) {
     console.error("UPDATE USER ERROR:", err);
@@ -215,9 +239,7 @@ const updateProfile = async (req, res) => {
       .status(500)
       .json({ success: false, message: "Có lỗi xảy ra khi cập nhật." });
   }
-};
-
-// =========================
+}; // =========================
 // 📌 LẤY DANH SÁCH ĐƠN HÀNG THEO TAB + PHÂN TRANG (ĐÃ SỬA LẠI LOGIC)
 // =========================
 // =========================
@@ -492,6 +514,146 @@ const cancelOrder = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Có lỗi xảy ra khi hủy đơn hàng: " + err.message,
+    });
+  }
+};
+
+// =========================
+// 📌 LẤY CHI TIẾT ĐƠN HÀNG THEO ID (MỚI)
+// =========================
+const getOrderDetail = async (req, res) => {
+  try {
+    const { id: orderId } = req.params; // Lấy orderId từ params (:id)
+    const userId = req.user.id;
+
+    console.log(
+      "🔍 Fetching order detail for OrderId:",
+      orderId,
+      "UserId:",
+      userId
+    ); // Log debug
+
+    if (!orderId || isNaN(parseInt(orderId))) {
+      return res
+        .status(400)
+        .json({ success: false, message: "OrderId không hợp lệ!" });
+    }
+
+    // Tìm đơn hàng của user
+    const order = await Orders.findOne({
+      where: { OrderId: parseInt(orderId), UserId: userId },
+      include: [
+        {
+          model: OrderStatus,
+          as: "Status",
+          attributes: ["StatusId", "StatusName"],
+        },
+        {
+          model: PhuongThucThanhToan,
+          as: "PaymentMethod",
+          attributes: ["TenPhuongThuc"],
+        },
+        {
+          model: PaymentStatus,
+          as: "PaymentStatus",
+          attributes: ["PaymentStatusId", "PaymentStatusName"],
+        },
+        {
+          model: OrderDetails,
+          as: "OrderDetails",
+          include: [
+            { model: Food, as: "Food", attributes: ["FoodName"] },
+            { model: Size, as: "Size", attributes: ["SizeName"] },
+            {
+              model: OrderDetails_Topping,
+              as: "OrderDetails_Toppings",
+              include: {
+                model: Topping,
+                as: "Topping",
+                attributes: ["ToppingName"],
+              },
+            },
+          ],
+        },
+        // Nếu có Voucher, include để lấy discount
+        // { model: Vouchers, as: "Voucher", attributes: ["DiscountAmount"] }, // Giả sử association tồn tại
+      ],
+    });
+
+    if (!order) {
+      console.warn(
+        "⚠️ Order not found for OrderId:",
+        orderId,
+        "UserId:",
+        userId
+      );
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy đơn hàng!" });
+    }
+
+    console.log("✅ Order found:", {
+      OrderId: order.OrderId,
+      Status: order.Status?.StatusName,
+    }); // Log success
+
+    // Tính toán Subtotal (tổng giá sản phẩm, không phí ship/discount)
+    const subtotal = order.OrderDetails.reduce((sum, detail) => {
+      const detailTotal = detail.Price * detail.Quantity;
+      return sum + detailTotal;
+    }, 0);
+
+    // ShippingFee (giả sử có field ShippingFee trong Orders, nếu không thì default 0 hoặc calc từ address)
+    const shippingFee = order.ShippingFee || 0; // Thêm field này vào model Orders nếu chưa
+
+    // DiscountAmount (từ Voucher nếu apply, hoặc 0)
+    const discountAmount = order.DiscountAmount || 0; // Thêm field này vào model Orders nếu chưa, hoặc calc từ Voucher
+
+    // Chuẩn bị OrderDetails với Toppings đầy đủ
+    const orderDetails = order.OrderDetails.map((detail) => ({
+      FoodName: detail.Food?.FoodName || "Không xác định",
+      SizeName: detail.Size?.SizeName || null,
+      Toppings: (detail.OrderDetails_Toppings || []).map((ot) => ({
+        ToppingName: ot.Topping?.ToppingName || "Không xác định",
+      })),
+      Quantity: detail.Quantity,
+      Price: parseFloat(detail.Price),
+    }));
+
+    const orderWithDetails = {
+      ...order.toJSON(), // Chuyển sang JSON để tránh Sequelize instance issues
+      Subtotal: subtotal,
+      ShippingFee: shippingFee,
+      DiscountAmount: discountAmount,
+      TotalAmount: parseFloat(order.TotalAmount), // Đảm bảo number
+      OrderDetails: orderDetails,
+      // Địa chỉ từ order hoặc user (giả sử có fields Address, Ward, etc. trong Orders hoặc join User)
+      Address: order.Address || null,
+      Ward: order.Ward || null,
+      District: order.District || null,
+      Province: order.Province || null,
+      ReceiverName: order.ReceiverName || null,
+      Phone: order.Phone || null,
+    };
+
+    console.log("📦 Final order with details:", {
+      OrderId: orderWithDetails.OrderId,
+      Subtotal: orderWithDetails.Subtotal,
+      ShippingFee: orderWithDetails.ShippingFee,
+      DiscountAmount: orderWithDetails.DiscountAmount,
+      TotalAmount: orderWithDetails.TotalAmount,
+      OrderDetailsLength: orderWithDetails.OrderDetails.length,
+    });
+
+    res.json({
+      success: true,
+      data: orderWithDetails,
+    });
+  } catch (err) {
+    console.error("❌ GET ORDER DETAIL ERROR:", err);
+    res.status(500).json({
+      success: false,
+      message: "Có lỗi xảy ra khi lấy chi tiết đơn hàng: " + err.message,
     });
   }
 };
@@ -854,6 +1016,7 @@ module.exports = {
   updateProfile,
   getOrders,
   cancelOrder,
+  getOrderDetail,
   getAvatar,
   getVouchers,
   receiveVoucher,

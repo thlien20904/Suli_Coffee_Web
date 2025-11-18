@@ -1,0 +1,246 @@
+/* ---------------------------------------------------
+   WRAPPER
+--------------------------------------------------- */
+.order-detail-wrapper {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------------------------------------------------
+   TITLES + HEADER
+--------------------------------------------------- */
+.order-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.order-detail-header h4 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #333;
+}
+
+.order-detail-header .btn-secondary {
+  background: #e0e0e0;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: 0.2s ease;
+}
+
+.order-detail-header .btn-secondary:hover {
+  background: #ccc;
+}
+
+/* ---------------------------------------------------
+   BASIC INFO BOXES
+--------------------------------------------------- */
+.order-info-box {
+  padding: 18px;
+  background: #fafafa;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  margin-bottom: 25px;
+}
+
+.order-info-box strong {
+  color: #444;
+}
+
+.order-address-box {
+  background: #fff7f6;
+  border: 1px solid #ffd9d5;
+  padding: 18px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+}
+
+.order-address-box h6 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ff6f61;
+}
+
+.order-address-box p {
+  margin: 4px 0;
+  color: #555;
+}
+
+/* ---------------------------------------------------
+   TIMELINE (Progress steps)
+--------------------------------------------------- */
+.progress-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-left: 3px solid #eee;
+  padding-left: 20px;
+  margin: 15px 0 25px 0;
+}
+
+.progress-timeline .step {
+  position: relative;
+  padding: 10px 14px;
+  background: #f7f7f7;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #444;
+  font-weight: 500;
+  border: 1px solid #eaeaea;
+}
+
+.progress-timeline .step::before {
+  content: "";
+  position: absolute;
+  left: -28px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  background: #bbb;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 3px #eee;
+}
+
+.progress-timeline .completed {
+  background: #e6fff2;
+  border-color: #baf2d4;
+  color: #0b8e54;
+}
+
+.progress-timeline .completed::before {
+  background: #15bd70;
+  box-shadow: 0 0 0 3px #d4f7e3;
+}
+
+.progress-timeline .failed {
+  background: #ffe6e6;
+  border-color: #f3bbbb;
+  color: #cc2222;
+}
+
+.progress-timeline .failed::before {
+  background: #ff4b4b;
+  box-shadow: 0 0 0 3px #ffd4d4;
+}
+
+/* ---------------------------------------------------
+   PRODUCT TABLE
+--------------------------------------------------- */
+.table {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e6e6e6;
+}
+
+.table thead {
+  background: #fff2ef;
+}
+
+.table thead th {
+  font-weight: 600;
+  color: #444;
+  padding: 14px 10px;
+  border-bottom: 1px solid #ffd8d2;
+}
+
+.table tbody td {
+  padding: 12px 10px;
+  color: #444;
+  vertical-align: middle;
+  border-bottom: 1px solid #f2f2f2;
+}
+
+.table tbody tr:hover {
+  background: #fafafa;
+}
+
+.table tfoot th {
+  background: #fff9f8;
+  padding: 14px 10px;
+  font-size: 16px;
+  color: #333;
+  border-top: 1px solid #ffd8d2;
+}
+
+/* ---------------------------------------------------
+   TOTAL PRICE
+--------------------------------------------------- */
+.total-price {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ff6f61;
+}
+
+/* ---------------------------------------------------
+   BUTTONS
+--------------------------------------------------- */
+.btn-warning {
+  background: #ffb547;
+  border: none;
+  padding: 10px 20px;
+  font-size: 15px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  transition: 0.25s ease;
+}
+
+.btn-warning:hover {
+  background: #ff9f1c;
+}
+
+.btn-primary {
+  background: #ff6f61;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: #e8564a;
+}
+
+/* ---------------------------------------------------
+   ALERTS
+--------------------------------------------------- */
+.alert {
+  border-radius: 12px !important;
+}
+
+.alert-danger {
+  background: #ffe6e6 !important;
+  color: #cc2222 !important;
+  border: 1px solid #ffcccc !important;
+}
+
+/* ---------------------------------------------------
+   LOADING TEXT
+--------------------------------------------------- */
+.loading-text {
+  text-align: center;
+  font-size: 16px;
+  padding: 20px;
+  color: #666;
+}

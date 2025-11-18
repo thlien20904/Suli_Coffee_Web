@@ -19,6 +19,9 @@ router.post(
 // Lấy danh sách đơn hàng theo tab + phân trang
 router.get("/orders", authenticate, profileController.getOrders);
 
+// Lấy chi tiết 1 đơn hàng theo ID  ✅ (bạn yêu cầu)
+router.get("/orders/:id", authenticate, profileController.getOrderDetail);
+
 // Hủy đơn hàng
 router.post("/orders/cancel", authenticate, profileController.cancelOrder);
 
@@ -37,8 +40,10 @@ router.post(
 
 // Lấy danh sách voucher đã nhận
 router.get("/vouchers/my", authenticate, profileController.getUserVouchers);
-// ✅ Áp dụng voucher
+
+// Áp dụng voucher
 router.post("/apply", authenticate, profileController.applyVoucher);
+
 // Lấy danh sách thông báo
 router.get("/notifications", authenticate, profileController.getNotifications);
 

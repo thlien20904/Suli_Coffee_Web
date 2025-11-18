@@ -147,7 +147,7 @@ console.log("Current nonce:", nonce);
 ```javascript
 // ✅ Script này sẽ ĐƯỢC PHÉP chạy
 const legitimateScript = document.createElement("script");
-legitimateScript.setAttribute("nonce", nonce);
+legitimateScript.setAttribute("nonce", "");
 legitimateScript.textContent = `
   console.log('✅ Legitimate script with valid nonce');
   alert('✅ This script is allowed!');

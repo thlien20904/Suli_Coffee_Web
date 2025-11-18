@@ -30,6 +30,7 @@ import OrdersList from "./pages/user/profile/OrdersList";
 import Vouchers from "./pages/user/profile/Vouchers";
 import Notifications from "./pages/user/profile/Notifications";
 import Help from "./pages/user/profile/Help";
+import OrderDetail from "./pages/user/profile/OrderDetail";
 
 import Stores from "./pages/user/StoresUser";
 import VnpayReturn from "./pages/user/VnpayReturn";
@@ -150,7 +151,7 @@ function App() {
           <Route path="about" element={<About />} />
           <Route path="contact" element={<Contact />} />
 
-          {/* Profile routes */}
+          {/* Profile nested routes - Giữ nguyên cấu trúc, chỉ thêm nested cho profile */}
           <Route
             path="profile"
             element={
@@ -158,47 +159,20 @@ function App() {
                 <Profile />
               </PrivateRoute>
             }
-          />
-          <Route
-            path="profile/info"
-            element={
-              <PrivateRoute>
-                <ProfileInfo />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="profile/orders"
-            element={
-              <PrivateRoute>
-                <OrdersList />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="profile/vouchers"
-            element={
-              <PrivateRoute>
-                <Vouchers />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="profile/notifications"
-            element={
-              <PrivateRoute>
-                <Notifications />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="profile/help"
-            element={
-              <PrivateRoute>
-                <Help />
-              </PrivateRoute>
-            }
-          />
+          >
+            <Route index element={<ProfileInfo />} />{" "}
+            {/* /profile → ProfileInfo */}
+            <Route path="orders">
+              <Route index element={<OrdersList />} />
+              <Route path="orderdetail/:orderId" element={<OrderDetail />} />
+            </Route>{" "}
+            {/* /profile/orders */}
+            <Route path="vouchers" element={<Vouchers />} />{" "}
+            {/* /profile/vouchers */}
+            <Route path="notifications" element={<Notifications />} />{" "}
+            {/* /profile/notifications */}
+            <Route path="help" element={<Help />} /> {/* /profile/help */}
+          </Route>
         </Route>
 
         {/* Admin routes */}

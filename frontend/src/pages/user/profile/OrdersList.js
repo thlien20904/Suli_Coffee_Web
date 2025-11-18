@@ -63,6 +63,11 @@ export default function OrdersList() {
     }
   };
 
+  // -------------------- XEM CHI TIẾT ĐƠN HÀNG --------------------
+  const viewOrderDetail = (orderId) => {
+    navigate(`/profile/orders/orderdetail/${orderId}`);
+  };
+
   // -------------------- HỦY ĐƠN --------------------
   const cancelOrder = async (orderId) => {
     Swal.fire({
@@ -205,7 +210,12 @@ export default function OrdersList() {
           </thead>
           <tbody>
             {filteredOrders.map((o) => (
-              <tr key={o.OrderId}>
+              <tr 
+                key={o.OrderId} 
+                className="order-row" // Thêm class cho styling nếu cần (e.g., cursor: pointer)
+                onClick={() => viewOrderDetail(o.OrderId)}
+                style={{ cursor: 'pointer' }} // Hover effect
+              >
                 <td>#{o.OrderId}</td>
                 <td>
                   {new Date(o.OrderDate).toLocaleString("vi-VN", {
@@ -251,23 +261,27 @@ export default function OrdersList() {
                     </div>
                   ))}
                 </td>
-                {/* ✅ Bọc button trong <td> */}
+                {/* ✅ Bọc button trong <td> - Thêm stopPropagation để không trigger row click */}
                 <td>
                   {activeTab === "pending" && (
                     <>
                       <button
                         className="btn btn-success btn-sm me-1"
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation(); // Ngăn row click
                           navigate("/checkout", {
                             state: { orderId: o.OrderId },
-                          })
-                        }
+                          });
+                        }}
                       >
                         Tiếp tục thanh toán
                       </button>
                       <button
                         className="btn btn-danger btn-sm"
-                        onClick={() => cancelOrder(o.OrderId, "pending")}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Ngăn row click
+                          cancelOrder(o.OrderId, "pending");
+                        }}
                       >
                         Hủy
                       </button>
@@ -277,7 +291,10 @@ export default function OrdersList() {
                     activeTab === "dang-chuan-bi") && (
                     <button
                       className="btn btn-warning btn-sm text-white"
-                      onClick={() => cancelOrder(o.OrderId)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Ngăn row click
+                        cancelOrder(o.OrderId);
+                      }}
                     >
                       Hủy
                     </button>
