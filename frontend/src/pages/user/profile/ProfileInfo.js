@@ -10,6 +10,8 @@ export default function ProfileInfo() {
   const [userState, setUserState] = useState(null);
   const [avatar, setAvatar] = useState(getDefaultImage());
   const [formData, setFormData] = useState({
+    username: "",
+    email: "",
     fullname: "",
     phone: "",
   });
@@ -35,23 +37,16 @@ export default function ProfileInfo() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("Bạn cần đăng nhập lại!");
 
-        console.log("🔍 Bắt đầu fetch profile...");
         const res = await axios.get(buildApiUrl("/api/profile"), {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         if (res.data.success) {
           const data = res.data.data;
-          console.log("✅ Profile data loaded:", {
-            FullName: data.FullName,
-            Phone: data.Phone,
-            Address: data.Address,
-            Province: data.Province,
-            District: data.District,
-            Ward: data.Ward,
-          });
           setUserState(data);
           setFormData({
+            username: data.Username || "",
+            email: data.Email || "",
             fullname: data.FullName || "",
             phone: data.Phone || "",
           });
@@ -73,7 +68,6 @@ export default function ProfileInfo() {
           );
         }
       } catch (err) {
-        console.error("❌ FETCH PROFILE ERROR:", err);
         Swal.fire("", "Không thể kết nối server!", "error");
       }
     };
@@ -85,98 +79,74 @@ export default function ProfileInfo() {
   const loadProvincesAndSetSelections = async (userData) => {
     try {
       setLoadingAddress(true);
-      console.log("🔍 Loading provinces...");
       const provRes = await axios.get(buildApiUrl("/api/address/provinces"));
       if (provRes.data.success) {
         const provData = provRes.data.data || [];
-        console.log("✅ Provinces loaded:", provData.length, "items");
         setProvinces(provData);
 
         // Tìm và set province
         if (userData.Province) {
-          console.log("🔍 Mapping Province:", userData.Province);
           const provinceMatch = provData.find(
             (p) => p.ProvinceName === userData.Province
           );
           if (provinceMatch) {
             const provId = provinceMatch.ProvinceID;
-            console.log("✅ Province matched:", { name: userData.Province, id: provId });
             setAddressData((prev) => ({ ...prev, selectedProvince: provId }));
 
             // Chain fetch districts sau khi set province (sử dụng Promise để chờ state update không cần thiết vì useEffect sẽ trigger)
             // Nhưng để chắc chắn, await một chút và fetch districts ngay
-            await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for state
+            await new Promise((resolve) => setTimeout(resolve, 50)); // Small delay for state
 
-            console.log("🔍 Fetching districts for province ID:", provId);
             const distRes = await axios.get(
               buildApiUrl(`/api/address/districts/${provId}`)
             );
             if (distRes.data.success) {
               const distData = distRes.data.data || [];
-              console.log("✅ Districts loaded:", distData.length, "items");
               setDistricts(distData);
 
               // Tìm và set district
               if (userData.District) {
-                console.log("🔍 Mapping District:", userData.District);
                 const districtMatch = distData.find(
                   (d) => d.DistrictName === userData.District
                 );
                 if (districtMatch) {
                   const distId = districtMatch.DistrictID;
-                  console.log("✅ District matched:", { name: userData.District, id: distId });
-                  setAddressData((prev) => ({ ...prev, selectedDistrict: distId }));
+                  setAddressData((prev) => ({
+                    ...prev,
+                    selectedDistrict: distId,
+                  }));
 
-                  await new Promise(resolve => setTimeout(resolve, 50));
+                  await new Promise((resolve) => setTimeout(resolve, 50));
 
                   // Chain fetch wards
-                  console.log("🔍 Fetching wards for district ID:", distId);
                   const wardRes = await axios.get(
                     buildApiUrl(`/api/address/wards/${distId}`)
                   );
                   if (wardRes.data.success) {
                     const wardData = wardRes.data.data || [];
-                    console.log("✅ Wards loaded:", wardData.length, "items");
                     setWards(wardData);
 
                     // Tìm và set ward
                     if (userData.Ward) {
-                      console.log("🔍 Mapping Ward:", userData.Ward);
                       const wardMatch = wardData.find(
                         (w) => w.WardName === userData.Ward
                       );
                       if (wardMatch) {
                         const wardCode = wardMatch.WardCode;
-                        console.log("✅ Ward matched:", { name: userData.Ward, code: wardCode });
                         setAddressData((prev) => ({
                           ...prev,
                           selectedWard: wardCode,
                         }));
-                      } else {
-                        console.warn("⚠️ No ward match found for:", userData.Ward);
                       }
                     }
-                  } else {
-                    console.error("❌ Failed to load wards");
                   }
-                } else {
-                  console.warn("⚠️ No district match found for:", userData.District);
                 }
               }
-            } else {
-              console.error("❌ Failed to load districts");
             }
-          } else {
-            console.warn("⚠️ No province match found for:", userData.Province);
           }
-        } else {
-          console.log("ℹ️ No Province in user data, skipping mapping");
         }
-      } else {
-        console.error("❌ Failed to load provinces");
       }
     } catch (err) {
-      console.error("❌ Load address data error:", err);
     } finally {
       setLoadingAddress(false);
     }
@@ -195,10 +165,14 @@ export default function ProfileInfo() {
     const wardName =
       wards.find((w) => String(w.WardCode) === String(addressData.selectedWard))
         ?.WardName || "";
-    const fullAddr = [addressData.baseStreet, wardName, districtName, provinceName]
+    const fullAddr = [
+      addressData.baseStreet,
+      wardName,
+      districtName,
+      provinceName,
+    ]
       .filter(Boolean)
       .join(", ");
-    console.log("📍 Full address generated:", fullAddr); // Log full address
     return fullAddr;
   }, [
     addressData.baseStreet,
@@ -215,6 +189,14 @@ export default function ProfileInfo() {
   // =====================
   const validateField = (name, value) => {
     switch (name) {
+      case "username":
+        return !value.trim() || !/^[a-zA-Z0-9_.-]{3,30}$/.test(value.trim())
+          ? "Username phải 3–30 ký tự, chỉ a-z, A-Z, 0-9, _ . -"
+          : null;
+      case "email":
+        return !value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+          ? "Email không đúng định dạng."
+          : null;
       case "fullname":
         return !value.trim() || value.length < 3
           ? "Tên quá ngắn (≥3 ký tự)"
@@ -224,7 +206,9 @@ export default function ProfileInfo() {
           ? "Số điện thoại không hợp lệ"
           : null;
       case "baseStreet":
-        return !value.trim() || value.length < 5 ? "Địa chỉ chi tiết quá ngắn" : null;
+        return !value.trim() || value.length < 5
+          ? "Địa chỉ chi tiết quá ngắn"
+          : null;
       case "selectedProvince":
       case "selectedDistrict":
       case "selectedWard":
@@ -236,18 +220,22 @@ export default function ProfileInfo() {
 
   const validateForm = () => {
     const newErrors = {};
-    ["fullname", "phone"].forEach((f) => {
+    ["username", "email", "fullname", "phone"].forEach((f) => {
       const err = validateField(f, formData[f]);
       if (err) newErrors[f] = err;
     });
     // Validate address fields
-    const addrFields = ["baseStreet", "selectedProvince", "selectedDistrict", "selectedWard"];
+    const addrFields = [
+      "baseStreet",
+      "selectedProvince",
+      "selectedDistrict",
+      "selectedWard",
+    ];
     addrFields.forEach((f) => {
       const err = validateField(f, addressData[f]);
       if (err) newErrors[f] = err;
     });
     setErrors(newErrors);
-    console.log("🔍 Validation errors:", newErrors); // Log validation
     return Object.keys(newErrors).length === 0;
   };
 
@@ -256,7 +244,10 @@ export default function ProfileInfo() {
     if (name.startsWith("address.")) {
       const addrKey = name.replace("address.", "");
       setAddressData({ ...addressData, [addrKey]: value });
-      setErrors((prev) => ({ ...prev, [addrKey]: validateField(addrKey, value) }));
+      setErrors((prev) => ({
+        ...prev,
+        [addrKey]: validateField(addrKey, value),
+      }));
     } else {
       setFormData({ ...formData, [name]: value });
       setErrors((prev) => ({ ...prev, [name]: validateField(name, value) }));
@@ -264,75 +255,67 @@ export default function ProfileInfo() {
   };
 
   const handleProvinceChange = (value) => {
-    console.log("🔄 Province changed to:", value);
-    setAddressData((prev) => ({ 
-      ...prev, 
+    setAddressData((prev) => ({
+      ...prev,
       selectedProvince: value ? parseInt(value) : "",
       selectedDistrict: "",
-      selectedWard: ""
+      selectedWard: "",
     })); // Reset districts/wards
   };
 
   const handleDistrictChange = (value) => {
-    console.log("🔄 District changed to:", value);
-    setAddressData((prev) => ({ 
-      ...prev, 
+    setAddressData((prev) => ({
+      ...prev,
       selectedDistrict: value ? parseInt(value) : "",
-      selectedWard: ""
+      selectedWard: "",
     })); // Reset wards
   };
 
   const handleWardChange = (value) => {
-    console.log("🔄 Ward changed to:", value);
-    setAddressData((prev) => ({ ...prev, selectedWard: value ? String(value) : "" }));
+    setAddressData((prev) => ({
+      ...prev,
+      selectedWard: value ? String(value) : "",
+    }));
   };
 
   // Fetch districts khi chọn province
   useEffect(() => {
     if (!addressData.selectedProvince) {
-      console.log("🧹 Reset districts because no province selected");
       setDistricts([]);
-      setAddressData((prev) => ({ ...prev, selectedDistrict: "", selectedWard: "" }));
+      setAddressData((prev) => ({
+        ...prev,
+        selectedDistrict: "",
+        selectedWard: "",
+      }));
       return;
     }
-    console.log("🔍 Fetching districts for province:", addressData.selectedProvince);
     axios
-      .get(buildApiUrl(`/api/address/districts/${addressData.selectedProvince}`))
+      .get(
+        buildApiUrl(`/api/address/districts/${addressData.selectedProvince}`)
+      )
       .then((res) => {
         if (res.data.success) {
-          console.log("✅ Districts fetched:", res.data.data?.length || 0, "items");
           setDistricts(res.data.data || []);
-        } else {
-          console.error("❌ Districts fetch failed:", res.data.message);
         }
       })
-      .catch((err) => {
-        console.error("❌ Districts fetch error:", err);
-      });
+      .catch((err) => {});
   }, [addressData.selectedProvince]);
 
   // Fetch wards khi chọn district
   useEffect(() => {
     if (!addressData.selectedDistrict) {
-      console.log("🧹 Reset wards because no district selected");
       setWards([]);
       setAddressData((prev) => ({ ...prev, selectedWard: "" }));
       return;
     }
-    console.log("🔍 Fetching wards for district:", addressData.selectedDistrict);
     axios
       .get(buildApiUrl(`/api/address/wards/${addressData.selectedDistrict}`))
       .then((res) => {
         if (res.data.success) {
-          console.log("✅ Wards fetched:", res.data.data?.length || 0, "items");
           setWards(res.data.data || []);
-        } else {
-          console.error("❌ Wards fetch failed:", res.data.message);
         }
       })
-      .catch((err) => {
-        console.error("❌ Wards fetch error:", err);
-      });
+      .catch((err) => {});
   }, [addressData.selectedDistrict]);
 
   // =====================
@@ -367,15 +350,12 @@ export default function ProfileInfo() {
     const wardName =
       wards.find((w) => String(w.WardCode) === selWard)?.WardName || "";
 
-    console.log("📤 Submitting address data:", {
-      baseStreet: addressData.baseStreet,
-      provinceName,
-      districtName,
-      wardName,
-    });
-
     if (!provinceName || !districtName || !wardName) {
-      Swal.fire("", "Vui lòng chọn đầy đủ tỉnh/thành, quận/huyện, phường/xã!", "error");
+      Swal.fire(
+        "",
+        "Vui lòng chọn đầy đủ tỉnh/thành, quận/huyện, phường/xã!",
+        "error"
+      );
       return;
     }
 
@@ -385,6 +365,8 @@ export default function ProfileInfo() {
 
       const fd = new FormData();
       fd.append("id", userState.Id);
+      fd.append("Username", formData.username);
+      fd.append("Email", formData.email);
       fd.append("FullName", formData.fullname);
       fd.append("Phone", formData.phone);
       fd.append("Address", addressData.baseStreet);
@@ -393,13 +375,9 @@ export default function ProfileInfo() {
       fd.append("Ward", wardName);
       if (avatarFile) fd.append("AvatarFile", avatarFile);
 
-      console.log("📤 Sending FormData to /api/profile/update");
-
       const res = await axios.post(buildApiUrl("/api/profile/update"), fd, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      console.log("📥 Update response:", res.data);
 
       if (res.data.success) {
         Swal.fire({
@@ -416,6 +394,8 @@ export default function ProfileInfo() {
         // Cập nhật userState local luôn
         const updatedUser = {
           ...userState,
+          Username: formData.username,
+          Email: formData.email,
           FullName: formData.fullname,
           Phone: formData.phone,
           Address: addressData.baseStreet,
@@ -425,17 +405,28 @@ export default function ProfileInfo() {
           AvatarUrl: res.data.data.avatarUrl || userState.AvatarUrl,
         };
         setUserState(updatedUser);
-        console.log("✅ User state updated locally:", updatedUser);
 
         // Reload selections để match với dữ liệu mới (nếu cần)
         await loadProvincesAndSetSelections(updatedUser);
       } else {
-        console.error("❌ Update failed:", res.data.message);
-        Swal.fire("", res.data.message || "Cập nhật thất bại", "error");
+        // Xử lý lỗi từ backend (validate hoặc trùng)
+        if (res.data.errors) {
+          // Nếu backend trả errors object, map vào setErrors (giả sử backend trả {field: msg})
+          setErrors(res.data.errors);
+          Swal.fire("", res.data.message || "Cập nhật thất bại", "error");
+        } else {
+          Swal.fire("", res.data.message || "Cập nhật thất bại", "error");
+        }
       }
     } catch (err) {
-      console.error("❌ UPDATE PROFILE ERROR:", err.response?.data || err);
-      Swal.fire("", "Không thể kết nối server!", "error");
+      if (err.response?.status === 409 || err.response?.status === 400) {
+        // Xử lý lỗi cụ thể từ backend (trùng hoặc validate)
+        const backendErrors = err.response.data.errors || {};
+        setErrors(backendErrors);
+        Swal.fire("", err.response.data.message || "Lỗi cập nhật", "error");
+      } else {
+        Swal.fire("", "Không thể kết nối server!", "error");
+      }
     }
   };
 
@@ -444,8 +435,9 @@ export default function ProfileInfo() {
   // =====================
   const handleCancel = () => {
     if (!userState) return;
-    console.log("🔄 Cancel: Resetting to original data");
     setFormData({
+      username: userState.Username || "",
+      email: userState.Email || "",
       fullname: userState.FullName || "",
       phone: userState.Phone || "",
     });
@@ -478,31 +470,36 @@ export default function ProfileInfo() {
         <img src={avatar} alt="Preview" width="120" className="mt-2 rounded" />
       </div>
 
-      {/* Username & Email read-only */}
+      {/* Username */}
       <div className="mb-3">
         <label>Username</label>
         <input
           type="text"
           className="form-control"
-          value={userState.Username || ""}
-          readOnly
+          name="username"
+          value={formData.username}
+          onChange={handleChange}
         />
+        {errors.username && <small className="text-danger">{errors.username}</small>}
       </div>
 
+      {/* Email */}
       <div className="mb-3">
         <label>Email</label>
         <input
           type="email"
           className="form-control"
-          value={userState.Email || ""}
-          readOnly
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
         />
+        {errors.email && <small className="text-danger">{errors.email}</small>}
       </div>
 
       {/* Fullname & Phone */}
       {["fullname", "phone"].map((f) => (
         <div className="mb-3" key={f}>
-          <label>{f.charAt(0).toUpperCase() + f.slice(1)}</label>
+          <label>{f === "fullname" ? "Họ tên" : "Số điện thoại"}</label>
           <input
             type="text"
             className="form-control"
@@ -517,7 +514,9 @@ export default function ProfileInfo() {
       {/* Address Section */}
       <div className="mb-3">
         <label>Địa chỉ giao hàng</label>
-        {loadingAddress && <small className="text-info">Đang tải địa chỉ...</small>}
+        {loadingAddress && (
+          <small className="text-info">Đang tải địa chỉ...</small>
+        )}
         <input
           type="text"
           className="form-control mb-2"
@@ -526,7 +525,9 @@ export default function ProfileInfo() {
           onChange={handleChange}
           placeholder="Số nhà, tên đường..."
         />
-        {errors.baseStreet && <small className="text-danger">{errors.baseStreet}</small>}
+        {errors.baseStreet && (
+          <small className="text-danger">{errors.baseStreet}</small>
+        )}
         <div className="d-flex gap-2 mb-2">
           <select
             className="form-control"
@@ -571,9 +572,13 @@ export default function ProfileInfo() {
             ))}
           </select>
         </div>
-        {(errors.selectedProvince || errors.selectedDistrict || errors.selectedWard) && (
+        {(errors.selectedProvince ||
+          errors.selectedDistrict ||
+          errors.selectedWard) && (
           <small className="text-danger">
-            {errors.selectedProvince || errors.selectedDistrict || errors.selectedWard}
+            {errors.selectedProvince ||
+              errors.selectedDistrict ||
+              errors.selectedWard}
           </small>
         )}
         <input
@@ -586,7 +591,11 @@ export default function ProfileInfo() {
       </div>
 
       <div className="d-flex gap-2">
-        <button type="submit" className="btn btn-primary" disabled={loadingAddress}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={loadingAddress}
+        >
           Cập nhật
         </button>
         <button

@@ -9,6 +9,9 @@ import { jwtDecode } from "jwt-decode";
 import CSPProvider from "./components/CSP/CSPProvider";
 import CSPDashboard from "./components/CSP/CSPDashboard";
 
+// ChatBot
+import ChatBot from "./components/ChatBot";
+
 // user pages
 import Home from "./pages/user/Home";
 import Login from "./pages/user/Login";
@@ -31,6 +34,8 @@ import Vouchers from "./pages/user/profile/Vouchers";
 import Notifications from "./pages/user/profile/Notifications";
 import Help from "./pages/user/profile/Help";
 import OrderDetail from "./pages/user/profile/OrderDetail";
+import ReturnOrder from "./pages/user/profile/ReturnOrder"; // ✅ THÊM: Trang trả hàng
+//import ReviewPopup from "./components/user/profile/ReviewPopup";
 
 import Stores from "./pages/user/StoresUser";
 import VnpayReturn from "./pages/user/VnpayReturn";
@@ -105,6 +110,7 @@ function App() {
 
   return (
     <CSPProvider>
+       <ChatBot />
       <Routes>
         {/* CSP Dashboard route */}
         <Route path="/csp-dashboard" element={<CSPDashboard />} />
@@ -165,6 +171,7 @@ function App() {
             <Route path="orders">
               <Route index element={<OrdersList />} />
               <Route path="orderdetail/:orderId" element={<OrderDetail />} />
+              <Route path="return-order/:orderId" element={<ReturnOrder />} /> {/* ✅ THÊM: Trang trả hàng */}
             </Route>{" "}
             {/* /profile/orders */}
             <Route path="vouchers" element={<Vouchers />} />{" "}

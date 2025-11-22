@@ -103,7 +103,9 @@ function Profile() {
             <li className={getActiveSection() === "vouchers" ? "active" : ""}>
               <Link to="/profile/vouchers">🎁 Vouchers</Link>
             </li>
-            <li className={getActiveSection() === "notifications" ? "active" : ""}>
+            <li
+              className={getActiveSection() === "notifications" ? "active" : ""}
+            >
               <Link to="/profile/notifications">🔔 Notifications</Link>
             </li>
             <li className={getActiveSection() === "help" ? "active" : ""}>
@@ -114,7 +116,8 @@ function Profile() {
 
         {/* Nội dung chính - Sử dụng Outlet để render route con */}
         <div className="profile-content">
-          <Outlet context={{ userState, apiFetch, avatar, setAvatar }} /> {/* Pass context nếu cần cho con */}
+          <Outlet context={{ userState, apiFetch, avatar, setAvatar }} />{" "}
+          {/* Pass context nếu cần cho con */}
         </div>
       </div>
     </div>

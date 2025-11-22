@@ -25,11 +25,11 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 // Create a nodemailer transport using environment variables
 function createTransport() {
   console.log("🔧 createTransport STARTED");
-  // Check for Gmail configuration first (most common for dev)
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_PASS;
+  // ✅ Check for Gmail configuration - support both GMAIL_USER and EMAIL_USER
+  const gmailUser = process.env.GMAIL_USER || process.env.EMAIL_USER;
+  const gmailPass = process.env.GMAIL_PASS || process.env.EMAIL_PASS;
   console.log("🔧 Gmail config check:", {
-    user: gmailUser ? "SET" : "NOT_SET",
+    user: gmailUser ? "SET (" + gmailUser.substring(0, 5) + "***)" : "NOT_SET",
     pass: gmailPass ? "SET" : "NOT_SET",
   });
 
@@ -37,14 +37,20 @@ function createTransport() {
     console.log("✅ Using Gmail SMTP:", gmailUser);
     try {
       const transport = nodemailer.createTransport({
-        service: "gmail",
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
         auth: {
           user: gmailUser,
           pass: gmailPass,
         },
-        connectionTimeout: 10000, // 10s timeout
-        greetingTimeout: 5000, // 5s timeout
-        socketTimeout: 10000, // 10s timeout
+        connectionTimeout: 30000, // Tăng timeout lên 30s
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+        tls: {
+          rejectUnauthorized: false,
+        },
+        pool: true,
       });
       console.log("✅ Gmail transport created successfully");
       return transport;
@@ -98,7 +104,10 @@ async function sendVerificationEmail(toEmail, token, username) {
   )}`;
 
   const fromEmail =
-    process.env.GMAIL_USER || process.env.SMTP_FROM || "noreply@sulicoffee.vn";
+    process.env.GMAIL_USER ||
+    process.env.EMAIL_USER ||
+    process.env.SMTP_FROM ||
+    "noreply@sulicoffee.vn";
 
   const mailOptions = {
     from: `"SuLi Coffee" <${fromEmail}>`,
@@ -365,7 +374,9 @@ exports.login = async (req, res) => {
     if (!user)
       return res.status(401).json({
         success: false,
-        errors: [errObj(null, "Username/Email hoặc mật khẩu không đúng.")],
+        message: "Tên đăng nhập không tồn tại",
+        errorType: "username",
+        errors: [errObj("identifier", "Tên đăng nhập không tồn tại")],
       });
 
     // So khớp mật khẩu
@@ -378,7 +389,9 @@ exports.login = async (req, res) => {
     if (!ok)
       return res.status(401).json({
         success: false,
-        errors: [errObj(null, "Username/Email hoặc mật khẩu không đúng.")],
+        message: "Mật khẩu không đúng",
+        errorType: "password",
+        errors: [errObj("password", "Mật khẩu không đúng")],
       });
 
     // Nếu mật khẩu lưu dạng plain text, hash lại

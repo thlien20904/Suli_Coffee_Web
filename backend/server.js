@@ -223,7 +223,9 @@ const invoiceRouter = require("./routes/admin/invoice");
 const orderAdminRouter = require("./routes/admin/order");
 const reportRouter = require("./routes/admin/report");
 const voucherRouter = require("./routes/admin/voucher");
+
 const webhooksRouter = require("./routes/webhooks");
+const chatbotRouter = require("./routes/shared/chatbot");
 
 // Mount user routes
 app.use("/api/auth", authRouter);
@@ -236,6 +238,9 @@ app.use("/api/addresses", addressesUserRouter);
 app.use("/api/home", homeRouter);
 app.use("/api/address", addressRouter);
 app.use("/api/password", passwordRouter);
+
+// Mount chatbot routes (shared between user and admin)
+app.use("/api/chatbot", chatbotRouter);
 
 // Mount admin routes
 app.use("/api/admin/home", homeAdminRouter);
