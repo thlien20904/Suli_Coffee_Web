@@ -1,7 +1,6 @@
 // controllers/user/profile/voucher.js
 const { Vouchers, UserVouchers, Op, Sequelize } = require("./config");
 
-
 // =========================
 // 📌 LẤY DANH SÁCH VOUCHER ĐANG HOẠT ĐỘNG (Giữ nguyên)
 // =========================
@@ -186,13 +185,16 @@ const applyVoucher = async (req, res) => {
         .json({ success: false, message: "Voucher đã được sử dụng" });
     }
 
-    // Kiểm tra subtotal
-    // Kiểm tra subtotal
+    // Format số tiền cho thông báo lỗi
+    const formatCurrency = (value) => {
+      if (!value || isNaN(value)) return "0";
+      return Math.round(Number(value)).toLocaleString("vi-VN");
+    };
     if (voucher.MinOrderAmount && subtotal < voucher.MinOrderAmount) {
       return res.status(400).json({
         success: false,
-        message: `Đơn hàng phải >= ${voucher.MinOrderAmount.toLocaleString(
-          "vi-VN"
+        message: `Đơn hàng phải >= ${formatCurrency(
+          voucher.MinOrderAmount
         )} ₫ để áp dụng voucher`,
       });
     }
