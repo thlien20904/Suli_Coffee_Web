@@ -608,7 +608,7 @@ VALUES
     ('Giao hàng thành công'),
     ('Đã hủy');
 
-select *from "OrderStatus";
+select *from "PaymentStatus";
 -- 18. Bảng PaymentStatus
 INSERT INTO "PaymentStatus" ("PaymentStatusName")
 VALUES
@@ -728,9 +728,48 @@ VALUES
 -- UPDATE "Orders" SET "Province" = 'TP Hồ Chí Minh' WHERE "Province" = 'Hồ Chí Minh';
 -- UPDATE "DeliveryAddresses" SET "Province" = 'TP Hồ Chí Minh' WHERE "Province" = 'Hồ Chí Minh';
 -- UPDATE "Users" SET "Province" = 'TP Hồ Chí Minh' WHERE "Province" = 'Hồ Chí Minh';
+-- ===============================
+-- Bảng OrderReviews - đánh giá từng món hàng
+-- ===============================
+CREATE TABLE "OrderReviews" (
+    "ReviewId" SERIAL PRIMARY KEY,
+    "OrderId" INT NOT NULL,
+    "OrderDetailId" INT NOT NULL,       -- đánh giá từng món
+    "UserId" INT NOT NULL,
+    "Rating" SMALLINT NOT NULL CHECK ("Rating" >= 1 AND "Rating" <= 5),
+    "Comment" TEXT,
+    "Images" JSONB,                     -- Mảng URL ảnh
+    "Videos" JSONB,                     -- Mảng URL video
+    "CreatedDate" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "UpdatedDate" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
+    -- Khóa ngoại
+    CONSTRAINT "fk_order" FOREIGN KEY ("OrderId") REFERENCES "Orders"("OrderId") ON DELETE CASCADE,
+    CONSTRAINT "fk_orderdetail" FOREIGN KEY ("OrderDetailId") REFERENCES "OrderDetails"("OrderDetailId") ON DELETE CASCADE,
+    CONSTRAINT "fk_user" FOREIGN KEY ("UserId") REFERENCES "Users"("Id") ON DELETE CASCADE
+);
+
+-- Index để truy vấn nhanh theo OrderId và OrderDetailId
+CREATE INDEX "idx_orderreviews_orderid" ON "OrderReviews"("OrderId");
+CREATE INDEX "idx_orderreviews_orderdetailid" ON "OrderReviews"("OrderDetailId");
+
+
+
+ALTER TABLE "Orders" 
+ADD COLUMN "ShippingFee" DECIMAL(18, 3) DEFAULT 0 NOT NULL,
+ADD COLUMN "DiscountAmount" DECIMAL(18, 3) DEFAULT 0 NOT NULL;
 
 -- Kiểm tra Users có data không
 select *from "CuaHang";
 
 SELECT * FROM "OrderStatus" WHERE "StatusName" = 'Đã hủy';
+SELECT * FROM "CuaHang" LIMIT 1;
+
+select *from "Users" 
+select *from "PaymentStatus";
+select *from "PhuongThucThanhToan";
+select *from "Orders";
+select *from "OrderDetails";
+select *from "Vouchers";
+DELETE FROM "Users"
+WHERE "Id" IN (15);
