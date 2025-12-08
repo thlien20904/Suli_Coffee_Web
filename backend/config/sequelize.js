@@ -25,7 +25,7 @@ const sequelize = new Sequelize(
           ? { require: true, rejectUnauthorized: false }
           : false,
     },
-    timezone: "+07:00",
+    timezone: "+00:00",
     pool: {
       max: 3, // Giảm xuống 3 để tránh vượt giới hạn Supabase
       min: 1, // Giữ ít nhất 1 connection
